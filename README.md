@@ -76,8 +76,7 @@ pip install -r requirements.txt
 
 ### Live Demo
 
-- Frontend: [Add your live link here]
-- Backend API: [Add your API link here]
+- Click Here...!: [Live Demo](https://formatting-tool-frontend.onrender.com)
 
 Screenshots
 
