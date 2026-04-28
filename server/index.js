@@ -11,7 +11,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// uploads aur outputs folders automatically banao
+// uploads aur outputs folders automatically banao so that i can track my data
 if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
 if (!fs.existsSync('outputs')) fs.mkdirSync('outputs');
 
@@ -32,7 +32,7 @@ app.post('/format', upload.single('file'), (req, res) => {
   const optionsFile = path.resolve('uploads', uuidv4() + '_options.json');
   fs.writeFileSync(optionsFile, options);
 
-  const command = `python3 "${path.join(__dirname, 'formatter.py')}" "${inputPath}" "${outputPath}" "${docType}" "${optionsFile}"`;
+  const command = `python "${path.join(__dirname, 'formatter.py')}" "${inputPath}" "${outputPath}" "${docType}" "${optionsFile}"`;
 
   console.log('Running command:', command);
 
