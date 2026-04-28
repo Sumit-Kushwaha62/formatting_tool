@@ -107,7 +107,8 @@ export default function App() {
     fd.append('docType', selectedType);
     fd.append('options', JSON.stringify(formData));
     try {
-      const res = await axios.post('http://localhost:5000/format', fd, { responseType: 'blob' });
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const res = await axios.post(`${API_URL}/format`, fd, { responseType: 'blob' });
       const url = URL.createObjectURL(new Blob([res.data]));
       setDownloadUrl(url);
       setStatus('done');
