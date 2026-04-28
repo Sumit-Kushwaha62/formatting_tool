@@ -10,6 +10,7 @@ A full-stack web application that allows users to upload documents and automatic
 - Real-time processing via backend API
 - File handling (uploads & outputs management)
 - Tech Stack
+```
     >>Frontend:
         - React.js
         - Tailwind
@@ -18,9 +19,10 @@ A full-stack web application that allows users to upload documents and automatic
         - Node.js
         - Express.js
         - python (formatter.py)
+```
 
 ### Project Structure
-`
+```
 formatting_tool/
 │
 ├── client/          # React frontend
@@ -34,38 +36,38 @@ formatting_tool/
 │   ├── index.js     # Server entry point
 │
 └── README.md
-`
+```
 
 ### Installation & Setup
 
 1️⃣ Clone the Repository
-`
-git clone <YOUR_REPO_LINK>
+```
+git clone https://github.com/Sumit-Kushwaha62/formatting_tool
 cd formatting_tool
-`
+```
 
 2️⃣ Setup Frontend
-`
+```
 cd client
 npm install
 npm run dev
-`
+```
 3️⃣ Setup Backend
-`
+```
 cd server
 npm install
 node index.js
-`
+```
 4️⃣ Python Setup - Make sure Python is installed:
 
-`
+```
 python --version
 
 Install required dependencies
-`
+
 
 pip install -r requirements.txt
-
+```
 ### Usage
 - Open frontend in browser
 - Upload a document
