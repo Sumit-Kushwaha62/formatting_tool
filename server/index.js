@@ -1,10 +1,3 @@
-
-
-// const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
-
-
 const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
@@ -36,11 +29,10 @@ app.post('/format', upload.single('file'), (req, res) => {
   const docType = req.body.docType || 'book';
   const options = req.body.options || '{}';
 
-  // Options ko temp JSON file mein save karo (special chars se bachne ke liye)
   const optionsFile = path.resolve('uploads', uuidv4() + '_options.json');
   fs.writeFileSync(optionsFile, options);
 
-  const command = `python "${path.join(__dirname, 'formatter.py')}" "${inputPath}" "${outputPath}" "${docType}" "${optionsFile}"`;
+  const command = `python3 "${path.join(__dirname, 'formatter.py')}" "${inputPath}" "${outputPath}" "${docType}" "${optionsFile}"`;
 
   console.log('Running command:', command);
 
@@ -49,7 +41,6 @@ app.post('/format', upload.single('file'), (req, res) => {
     console.log('STDERR:', stderr);
     console.log('ERROR:', err);
 
-    // Temp options file delete karo
     if (fs.existsSync(optionsFile)) fs.unlinkSync(optionsFile);
 
     if (err) {
@@ -57,7 +48,6 @@ app.post('/format', upload.single('file'), (req, res) => {
     }
     res.download(outputPath, 'formatted_document.docx', (dlErr) => {
       if (dlErr) console.log('Download error:', dlErr);
-      // Output file delete karo download ke baad
       if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
     });
   });
@@ -65,5 +55,3 @@ app.post('/format', upload.single('file'), (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
-
