@@ -98,6 +98,12 @@ def preprocess_document(doc):
 # HELPERS
 # ═══════════════════════════
 
+KRUTIDEV_FONTS = {'Kruti Dev 010', 'Kruti Dev 011', 'Krutidev010', 'Krutidev011',
+                  'KrutiDev010', 'KrutiDev011', 'Kruti Dev010', 'Kruti Dev011'}
+
+def is_krutidev(font_name):
+    return font_name and any(k.lower() in font_name.lower() for k in ['kruti', 'krutidev'])
+
 def set_font_properly(run, font_name):
     run.font.name = font_name
     r = run._element
@@ -107,7 +113,7 @@ def set_font_properly(run, font_name):
         rFonts.set(qn(f'w:{attr}'), font_name)
 
 def set_para_font(para, font_name):
-    """Also set font at paragraph-level rPr (applies as default for all runs)."""
+    """Set font at paragraph-level rPr. Skip cs override for KrutiDev fonts."""
     pPr = para._p.get_or_add_pPr()
     rPr = pPr.find(qn('w:rPr'))
     if rPr is None:
@@ -117,7 +123,8 @@ def set_para_font(para, font_name):
     if rFonts is None:
         rFonts = OxmlElement('w:rFonts')
         rPr.insert(0, rFonts)
-    for attr in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
+    attrs = ['ascii', 'hAnsi', 'eastAsia', 'cs']
+    for attr in attrs:
         rFonts.set(qn(f'w:{attr}'), font_name)
 
 def add_run_with_font(para, text, font_name, size_pt, bold=False, color=None):
@@ -281,13 +288,16 @@ def apply_clean_justify(para):
 def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, align,
                            space_before_pt, space_after_pt, first_indent=None):
     """Apply all formatting to a paragraph — both run-level and pPr-level."""
-    # pPr-level font + size (paragraph default — overrides inherited styles)
-    set_para_font(para, font_name)
-    clear_pPr_sz(para)
-    set_pPr_sz(para, int(font_size_pt * 2))  # Word uses half-points
+    # For KrutiDev (legacy Hindi), don't override fonts — only apply spacing/alignment
+    krutidev_mode = is_krutidev(font_name)
+
+    if not krutidev_mode:
+        set_para_font(para, font_name)
+        clear_pPr_sz(para)
+        set_pPr_sz(para, int(font_size_pt * 2))
 
     # Spacing
-    para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
+    para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
     para.paragraph_format.space_before = Pt(space_before_pt)
     para.paragraph_format.space_after  = Pt(space_after_pt)
     if first_indent is not None:
@@ -298,12 +308,23 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
     # Alignment
     para.alignment = align
 
-    # Run-level (individual runs)
+    # Run-level
     for run in para.runs:
-        run.bold = bold
-        set_font_properly(run, font_name)
-        run.font.size = Pt(font_size_pt)
-        run.font.color.rgb = color
+        if krutidev_mode:
+            # Preserve run's original font — only fix cs attribute to match ascii/hAnsi
+            r = run._element
+            rPr = r.get_or_add_rPr()
+            rFonts = rPr.find(qn('w:rFonts'))
+            if rFonts is not None:
+                orig = rFonts.get(qn('w:ascii')) or rFonts.get(qn('w:hAnsi'))
+                if orig and is_krutidev(orig):
+                    # Set cs = same as ascii so Word uses KrutiDev not Arial Unicode
+                    rFonts.set(qn('w:cs'), orig)
+        else:
+            run.bold = bold
+            set_font_properly(run, font_name)
+            run.font.size = Pt(font_size_pt)
+            run.font.color.rgb = color
 
 # ═══════════════════════════
 # MAIN
@@ -324,9 +345,10 @@ def format_document(input_file, output_file, opts):
     for section in doc.sections:
         section.page_width   = page_w
         section.page_height  = page_h
-        section.top_margin    = section.bottom_margin = Inches(0.8)
-        section.left_margin   = Inches(1.3)
-        section.right_margin  = Inches(0.7)
+        section.top_margin    = Inches(1.0)
+        section.bottom_margin = Inches(1.0)
+        section.left_margin   = Inches(1.0)
+        section.right_margin  = Inches(1.0)
 
     # 3. Title page
     insert_title_page(doc, opts, font_name)
@@ -374,7 +396,7 @@ def format_document(input_file, output_file, opts):
             apply_para_formatting(para, etype, font_name,
                 font_size_pt=12, bold=False, color=black,
                 align=para.alignment,  # already set by apply_clean_justify
-                space_before_pt=0, space_after_pt=8,
+                space_before_pt=0, space_after_pt=2,
                 first_indent=Inches(0.3) if use_indent else None)
 
     # 5. Headers & Footers
@@ -382,6 +404,11 @@ def format_document(input_file, output_file, opts):
     footer_text  = opts.get('footer', '').strip()
     page_numbers = opts.get('page_numbers', False)
     page_num_pos = opts.get('page_number_position', 'center')
+    start_page   = opts.get('start_page_number', 1)
+    try:
+        start_page = int(start_page)
+    except (ValueError, TypeError):
+        start_page = 1
     ALIGN_MAP = {
         'left':   WD_ALIGN_PARAGRAPH.LEFT,
         'center': WD_ALIGN_PARAGRAPH.CENTER,
@@ -390,6 +417,15 @@ def format_document(input_file, output_file, opts):
     num_align = ALIGN_MAP.get(page_num_pos, WD_ALIGN_PARAGRAPH.CENTER)
 
     for section in doc.sections:
+        # Set start page number
+        if page_numbers and start_page != 1:
+            sectPr = section._sectPr
+            pgNumType = sectPr.find(qn('w:pgNumType'))
+            if pgNumType is None:
+                pgNumType = OxmlElement('w:pgNumType')
+                sectPr.append(pgNumType)
+            pgNumType.set(qn('w:start'), str(start_page))
+
         if header_text:
             hdr_para = section.header.paragraphs[0]
             hdr_para.clear()
@@ -412,6 +448,12 @@ def format_document(input_file, output_file, opts):
             r.font.color.rgb = gray
 
         if page_numbers:
+            
+
+
+
+
+
             pn_para = ftr.add_paragraph()
             pn_para.alignment = num_align
             r1 = pn_para.add_run()
@@ -421,17 +463,27 @@ def format_document(input_file, output_file, opts):
             add_fld_char(r1, 'begin')
             add_instr_text(r1, ' PAGE ')
             add_fld_char(r1, 'end')
-            r2 = pn_para.add_run(' / ')
-            set_font_properly(r2, font_name)
-            r2.font.size = Pt(9)
-            r2.font.color.rgb = gray
-            r3 = pn_para.add_run()
-            set_font_properly(r3, font_name)
-            r3.font.size = Pt(9)
-            r3.font.color.rgb = gray
-            add_fld_char(r3, 'begin')
-            add_instr_text(r3, ' NUMPAGES ')
-            add_fld_char(r3, 'end')
+
+
+
+            # r1 = pn_para.add_run()
+            # set_font_properly(r1, font_name)
+            # r1.font.size = Pt(9)
+            # r1.font.color.rgb = gray
+            # add_fld_char(r1, 'begin')
+            # add_instr_text(r1, ' PAGE ')
+            # add_fld_char(r1, 'end')
+            # r2 = pn_para.add_run(' / ')
+            # set_font_properly(r2, font_name)
+            # r2.font.size = Pt(9)
+            # r2.font.color.rgb = gray
+            # r3 = pn_para.add_run()
+            # set_font_properly(r3, font_name)
+            # r3.font.size = Pt(9)
+            # r3.font.color.rgb = gray
+            # add_fld_char(r3, 'begin')
+            # add_instr_text(r3, ' NUMPAGES ')
+            # add_fld_char(r3, 'end')
 
     doc.save(output_file)
 
@@ -449,3 +501,49 @@ if __name__ == '__main__':
 
     format_document(in_p, out_p, options)
     print(f'Success: {out_p}')
+
+
+
+
+"""
+
+ye kuch pdfs aur app.jsx aur fomatter.py ke code ko dekho aur file fix ke dedo 
+- A4 size achhe se impliment nhi ho rha hai left aur right side me jo margin use ho rha hai vo different hai to jo original A4
+hota hai usse impliment kro abhi jo pdf share kiya hai usse refference le lo 
+
+- ek yesa feature chahiye ui pr jaha se user start page number ko select kr paye aur default one se hi start ho jaisa hota hai 
+
+- jab do line likhi ho to unn dono ke beech mai kaafi saara gap aa ja rha hai current pdf se refferece le kr usse bhi fix kro
+
+- aur most important hindi wale pdf ko dekho uss se refference lo, yaha pr jab bhi hindi file ko formate kr rhe hai to vo 
+krutidev font me nhi de rha hai output vo kuch aur hi ho ja rha hai 
+
+- apne level pr bhi tum implimention ko test kr ke dekh sakte ho 
+
+
+
+
+correction report:
+>>> What i have updated yet-
+
+1. now you'll get a starting page feature
+2. line gap setuped according to pdf jo aapne share kiya tha
+3. A4 size algorithm updated
+4. krutidev converter model update with MS doc
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""

@@ -431,6 +431,19 @@ export default function App() {
                         </div>
                       ))}
                     </div>
+                    <div style={{marginTop:'14px'}}>
+                      <div className="field-label" style={{marginBottom:'6px'}}>Start Page Number <span className="optional-tag">Default: 1</span></div>
+                      <input
+                        className="field-input"
+                        type="number"
+                        min="1"
+                        max="999"
+                        placeholder="e.g. 1"
+                        value={formData.start_page_number || ''}
+                        onChange={e => handleFieldChange('start_page_number', e.target.value)}
+                        style={{width:'120px'}}
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -557,9 +570,4 @@ export default function App() {
 
 
 
-/* 
 
-ye files dekho yaha pr footer text, book title , authours name, edition, publisher website, ISBN no. ye sab docx file ke uppar print 
-nhi ho rha hai isse fix kro, saath hi yaha pr ye kahi-kahi sahi se formatting nhi kr pa rha hai to isse bhi fix kro mai images bhi  
-
-*/
