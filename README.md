@@ -1,4 +1,4 @@
-## Formatting Tool 
+## Formatting Studio 
 
 A full-stack web application that allows users to upload documents and automatically format them based on predefined rules. This tool is designed to simplify document formatting workflows using a combination of React (frontend), Node.js (backend), and Python processing scripts.
 

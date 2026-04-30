@@ -86,6 +86,32 @@ const PAGE_SIZES = [
   { value: 'Legal',  label: 'Legal',  desc: '216×356mm' },
 ];
 
+const ALIGNMENTS = [
+  { value: 'left',    label: 'Left',    icon: '⬛◻◻' },
+  { value: 'center',  label: 'Center',  icon: '◻⬛◻' },
+  { value: 'right',   label: 'Right',   icon: '◻◻⬛' },
+  { value: 'justify', label: 'Justify', icon: '▬▬▬' },
+];
+
+// MS Word style word spacing (character spacing in pt)
+const WORD_SPACINGS = [
+  { value: 'normal', label: 'Normal', desc: '0 pt — default' },
+  { value: '0.5',    label: '0.5 pt', desc: 'Slightly wider' },
+  { value: '1.0',    label: '1.0 pt', desc: 'Wide' },
+  { value: '1.5',    label: '1.5 pt', desc: 'Wider' },
+  { value: '2.0',    label: '2.0 pt', desc: 'Extra wide' },
+];
+
+// MS Word style line spacing
+const LINE_SPACINGS = [
+  { value: '1.0',  label: 'Single',  desc: '1.0' },
+  { value: '1.15', label: '1.15',    desc: 'Compact' },
+  { value: '1.2',  label: '1.2',     desc: 'Book style' },
+  { value: '1.5',  label: '1.5',     desc: 'One & Half' },
+  { value: '2.0',  label: 'Double',  desc: '2.0' },
+  { value: '2.5',  label: '2.5',     desc: 'Extra' },
+];
+
 const PAGE_NUM_POSITIONS = [
   { value: 'left',   label: 'Left' },
   { value: 'center', label: 'Center' },
@@ -101,11 +127,7 @@ export default function App() {
   const [downloadUrl, setDownloadUrl] = useState(null);
 
   const currentType = DOC_TYPES.find(t => t.id === selectedType);
-  const handleTypeSelect = (id) => { 
-    setSelectedType(id); 
-    setFormData({}); 
-    setStep(2); 
-  };
+  const handleTypeSelect = (id) => { setSelectedType(id); setFormData({}); setStep(2); };
   const handleFieldChange = (key, value) => setFormData(prev => ({ ...prev, [key]: value }));
   const handleToggle = (key) => setFormData(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -402,6 +424,58 @@ export default function App() {
                 </div>
               </div>
 
+              {/* 3. Alignment */}
+              <div className="format-section green">
+                <div className="format-section-title">⬛ Text Alignment</div>
+                <div className="align-grid">
+                  {ALIGNMENTS.map(a=>(
+                    <div key={a.value} className={`sel-card green ${formData.alignment===a.value?'selected':''}`} onClick={()=>handleFieldChange('alignment',a.value)}>
+                      <div style={{fontSize:'1rem',marginBottom:'5px'}}>{a.icon}</div>
+                      <div className="sel-card-label">{a.label}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{marginTop:'10px',fontSize:'.75rem',fontWeight:500,color:formData.alignment?'#15803D':'#9CA3AF'}}>
+                  {formData.alignment?`✓ Selected: ${formData.alignment.charAt(0).toUpperCase()+formData.alignment.slice(1)}`:'Default: Justify'}
+                </div>
+              </div>
+
+              {/* 4. Word Spacing — MS Word style (character spacing in pt) */}
+              <div className="format-section orange">
+                <div className="format-section-title">↔ Word Spacing <span style={{fontWeight:400,textTransform:'none',fontSize:'.7rem',letterSpacing:0}}>(Character spacing — like MS Word)</span></div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'10px'}}>
+                  {WORD_SPACINGS.map(ws=>(
+                    <div key={ws.value} className={`sel-card orange ${formData.word_spacing===ws.value?'selected':''}`} onClick={()=>handleFieldChange('word_spacing',ws.value)}>
+                      <div className="sel-card-label">{ws.label}</div>
+                      <div className="sel-card-desc">{ws.desc}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{marginTop:'10px',fontSize:'.75rem',fontWeight:500,color:formData.word_spacing?'#C2410C':'#9CA3AF'}}>
+                  {formData.word_spacing?`✓ Selected: ${formData.word_spacing}`:'Default: Normal (0 pt)'}
+                </div>
+              </div>
+
+              {/* 4b. Line Spacing — MS Word numeric style */}
+              <div className="format-section" style={{background:'#F5F0FF',border:'1.5px solid #D8C8FF',borderRadius:'12px',padding:'20px 24px',marginBottom:'16px'}}>
+                <div className="format-section-title" style={{color:'#6D28D9'}}>↕ Line Spacing <span style={{fontWeight:400,textTransform:'none',fontSize:'.7rem',letterSpacing:0}}>(MS Word style — 1.0 to 2.5)</span></div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:'10px'}}>
+                  {LINE_SPACINGS.map(ls=>(
+                    <div key={ls.value}
+                      style={{border:`1.5px solid ${formData.line_spacing===ls.value?'#6D28D9':'#E5E7EB'}`,
+                              background:formData.line_spacing===ls.value?'#EDE9FE':'#fff',
+                              borderRadius:'10px',padding:'12px 10px',cursor:'pointer',textAlign:'center',transition:'all .15s'}}
+                      onClick={()=>handleFieldChange('line_spacing',ls.value)}>
+                      <div style={{fontSize:'.9rem',fontWeight:700,color:formData.line_spacing===ls.value?'#6D28D9':'#111827',marginBottom:'3px'}}>{ls.label}</div>
+                      <div style={{fontSize:'.68rem',color:'#9CA3AF'}}>{ls.desc}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{marginTop:'10px',fontSize:'.75rem',fontWeight:500,color:formData.line_spacing?'#6D28D9':'#9CA3AF'}}>
+                  {formData.line_spacing?`✓ Selected: ${formData.line_spacing}`:'Default: 1.5'}
+                </div>
+              </div>
+
               {/* 5. Page Numbers + Header/Footer */}
               <div className="format-section teal">
                 <div className="format-section-title">📄 Page Numbers & Layout</div>
@@ -554,12 +628,3 @@ export default function App() {
     </div>
   );
 }
-
-
-
-/* 
-
-ye files dekho yaha pr footer text, book title , authours name, edition, publisher website, ISBN no. ye sab docx file ke uppar print 
-nhi ho rha hai isse fix kro, saath hi yaha pr ye kahi-kahi sahi se formatting nhi kr pa rha hai to isse bhi fix kro mai images bhi  
-
-*/

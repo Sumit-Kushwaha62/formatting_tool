@@ -25,25 +25,29 @@ app.post('/format', upload.single('file'), (req, res) => {
   const inputPath = path.resolve(req.file.path);
   const outputName = uuidv4() + '_formatted.docx';
   const outputPath = path.resolve('outputs', outputName);
+
   const docType = req.body.docType || 'book';
   const options = req.body.options || '{}';
 
   const optionsFile = path.resolve('uploads', uuidv4() + '_options.json');
   fs.writeFileSync(optionsFile, options);
 
-  // Direct Power-Logic Formatting (No AI Dependency)
-  const formatCommand = `python "${path.join(__dirname, 'formatter.py')}" "${inputPath}" "${outputPath}" "${docType}" "${optionsFile}"`;
+  const command = `python "${path.join(__dirname, 'formatter.py')}" "${inputPath}" "${outputPath}" "${docType}" "${optionsFile}"`;
 
-  console.log('Running High-Speed Formatter:', formatCommand);
+  console.log('Running command:', command);
 
-  exec(formatCommand, (fErr, fStdout, fStderr) => {
+  exec(command, (err, stdout, stderr) => {
+    console.log('STDOUT:', stdout);
+    console.log('STDERR:', stderr);
+    console.log('ERROR:', err);
+
     if (fs.existsSync(optionsFile)) fs.unlinkSync(optionsFile);
 
-    if (fErr) {
-      console.error('Format Error:', fStderr);
-      return res.status(500).json({ error: 'Formatting failed' });
+    if (err) {
+      return res.status(500).json({ error: 'Formatting failed', details: stderr });
     }
     res.download(outputPath, 'formatted_document.docx', (dlErr) => {
+      if (dlErr) console.log('Download error:', dlErr);
       if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
     });
   });
