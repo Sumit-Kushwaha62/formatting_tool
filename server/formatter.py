@@ -37,29 +37,82 @@ def is_bullet_para(para):
         return False
     return pPr.find(qn('w:numPr')) is not None
 
+def apply_bold_before_colon(para, font_name, krutidev_mode):
+    """If para has 'Label: rest' pattern, make text before ':' bold, rest normal."""
+    text = para.text
+    # Only apply if exactly one colon exists and label part is short
+    colon_idx = text.find(': ')
+    if colon_idx <= 0 or colon_idx > 60:
+        return  # no colon or label too long — skip
+
+    label = text[:colon_idx + 1]   # includes ':'
+    rest  = text[colon_idx + 1:]   # starts with ' '
+
+    # Clear all existing runs, rebuild with bold+normal split
+    # Collect formatting from first run (size, color) before clearing
+    first_run = para.runs[0] if para.runs else None
+    size_pt = None
+    color   = None
+    if first_run:
+        size_pt = first_run.font.size
+        try:
+            color = first_run.font.color.rgb
+        except Exception:
+            color = None
+
+    for run in list(para.runs):
+        run._r.getparent().remove(run._r)
+
+    # Bold run: label
+    r_bold = para.add_run(label)
+    r_bold.bold = True
+    if not krutidev_mode:
+        set_font_properly(r_bold, font_name)
+        if size_pt:
+            r_bold.font.size = size_pt
+        if color:
+            r_bold.font.color.rgb = color
+
+    # Normal run: rest
+    r_rest = para.add_run(rest)
+    r_rest.bold = False
+    if not krutidev_mode:
+        set_font_properly(r_rest, font_name)
+        if size_pt:
+            r_rest.font.size = size_pt
+        if color:
+            r_rest.font.color.rgb = color
+
+# def merge_split_paragraphs(doc):
+#     paras = doc.paragraphs
+#     merge_indices = []
+#     i = 0
+#     while i < len(paras) - 1:
+#         p1 = paras[i]
+#         p2 = paras[i + 1]
+#         t1 = p1.text.strip()
+#         t2 = p2.text.strip()
+#         if t1 and t2:
+#             b1 = is_all_bold(p1)
+#             b2 = is_all_bold(p2)
+#             if b1 == b2 and t1[-1].isalpha() and t2[0].islower():
+#                 merge_indices.append(i)
+#                 i += 2
+#                 continue
+#         i += 1
+#     for idx in reversed(merge_indices):
+#         p1 = doc.paragraphs[idx]
+#         p2 = doc.paragraphs[idx + 1]
+#         for run in p2.runs:
+#             p1._p.append(run._r)
+#         p2._element.getparent().remove(p2._element)
+
+
 def merge_split_paragraphs(doc):
-    paras = doc.paragraphs
-    merge_indices = []
-    i = 0
-    while i < len(paras) - 1:
-        p1 = paras[i]
-        p2 = paras[i + 1]
-        t1 = p1.text.strip()
-        t2 = p2.text.strip()
-        if t1 and t2:
-            b1 = is_all_bold(p1)
-            b2 = is_all_bold(p2)
-            if b1 == b2 and t1[-1].isalpha() and t2[0].islower():
-                merge_indices.append(i)
-                i += 2
-                continue
-        i += 1
-    for idx in reversed(merge_indices):
-        p1 = doc.paragraphs[idx]
-        p2 = doc.paragraphs[idx + 1]
-        for run in p2.runs:
-            p1._p.append(run._r)
-        p2._element.getparent().remove(p2._element)
+    pass  # Disabled — causes duplicate rendering with mixed fonts
+
+
+
 
 def clear_pPr_sz(para):
     """Remove any font size override from paragraph-level rPr (pPr > rPr > sz).
@@ -330,6 +383,21 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
 # MAIN
 # ═══════════════════════════
 
+def center_all_tables(doc):
+    """Center-align every table on the page."""
+    from docx.oxml.ns import qn
+    for table in doc.tables:
+        tbl = table._tbl
+        tblPr = tbl.find(qn('w:tblPr'))
+        if tblPr is None:
+            tblPr = OxmlElement('w:tblPr')
+            tbl.insert(0, tblPr)
+        jc = tblPr.find(qn('w:jc'))
+        if jc is None:
+            jc = OxmlElement('w:jc')
+            tblPr.append(jc)
+        jc.set(qn('w:val'), 'center')
+
 def format_document(input_file, output_file, opts):
     doc = Document(input_file)
     font_name = opts.get('font_style') or 'Garamond'
@@ -350,8 +418,13 @@ def format_document(input_file, output_file, opts):
         section.left_margin   = Inches(1.0)
         section.right_margin  = Inches(1.0)
 
+    # 2b. Center all tables
+    center_all_tables(doc)
+
     # 3. Title page
     insert_title_page(doc, opts, font_name)
+
+    krutidev_mode = is_krutidev(font_name)
 
     # 4. Format paragraphs
     for i, para in enumerate(doc.paragraphs):
@@ -380,24 +453,38 @@ def format_document(input_file, output_file, opts):
                 font_size_pt=13, bold=True, color=black,
                 align=WD_ALIGN_PARAGRAPH.LEFT,
                 space_before_pt=14, space_after_pt=6)
+            # Bold-before-colon for subheadings that aren't already fully bold
+            if not krutidev_mode and ': ' in para.text:
+                apply_bold_before_colon(para, font_name, krutidev_mode)
 
         elif etype == 'bullet':
-            # Bullets: normal size, preserve bold if present, no justify
             is_bold = is_all_bold(para)
             apply_para_formatting(para, etype, font_name,
                 font_size_pt=12, bold=is_bold, color=black,
                 align=WD_ALIGN_PARAGRAPH.LEFT,
                 space_before_pt=0, space_after_pt=4)
+            # Bold-before-colon inside bullet items (e.g. "Market Maturity: ...")
+            if not krutidev_mode and ': ' in para.text and not is_bold:
+                apply_bold_before_colon(para, font_name, krutidev_mode)
 
         else:  # body
-            # Determine justify before apply
-            apply_clean_justify(para)
-            use_indent = para.alignment == WD_ALIGN_PARAGRAPH.JUSTIFY
-            apply_para_formatting(para, etype, font_name,
-                font_size_pt=12, bold=False, color=black,
-                align=para.alignment,  # already set by apply_clean_justify
-                space_before_pt=0, space_after_pt=2,
-                first_indent=Inches(0.3) if use_indent else None)
+            if krutidev_mode:
+                # Hindi body: single spacing, left-align, preserve font, small space_after
+                apply_para_formatting(para, etype, font_name,
+                    font_size_pt=12, bold=False, color=black,
+                    align=WD_ALIGN_PARAGRAPH.LEFT,
+                    space_before_pt=0, space_after_pt=2)
+            else:
+                apply_clean_justify(para)
+                use_indent = para.alignment == WD_ALIGN_PARAGRAPH.JUSTIFY
+                apply_para_formatting(para, etype, font_name,
+                    font_size_pt=12, bold=False, color=black,
+                    align=para.alignment,
+                    space_before_pt=0, space_after_pt=2,
+                    first_indent=Inches(0.3) if use_indent else None)
+                # Bold-before-colon for body lines too (e.g. short label lines)
+                if ': ' in para.text and len(para.text.split()) <= 20:
+                    apply_bold_before_colon(para, font_name, krutidev_mode)
 
     # 5. Headers & Footers
     header_text  = opts.get('header', '').strip()
@@ -448,10 +535,6 @@ def format_document(input_file, output_file, opts):
             r.font.color.rgb = gray
 
         if page_numbers:
-            
-
-
-
 
 
             pn_para = ftr.add_paragraph()
@@ -465,27 +548,33 @@ def format_document(input_file, output_file, opts):
             add_fld_char(r1, 'end')
 
 
-
-            # r1 = pn_para.add_run()
-            # set_font_properly(r1, font_name)
-            # r1.font.size = Pt(9)
-            # r1.font.color.rgb = gray
-            # add_fld_char(r1, 'begin')
-            # add_instr_text(r1, ' PAGE ')
-            # add_fld_char(r1, 'end')
-            # r2 = pn_para.add_run(' / ')
-            # set_font_properly(r2, font_name)
-            # r2.font.size = Pt(9)
-            # r2.font.color.rgb = gray
-            # r3 = pn_para.add_run()
-            # set_font_properly(r3, font_name)
-            # r3.font.size = Pt(9)
-            # r3.font.color.rgb = gray
-            # add_fld_char(r3, 'begin')
-            # add_instr_text(r3, ' NUMPAGES ')
-            # add_fld_char(r3, 'end')
-
     doc.save(output_file)
+
+
+
+
+    #         pn_para = ftr.add_paragraph()
+    #         pn_para.alignment = num_align
+    #         r1 = pn_para.add_run()
+    #         set_font_properly(r1, font_name)
+    #         r1.font.size = Pt(9)
+    #         r1.font.color.rgb = gray
+    #         add_fld_char(r1, 'begin')
+    #         add_instr_text(r1, ' PAGE ')
+    #         add_fld_char(r1, 'end')
+    #         r2 = pn_para.add_run(' / ')
+    #         set_font_properly(r2, font_name)
+    #         r2.font.size = Pt(9)
+    #         r2.font.color.rgb = gray
+    #         r3 = pn_para.add_run()
+    #         set_font_properly(r3, font_name)
+    #         r3.font.size = Pt(9)
+    #         r3.font.color.rgb = gray
+    #         add_fld_char(r3, 'begin')
+    #         add_instr_text(r3, ' NUMPAGES ')
+    #         add_fld_char(r3, 'end')
+
+    # doc.save(output_file)
 
 
 if __name__ == '__main__':
@@ -506,42 +595,6 @@ if __name__ == '__main__':
 
 
 """
-
-ye kuch pdfs aur app.jsx aur fomatter.py ke code ko dekho aur file fix ke dedo 
-- A4 size achhe se impliment nhi ho rha hai left aur right side me jo margin use ho rha hai vo different hai to jo original A4
-hota hai usse impliment kro abhi jo pdf share kiya hai usse refference le lo 
-
-- ek yesa feature chahiye ui pr jaha se user start page number ko select kr paye aur default one se hi start ho jaisa hota hai 
-
-- jab do line likhi ho to unn dono ke beech mai kaafi saara gap aa ja rha hai current pdf se refferece le kr usse bhi fix kro
-
-- aur most important hindi wale pdf ko dekho uss se refference lo, yaha pr jab bhi hindi file ko formate kr rhe hai to vo 
-krutidev font me nhi de rha hai output vo kuch aur hi ho ja rha hai 
-
-- apne level pr bhi tum implimention ko test kr ke dekh sakte ho 
-
-
-
-
-correction report:
->>> What i have updated yet-
-
-1. now you'll get a starting page feature
-2. line gap setuped according to pdf jo aapne share kiya tha
-3. A4 size algorithm updated
-4. krutidev converter model update with MS doc
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
