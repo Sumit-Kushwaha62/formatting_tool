@@ -101,11 +101,7 @@ export default function App() {
   const [downloadUrl, setDownloadUrl] = useState(null);
 
   const currentType = DOC_TYPES.find(t => t.id === selectedType);
-  const handleTypeSelect = (id) => { 
-    setSelectedType(id); 
-    setFormData({}); 
-    setStep(2); 
-  };
+  const handleTypeSelect = (id) => { setSelectedType(id); setFormData({}); setStep(2); };
   const handleFieldChange = (key, value) => setFormData(prev => ({ ...prev, [key]: value }));
   const handleToggle = (key) => setFormData(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -146,90 +142,92 @@ export default function App() {
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         html,body,#root{width:100%;min-height:100vh;background:#F7F8FA}
 
-        .topnav{width:100%;background:#fff;border-bottom:1px solid #E8EAF0;padding:0 40px;height:60px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100}
-        .nav-logo{width:28px;height:28px;background:linear-gradient(135deg,#2563EB,#1d4ed8);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px}
-        .nav-brand{font-family:'DM Serif Display',serif;font-size:1.05rem;color:#1A1D23}
-        .nav-badge{margin-left:4px;background:#EFF3FF;color:#2563EB;font-size:.65rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:20px}
+        .topnav{width:100%;background:#fff;border-bottom:1px solid #E8EAF0;padding:0 20px;height:56px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100}
+        .nav-logo{width:28px;height:28px;background:linear-gradient(135deg,#2563EB,#1d4ed8);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+        .nav-brand{font-family:'DM Serif Display',serif;font-size:1rem;color:#1A1D23}
+        .nav-badge{margin-left:4px;background:#EFF3FF;color:#2563EB;font-size:.65rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:20px;white-space:nowrap}
 
-        .main-content{flex:1;width:100%;padding:48px 60px 80px;max-width:1100px;margin:0 auto}
-        .page-header{margin-bottom:40px}
-        .page-header h1{font-family:'DM Serif Display',serif;font-size:2.2rem;color:#0F1117;letter-spacing:-.02em;line-height:1.2;margin-bottom:8px}
+        .main-content{width:100%;padding:24px 16px 60px;max-width:1100px;margin:0 auto}
+        .page-header{margin-bottom:28px}
+        .page-header h1{font-family:'DM Serif Display',serif;font-size:1.7rem;color:#0F1117;letter-spacing:-.02em;line-height:1.2;margin-bottom:6px}
         .page-header h1 em{font-style:italic;color:#2563EB}
-        .page-header p{font-size:.95rem;color:#6B7280}
+        .page-header p{font-size:.875rem;color:#6B7280}
 
-        .steps-bar{display:flex;align-items:center;margin:0 auto 40px;background:#fff;border:1px solid #E8EAF0;border-radius:12px;padding:16px 24px;width:fit-content}
-        .step-node{display:flex;align-items:center;gap:10px;font-size:.82rem;font-weight:500;color:#9CA3AF}
+        .steps-bar{display:flex;align-items:center;margin:0 0 28px;background:#fff;border:1px solid #E8EAF0;border-radius:12px;padding:12px 16px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+        .step-node{display:flex;align-items:center;gap:7px;font-size:.78rem;font-weight:500;color:#9CA3AF;white-space:nowrap}
         .step-node.active{color:#2563EB}
         .step-node.done{color:#10B981}
-        .step-circle{width:26px;height:26px;border-radius:50%;border:2px solid #D1D5DB;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:600;background:#fff;transition:all .2s}
+        .step-circle{width:24px;height:24px;border-radius:50%;border:2px solid #D1D5DB;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:600;background:#fff;transition:all .2s;flex-shrink:0}
         .step-node.active .step-circle{border-color:#2563EB;background:#2563EB;color:#fff}
         .step-node.done .step-circle{border-color:#10B981;background:#10B981;color:#fff}
-        .step-connector{width:48px;height:2px;background:#E5E7EB;margin:0 12px;border-radius:1px}
+        .step-connector{width:28px;height:2px;background:#E5E7EB;margin:0 8px;border-radius:1px;flex-shrink:0}
         .step-connector.done-line{background:#10B981}
 
-        .section-label{font-size:.72rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#9CA3AF;margin-bottom:16px}
+        .section-label{font-size:.72rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:#9CA3AF;margin-bottom:14px}
 
-        .type-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-        .type-card{background:#fff;border:1.5px solid #E8EAF0;border-radius:12px;padding:24px;cursor:pointer;transition:all .18s;position:relative;display:flex;flex-direction:column;gap:8px}
-        .type-card:hover{border-color:#2563EB;box-shadow:0 4px 20px rgba(37,99,235,.1);transform:translateY(-2px)}
-        .type-card-top{display:flex;align-items:center;gap:12px}
-        .type-icon-wrap{width:42px;height:42px;background:#F0F5FF;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0}
-        .type-label{font-size:1rem;font-weight:600;color:#111827}
-        .type-desc{font-size:.85rem;color:#6B7280;line-height:1.55}
-        .type-arrow{position:absolute;right:20px;top:50%;transform:translateY(-50%);color:#D1D5DB;font-size:1.1rem;transition:all .18s}
-        .type-card:hover .type-arrow{color:#2563EB;right:16px}
+        /* Type grid: 2-col on mobile, 4-col on desktop */
+        .type-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+        .type-card{background:#fff;border:1.5px solid #E8EAF0;border-radius:12px;padding:16px;cursor:pointer;transition:all .18s;position:relative;display:flex;flex-direction:column;gap:6px}
+        .type-card:hover{border-color:#2563EB;box-shadow:0 4px 20px rgba(37,99,235,.1)}
+        .type-card-top{display:flex;align-items:center;gap:10px}
+        .type-icon-wrap{width:38px;height:38px;background:#F0F5FF;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+        .type-label{font-size:.9rem;font-weight:600;color:#111827;line-height:1.3}
+        .type-desc{font-size:.8rem;color:#6B7280;line-height:1.5}
+        .type-arrow{display:none}
 
-        .back-btn{display:inline-flex;align-items:center;gap:6px;font-size:.82rem;font-weight:500;color:#6B7280;background:none;border:none;cursor:pointer;padding:0;margin-bottom:28px;transition:color .15s;font-family:'DM Sans',sans-serif}
+        .back-btn{display:inline-flex;align-items:center;gap:6px;font-size:.82rem;font-weight:500;color:#6B7280;background:none;border:none;cursor:pointer;padding:0;margin-bottom:20px;transition:color .15s;font-family:'DM Sans',sans-serif;-webkit-tap-highlight-color:transparent}
         .back-btn:hover{color:#1A1D23}
 
-        .content-card{background:#fff;border:1px solid #E8EAF0;border-radius:16px;padding:32px}
-        .content-card-header{display:flex;align-items:center;gap:12px;margin-bottom:6px}
-        .card-icon-wrap{width:38px;height:38px;background:#F0F5FF;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.1rem}
-        .card-title{font-family:'DM Serif Display',serif;font-size:1.35rem;color:#111827;letter-spacing:-.02em}
-        .card-subtitle{font-size:.875rem;color:#6B7280;margin-bottom:28px;margin-left:50px}
+        .content-card{background:#fff;border:1px solid #E8EAF0;border-radius:16px;padding:20px 16px}
+        .content-card-header{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+        .card-icon-wrap{width:36px;height:36px;background:#F0F5FF;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
+        .card-title{font-family:'DM Serif Display',serif;font-size:1.2rem;color:#111827;letter-spacing:-.02em}
+        .card-subtitle{font-size:.82rem;color:#6B7280;margin-bottom:20px;margin-left:46px}
 
-        .format-section{border-radius:12px;padding:20px 24px;margin-bottom:16px}
+        .format-section{border-radius:12px;padding:16px;margin-bottom:14px}
         .format-section.blue{background:#F8FAFF;border:1.5px solid #E0E8FF}
         .format-section.purple{background:#FBF8FF;border:1.5px solid #E8DEFF}
         .format-section.green{background:#F3FBF5;border:1.5px solid #C6EDD1}
         .format-section.orange{background:#FFFBF5;border:1.5px solid #FDE8C8}
         .format-section.teal{background:#F0FDFB;border:1.5px solid #B2E8E0}
 
-        .format-section-title{font-size:.78rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+        .format-section-title{font-size:.75rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px}
         .format-section.blue   .format-section-title{color:#2563EB}
         .format-section.purple .format-section-title{color:#7C3AED}
         .format-section.green  .format-section-title{color:#15803D}
         .format-section.orange .format-section-title{color:#C2410C}
         .format-section.teal   .format-section-title{color:#0F766E}
 
-        .two-col{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
-        .three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+        /* Responsive grids */
+        .two-col{display:grid;grid-template-columns:1fr;gap:12px}
+        .three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 
-        .font-preview{margin-top:12px;padding:10px 14px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;font-size:.85rem;color:#374151;display:flex;align-items:center;gap:8px}
+        .font-preview{margin-top:10px;padding:10px 12px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;font-size:.82rem;color:#374151;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 
-        .page-size-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
-        .sel-card{border:1.5px solid #E5E7EB;border-radius:10px;padding:12px 10px;cursor:pointer;text-align:center;transition:all .15s;background:#fff}
-        .sel-card-label{font-size:.9rem;font-weight:700;color:#111827;margin-bottom:3px}
-        .sel-card-desc{font-size:.68rem;color:#9CA3AF;line-height:1.4}
+        /* Page size: 3 per row on mobile */
+        .page-size-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+        .sel-card{border:1.5px solid #E5E7EB;border-radius:10px;padding:10px 8px;cursor:pointer;text-align:center;transition:all .15s;background:#fff;-webkit-tap-highlight-color:transparent}
+        .sel-card-label{font-size:.85rem;font-weight:700;color:#111827;margin-bottom:2px}
+        .sel-card-desc{font-size:.65rem;color:#9CA3AF;line-height:1.4}
 
-        .sel-card.purple:hover{border-color:#7C3AED;background:#FBF8FF}
+        .sel-card.purple:hover,.sel-card.purple:active{border-color:#7C3AED;background:#FBF8FF}
         .sel-card.purple.selected{border-color:#7C3AED;background:#F5F0FF}
         .sel-card.purple.selected .sel-card-label{color:#7C3AED}
 
-        .align-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-        .sel-card.green:hover{border-color:#15803D;background:#F3FBF5}
+        /* Align grid: 3 col on mobile */
+        .align-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+        .sel-card.green:hover,.sel-card.green:active{border-color:#15803D;background:#F3FBF5}
         .sel-card.green.selected{border-color:#15803D;background:#DCFCE7}
         .sel-card.green.selected .sel-card-label{color:#15803D}
 
-        .sel-card.orange:hover{border-color:#C2410C;background:#FFFBF5}
+        .sel-card.orange:hover,.sel-card.orange:active{border-color:#C2410C;background:#FFFBF5}
         .sel-card.orange.selected{border-color:#C2410C;background:#FEF3C7}
         .sel-card.orange.selected .sel-card-label{color:#C2410C}
 
-        /* Toggle switch */
-        .toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+        .toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px}
         .toggle-label{font-size:.88rem;font-weight:500;color:#374151}
         .toggle-sub{font-size:.75rem;color:#9CA3AF;margin-top:2px}
-        .toggle{position:relative;width:44px;height:24px;cursor:pointer}
+        .toggle{position:relative;width:44px;height:24px;cursor:pointer;flex-shrink:0}
         .toggle input{opacity:0;width:0;height:0;position:absolute}
         .toggle-slider{position:absolute;inset:0;background:#D1D5DB;border-radius:24px;transition:.2s}
         .toggle-slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
@@ -239,63 +237,83 @@ export default function App() {
         select.field-input{cursor:pointer;appearance:auto}
         select.field-input:disabled{opacity:.45;cursor:not-allowed;background:#F3F4F6}
 
-        .fields-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:28px}
+        /* Fields: 1 col on mobile */
+        .fields-grid{display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:24px}
         .field-group{display:flex;flex-direction:column;gap:6px}
-        .field-label{font-size:.78rem;font-weight:600;color:#374151;display:flex;align-items:center;gap:6px}
+        .field-label{font-size:.78rem;font-weight:600;color:#374151;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
         .optional-tag{font-size:.7rem;font-weight:400;color:#9CA3AF}
-        .field-input{background:#F9FAFB;border:1.5px solid #E5E7EB;border-radius:8px;padding:10px 13px;color:#111827;font-family:'DM Sans',sans-serif;font-size:.9rem;outline:none;transition:border-color .15s,box-shadow .15s;width:100%}
+        .field-input{background:#F9FAFB;border:1.5px solid #E5E7EB;border-radius:8px;padding:11px 13px;color:#111827;font-family:'DM Sans',sans-serif;font-size:16px;outline:none;transition:border-color .15s,box-shadow .15s;width:100%}
         .field-input:focus{border-color:#2563EB;box-shadow:0 0 0 3px rgba(37,99,235,.08);background:#fff}
         .field-input::placeholder{color:#C4C9D4}
 
-        .divider{height:1px;background:#F0F2F5;margin:24px 0}
+        .divider{height:1px;background:#F0F2F5;margin:20px 0}
         .btn-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-        .btn-primary{background:#2563EB;color:#fff;border:none;padding:11px 28px;font-family:'DM Sans',sans-serif;font-size:.875rem;font-weight:600;cursor:pointer;border-radius:8px;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
-        .btn-primary:hover{background:#1d4ed8;transform:translateY(-1px);box-shadow:0 4px 14px rgba(37,99,235,.3)}
-        .btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
-        .btn-secondary{background:#fff;color:#374151;border:1.5px solid #E5E7EB;padding:10px 22px;font-family:'DM Sans',sans-serif;font-size:.875rem;font-weight:500;cursor:pointer;border-radius:8px;transition:all .15s}
+        .btn-primary{background:#2563EB;color:#fff;border:none;padding:13px 24px;font-family:'DM Sans',sans-serif;font-size:.9rem;font-weight:600;cursor:pointer;border-radius:8px;transition:all .15s;display:inline-flex;align-items:center;gap:6px;min-height:44px;-webkit-tap-highlight-color:transparent}
+        .btn-primary:hover{background:#1d4ed8}
+        .btn-primary:active{background:#1e3a8a;transform:scale(0.98)}
+        .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+        .btn-secondary{background:#fff;color:#374151;border:1.5px solid #E5E7EB;padding:12px 20px;font-family:'DM Sans',sans-serif;font-size:.875rem;font-weight:500;cursor:pointer;border-radius:8px;transition:all .15s;min-height:44px;-webkit-tap-highlight-color:transparent}
         .btn-secondary:hover{border-color:#9CA3AF;background:#F9FAFB}
+        .btn-secondary:active{transform:scale(0.98)}
 
-        .dropzone{border:2px dashed #D1D5DB;border-radius:12px;padding:48px 32px;text-align:center;cursor:pointer;transition:all .2s;background:#F9FAFB;margin-bottom:24px}
+        .dropzone{border:2px dashed #D1D5DB;border-radius:12px;padding:36px 24px;text-align:center;cursor:pointer;transition:all .2s;background:#F9FAFB;margin-bottom:20px;-webkit-tap-highlight-color:transparent}
         .dropzone:hover,.dropzone.active{border-color:#2563EB;background:#F0F5FF}
-        .dropzone-icon-wrap{width:56px;height:56px;background:#EFF3FF;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;margin:0 auto 14px}
-        .dropzone-text{font-size:.95rem;font-weight:600;color:#374151;margin-bottom:4px}
-        .dropzone-sub{font-size:.82rem;color:#9CA3AF}
+        .dropzone-icon-wrap{width:52px;height:52px;background:#EFF3FF;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin:0 auto 12px}
+        .dropzone-text{font-size:.9rem;font-weight:600;color:#374151;margin-bottom:4px}
+        .dropzone-sub{font-size:.8rem;color:#9CA3AF}
 
-        .file-selected{display:flex;align-items:center;gap:12px;background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:10px;padding:14px 16px;margin-bottom:20px}
-        .file-name{font-size:.875rem;font-weight:500;color:#065F46;flex:1}
-        .file-size{font-size:.78rem;color:#6B7280}
-        .file-remove{background:none;border:none;color:#9CA3AF;cursor:pointer;font-size:1rem;padding:2px 6px;border-radius:4px;transition:all .15s}
+        .file-selected{display:flex;align-items:center;gap:10px;background:#F0FDF4;border:1.5px solid #BBF7D0;border-radius:10px;padding:12px 14px;margin-bottom:18px}
+        .file-name{font-size:.82rem;font-weight:500;color:#065F46;flex:1;word-break:break-all}
+        .file-size{font-size:.75rem;color:#6B7280;white-space:nowrap}
+        .file-remove{background:none;border:none;color:#9CA3AF;cursor:pointer;font-size:1rem;padding:4px 8px;border-radius:4px;transition:all .15s;min-width:32px;min-height:32px;display:flex;align-items:center;justify-content:center}
         .file-remove:hover{background:#FEE2E2;color:#EF4444}
 
-        .config-summary{background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:18px 20px;margin-bottom:20px}
-        .config-summary-title{font-size:.72rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#9CA3AF;margin-bottom:12px}
-        .config-row{display:flex;gap:10px;font-size:.85rem;margin-bottom:5px}
-        .config-key{color:#9CA3AF;min-width:140px;text-transform:capitalize;flex-shrink:0}
+        .config-summary{background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:14px 16px;margin-bottom:18px}
+        .config-summary-title{font-size:.72rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#9CA3AF;margin-bottom:10px}
+        .config-row{display:flex;gap:8px;font-size:.82rem;margin-bottom:5px;flex-wrap:wrap}
+        .config-key{color:#9CA3AF;min-width:120px;text-transform:capitalize;flex-shrink:0}
         .config-val{color:#1F2937;font-weight:500}
 
-        .status-center{text-align:center;padding:72px 24px;background:#fff;border:1px solid #E8EAF0;border-radius:16px}
-        .status-icon-wrap{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;margin:0 auto 20px}
+        .status-center{text-align:center;padding:56px 20px;background:#fff;border:1px solid #E8EAF0;border-radius:16px}
+        .status-icon-wrap{width:68px;height:68px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:0 auto 18px}
         .status-icon-wrap.green{background:#F0FDF4}
         .status-icon-wrap.red{background:#FEF2F2}
-        .spinner-ring{width:44px;height:44px;border:3px solid #E5E7EB;border-top-color:#2563EB;border-radius:50%;animation:spin .75s linear infinite;margin:0 auto 20px}
+        .spinner-ring{width:42px;height:42px;border:3px solid #E5E7EB;border-top-color:#2563EB;border-radius:50%;animation:spin .75s linear infinite;margin:0 auto 18px}
         @keyframes spin{to{transform:rotate(360deg)}}
-        .status-title{font-family:'DM Serif Display',serif;font-size:1.6rem;color:#111827;letter-spacing:-.02em;margin-bottom:8px}
-        .status-sub{font-size:.9rem;color:#6B7280;margin-bottom:28px}
-        .btn-download{background:#059669;color:#fff;border:none;padding:11px 28px;font-family:'DM Sans',sans-serif;font-size:.875rem;font-weight:600;cursor:pointer;border-radius:8px;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:8px;margin-right:10px}
-        .btn-download:hover{background:#047857;transform:translateY(-1px)}
+        .status-title{font-family:'DM Serif Display',serif;font-size:1.4rem;color:#111827;letter-spacing:-.02em;margin-bottom:8px}
+        .status-sub{font-size:.875rem;color:#6B7280;margin-bottom:24px}
+        .btn-download{background:#059669;color:#fff;border:none;padding:13px 24px;font-family:'DM Sans',sans-serif;font-size:.875rem;font-weight:600;cursor:pointer;border-radius:8px;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:8px;min-height:44px}
+        .btn-download:hover{background:#047857}
+        .btn-download:active{transform:scale(0.98)}
+        .status-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 
-        .app-footer{border-top:1px solid #E8EAF0;background:#fff;padding:16px 40px;text-align:center;font-size:.78rem;color:#C4C9D4}
+        .hint{margin-top:8px;font-size:.75rem;font-weight:500}
 
-        .hint{margin-top:10px;font-size:.75rem;font-weight:500}
-        .hint.active{color:var(--hc)}
-        .hint.inactive{color:#9CA3AF}
+        .app-footer{border-top:1px solid #E8EAF0;background:#fff;padding:14px 20px;text-align:center;font-size:.75rem;color:#C4C9D4}
 
-        @media(max-width:768px){
-          .type-grid,.align-grid{grid-template-columns:repeat(2,1fr)}
-          .page-size-grid{grid-template-columns:repeat(3,1fr)}
-          .fields-grid,.two-col,.three-col{grid-template-columns:1fr!important}
-          .main-content{padding:28px 20px 60px}
-          .topnav{padding:0 20px}
+        /* ── Tablet & Desktop breakpoints ── */
+        @media(min-width:540px){
+          .type-grid{grid-template-columns:repeat(2,1fr);gap:14px}
+          .two-col{grid-template-columns:repeat(2,1fr)}
+          .fields-grid{grid-template-columns:repeat(2,1fr)}
+        }
+        @media(min-width:900px){
+          .main-content{padding:48px 40px 80px}
+          .topnav{padding:0 40px;height:60px}
+          .page-header h1{font-size:2.2rem}
+          .type-grid{grid-template-columns:repeat(4,1fr);gap:16px}
+          .type-card{padding:24px}
+          .type-icon-wrap{width:42px;height:42px;font-size:1.3rem}
+          .type-label{font-size:1rem}
+          .type-arrow{display:block;position:absolute;right:20px;top:50%;transform:translateY(-50%);color:#D1D5DB;font-size:1.1rem}
+          .type-card:hover .type-arrow{color:#2563EB;right:16px}
+          .content-card{padding:32px}
+          .card-subtitle{margin-left:50px}
+          .format-section{padding:20px 24px}
+          .fields-grid{grid-template-columns:repeat(3,1fr);gap:18px}
+          .page-size-grid{grid-template-columns:repeat(5,1fr)}
+          .align-grid{grid-template-columns:repeat(4,1fr)}
+          .page-header{margin-bottom:40px}
         }
       `}</style>
 
@@ -377,7 +395,7 @@ export default function App() {
                 {formData.font_style && (
                   <div className="font-preview">
                     <span>Preview:</span>
-                    <span style={{fontFamily:formData.font_style,fontSize:'.95rem',color:'#111827'}}>
+                    <span style={{fontFamily:formData.font_style,fontSize:'.92rem',color:'#111827'}}>
                       {formData.font_script==='hindi'?'यह एक नमूना पाठ है। The quick brown fox.':'The quick brown fox jumps over the lazy dog.'}
                     </span>
                   </div>
@@ -395,18 +413,17 @@ export default function App() {
                     </div>
                   ))}
                 </div>
-                <div className="hint" style={{'--hc':'#7C3AED'}} data-active={!!formData.page_size}>
+                <div className="hint">
                   <span style={{color:formData.page_size?'#7C3AED':'#9CA3AF',fontWeight:500}}>
                     {formData.page_size?`✓ Selected: ${formData.page_size}`:'Default: A4 will be used if none selected'}
                   </span>
                 </div>
               </div>
 
-              {/* 5. Page Numbers + Header/Footer */}
+              {/* 3. Page Numbers + Header/Footer */}
               <div className="format-section teal">
                 <div className="format-section-title">📄 Page Numbers & Layout</div>
 
-                {/* Page number toggle */}
                 <div className="toggle-row">
                   <div>
                     <div className="toggle-label">Auto Page Numbers</div>
@@ -418,7 +435,6 @@ export default function App() {
                   </label>
                 </div>
 
-                {/* Page number position — only show when enabled */}
                 {formData.page_numbers && (
                   <div style={{marginBottom:'16px'}}>
                     <div className="field-label" style={{marginBottom:'8px'}}>Page Number Position</div>
@@ -431,7 +447,7 @@ export default function App() {
                         </div>
                       ))}
                     </div>
-                    <div style={{marginTop:'14px'}}>
+                    <div style={{marginTop:'12px'}}>
                       <div className="field-label" style={{marginBottom:'6px'}}>Start Page Number <span className="optional-tag">Default: 1</span></div>
                       <input
                         className="field-input"
@@ -447,9 +463,8 @@ export default function App() {
                   </div>
                 )}
 
-                <div className="divider" style={{margin:'16px 0'}}/>
+                <div className="divider" style={{margin:'14px 0'}}/>
 
-                {/* Header / Footer fields */}
                 <div className="two-col">
                   <div className="field-group">
                     <label className="field-label">Header Text <span className="optional-tag">Optional</span></label>
@@ -497,12 +512,12 @@ export default function App() {
                 <div {...getRootProps()} className={`dropzone ${isDragActive?'active':''}`}>
                   <input {...getInputProps()}/>
                   <div className="dropzone-icon-wrap">📄</div>
-                  <div className="dropzone-text">{isDragActive?'Drop your file here...':'Drag & drop your .docx file here'}</div>
-                  <div className="dropzone-sub">or click to browse files</div>
+                  <div className="dropzone-text">{isDragActive?'Drop your file here...':'Tap to select a .docx file'}</div>
+                  <div className="dropzone-sub">or drag & drop here</div>
                 </div>
               ):(
                 <div className="file-selected">
-                  <span style={{fontSize:'1.4rem'}}>📎</span>
+                  <span style={{fontSize:'1.3rem'}}>📎</span>
                   <span className="file-name">{file.name}</span>
                   <span className="file-size">{(file.size/1024).toFixed(1)} KB</span>
                   <button className="file-remove" onClick={()=>setFile(null)}>✕</button>
@@ -543,7 +558,7 @@ export default function App() {
             <div className="status-icon-wrap green">✅</div>
             <div className="status-title">Document Formatted</div>
             <div className="status-sub">Your document is ready to download.</div>
-            <div className="btn-row" style={{justifyContent:'center'}}>
+            <div className="status-btns">
               <a href={downloadUrl} download="formatted_document.docx" className="btn-download">⬇ Download File</a>
               <button className="btn-secondary" onClick={handleReset}>Format Another</button>
             </div>
@@ -555,7 +570,7 @@ export default function App() {
             <div className="status-icon-wrap red">⚠️</div>
             <div className="status-title" style={{color:'#DC2626'}}>Formatting Failed</div>
             <div className="status-sub">Something went wrong. Please check your file and try again.</div>
-            <div className="btn-row" style={{justifyContent:'center'}}>
+            <div className="status-btns">
               <button className="btn-primary" onClick={()=>setStatus('idle')}>Try Again</button>
               <button className="btn-secondary" onClick={handleReset}>Start Over</button>
             </div>
@@ -567,7 +582,4 @@ export default function App() {
     </div>
   );
 }
-
-
-
 
