@@ -318,7 +318,7 @@ export default function App() {
       `}</style>
 
       <nav className="topnav">
-        <div className="nav-logo">📄</div>
+        <div className="nav-logo">🐱‍🏍</div>
         <span className="nav-brand">Format Studio</span>
         <span className="nav-badge">Pro</span>
       </nav>
@@ -374,7 +374,7 @@ export default function App() {
 
               {/* 1. Font */}
               <div className="format-section blue">
-                <div className="format-section-title">🔤 Font Style</div>
+                <div className="format-section-title">Font Style</div>
                 <div className="two-col">
                   <div className="field-group">
                     <label className="field-label">Language <span className="optional-tag">Optional</span></label>
@@ -404,7 +404,7 @@ export default function App() {
 
               {/* 2. Page Size */}
               <div className="format-section purple">
-                <div className="format-section-title">📐 Page Size</div>
+                <div className="format-section-title">Page Size</div>
                 <div className="page-size-grid">
                   {PAGE_SIZES.map(ps=>(
                     <div key={ps.value} className={`sel-card purple ${formData.page_size===ps.value?'selected':''}`} onClick={()=>handleFieldChange('page_size',ps.value)}>
@@ -422,7 +422,7 @@ export default function App() {
 
               {/* 3. Page Numbers + Header/Footer */}
               <div className="format-section teal">
-                <div className="format-section-title">📄 Page Numbers & Layout</div>
+                <div className="format-section-title">Page Numbers & Layout</div>
 
                 <div className="toggle-row">
                   <div>
@@ -555,7 +555,7 @@ export default function App() {
 
         {status==='done'&&(
           <div className="status-center">
-            <div className="status-icon-wrap green">✅</div>
+            <div className="status-icon-wrap green">😊</div>
             <div className="status-title">Document Formatted</div>
             <div className="status-sub">Your document is ready to download.</div>
             <div className="status-btns">
@@ -583,3 +583,9 @@ export default function App() {
   );
 }
 
+
+/* 
+
+
+
+*/
