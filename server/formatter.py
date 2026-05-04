@@ -211,95 +211,157 @@ FONT_NAME_MAP = {
 # ═══════════════════════════
 
 def unicode_to_krutidev(text):
-    if not text: return ""
-    
-    # Check if text contains any Unicode Hindi characters. If not, return as is.
+    """
+    Convert Unicode Devanagari text to Kruti Dev 010 ASCII encoding.
+
+    Kruti Dev 010 is a legacy ASCII font where each ASCII key renders as a
+    specific Hindi glyph. This function maps Unicode Devanagari to the correct
+    ASCII byte sequence for KD010.
+
+    Key rules:
+    - ि matra (U+093F) must appear BEFORE its consonant in the output stream
+    - Half consonants (consonant + ्) use special ASCII codes
+    - Reph (र् before consonant) renders as 'Z' appended after the syllable
+    - Several two-consonant conjuncts have unique single glyphs
+    """
+    if not text:
+        return ""
     if not re.search(r'[\u0900-\u097F]', text):
         return text
 
-    # Standard mapping for Unicode to Kruti Dev 010
-    # This is a simplified version of standard transliteration logic
-    array_unicode = [
-        "क़", "ख़", "ग़", "ज़", "ड़", "ढ़", "फ़", "य़", "ऱ", "ऩ", 
-        "ा", "ि", "ी", "ु", "ू", "ृ", "े", "ै", "ो", "ौ", "ं", "ः", "ँ",
-        "०", "१", "२", "३", "४", "५", "६", "७", "८", "९",
-        "अ", "आ", "इ", "ई", "उ", "ऊ", "ऋ", "ए", "ऐ", "ओ", "औ",
-        "क", "ख", "ग", "घ", "ङ",
-        "च", "छ", "ज", "झ", "ञ",
-        "ट", "ठ", "ड", "ढ", "ण",
-        "त", "थ", "द", "ध", "न",
-        "प", "फ", "ब", "भ", "म",
-        "य", "र", "ल", "व", "श", "ष", "स", "ह",
-        "क्ष", "त्र", "ज्ञ", "श्र", "ज्ञ",
-        "।", "॥", "्", "‍"
-    ]
-    
-    array_krutidev = [
-        "क़", "ख़", "ग़", "ज़", "ड़", "ढ़", "फ़", "य़", "ऱ", "ऩ",
-        "k", "f", "h", "q", "w", "=", "s", "S", "ks", "kS", "a", "A", "¡",
-        ")", "!", "@", "#", "$", "%", "^", "&", "*", "(",
-        "v", "vk", " b", "bZ", "m", "Å", "½", "vks", "vS", "vks", "vS",
-        "d", "[k", "x", "?", "³",
-        "p", "N", "t", "÷", "¥",
-        "V", "B", "M", "<", ".k",
-        "r", "Fk", "n", "èk", "u",
-        "i", "Q", "c", "Hk", "e",
-        "य", "j", "y", "o", "श", "ष", "l", "ह",
-        "़", "त्र", "ज्ञ", "श्र", "ज्ञ",
-        "P", "Q", "्", ""
-    ]
+    HALANT = '\u094D'
 
-    # This is a complex process. For a robust implementation, we need 
-    # specific rules for matras that come before characters (like 'i').
-    
-    # 1. Simple replacements
-    modified_text = text
-    
-    # Handle nukta characters first
-    modified_text = modified_text.replace("क़", "d+").replace("ख़", "[k+").replace("ग़", "x+").replace("ज़", "t+").replace("ड़", "M+").replace("ढ़", "<+").replace("फ़", "i+").replace("य़", "य़")
-    
-    # Handle composite characters
-    modified_text = modified_text.replace("क्ष", "d" + "़").replace("त्र", "=").replace("ज्ञ", "K").replace("श्र", "श" + "्" + "j")
-    
-    # Character by character map (basic)
-    # Note: Full robust conversion requires rule-based reordering for 'i' matra, etc.
-    # We will implement the most common ones.
-    
-    mapping = {
-        '।': 'A', '॥': 'AA', '्': '्', 
-        'ा': 'k', 'ि': 'f', 'ी': 'h', 'ु': 'q', 'ू': 'w', 'ृ': '=', 'े': 's', 'ै': 'S', 'ो': 'ks', 'ौ': 'kS', 'ं': 'a', 'ः': '%', 'ँ': '¡',
-        'अ': 'v', 'आ': 'vk', 'इ': 'b', 'ई': 'bZ', 'उ': 'm', 'ऊ': 'Å', 'ए': 's', 'ऐ': 'S', 'ओ': 'vks', 'औ': 'vS',
-        'क': 'd', 'ख': '[k', 'ग': 'x', 'घ': '?', 'ङ': '³',
-        'च': 'p', 'छ': 'N', 'ज': 't', 'झ': '÷', 'ञ': '¥',
-        'ट': 'V', 'ठ': 'B', 'ड': 'M', 'ढ': '<', 'ण': '.k',
-        'त': 'r', 'थ': 'Fk', 'द': 'n', 'ध': 'èk', 'न': 'u',
-        'प': 'i', 'फ': 'Q', 'ब': 'c', 'भ': 'Hk', 'म': 'e',
-        'य': ';', 'र': 'j', 'ल': 'y', 'व': 'o', 'श': 'श', 'ष': 'ष', 'स': 'l', 'ह': 'g',
-        '०': ')', '१': '!', '२': '@', '३': '#', '४': '$', '५': '%', '६': '^', '७': '&', '८': '*', '९': '('
+    # Step 1: Two-consonant conjuncts with unique KD010 glyphs
+    CONJUNCTS = [
+        ('\u0915\u094D\u0937',  '{k'),   # क्ष  ksha
+        ('\u0924\u094D\u0930',  '\u00d8'),   # त्र  tra -> Ø
+        ('\u091C\u094D\u091E',  'K'),    # ज्ञ  gya
+        ('\u0936\u094D\u0930',  'J'),    # श्र  shra
+        ('\u092A\u094D\u0930',  'iz'),   # प्र  pra
+        ('\u0917\u094D\u0930',  'xz'),   # ग्र  gra
+        ('\u0915\u094D\u0930',  'dz'),   # क्र  kra
+        ('\u092C\u094D\u0930',  'cz'),   # ब्र  bra
+        ('\u092E\u094D\u0930',  'ez'),   # म्र  mra
+        ('\u091F\u094D\u0930',  'Vz'),   # ट्र  tra-hard
+        ('\u0921\u094D\u0930',  'Mz'),   # ड्र  dra-hard
+        ('\u0927\u094D\u0930',  '/z'),   # ध्र  dhra
+        ('\u0939\u094D\u0930',  'gz'),   # ह्र  hra
+        ('\u092D\u094D\u0930',  'Hkz'),  # भ्र  bhra
+        ('\u0926\u094D\u092F',  '|'),    # द्य  dya unique glyph
+        ('\u0926\u094D\u0927',  '/~/k'), # द्ध  ddha
+        ('\u0926\u094D\u0935',  'n~o'),  # द्व  dva
+        ('\u0924\u094D\u0924',  '\u00d9k'),  # त्त  tta -> Ùk
+        ('\u0924\u094D\u0915',  'Rd'),   # त्क  tka
+        ('\u0924\u094D\u092A',  'Ri'),   # त्प  tpa
+        ('\u0924\u094D\u0938',  'Rl'),   # त्स  tsa
+        ('\u0938\u094D\u0924',  'Lr'),   # स्त  sta
+        ('\u0938\u094D\u0925',  'LFk'),  # स्थ  stha
+        ('\u0938\u094D\u0928',  'Lu'),   # स्न  sna
+        ('\u0928\u094D\u0924',  'Ur'),   # न्त  nta
+        ('\u0928\u094D\u0926',  'Un'),   # न्द  nda
+        ('\u0928\u094D\u0928',  'Uu'),   # न्न  nna
+        ('\u0937\u094D\u091F',  '"V'),   # ष्ट  shta
+        ('\u0937\u094D\u0920',  '"B'),   # ष्ठ  shtha
+        ('\u0936\u094D\u0935',  "'o"),   # श्व  shva
+        ('\u0936\u094D\u0928',  "'u"),   # श्न  shna
+        ('\u0932\u094D\u0932',  'Yy'),   # ल्ल  lla
+    ]
+    for uni, kd in CONJUNCTS:
+        text = text.replace(uni, kd)
+
+    # Full consonant form map
+    C = {
+        'अ': 'v',  'आ': 'vk', 'इ': 'b',  'ई': 'bZ',
+        'उ': 'm',  'ऊ': 'Å',  'ए': ',',  'ऐ': ',s',
+        'ओ': 'vks','औ': 'vkS',
+        'ा': 'k',  'ि': 'f',  'ी': 'h',  'ु': 'q',
+        'ू': 'w',  'ृ': '`',  'े': 's',  'ै': 'S',
+        'ो': 'ks', 'ौ': 'kS', 'ं': 'a',  'ः': '%',  'ँ': '\u00a1',
+        'क': 'd',  'ख': '[k', 'ग': 'x',  'घ': '?k', 'ङ': 'M~',
+        'च': 'p',  'छ': 'N',  'ज': 't',  'झ': '>k', 'ञ': '\u00a5',
+        'ट': 'V',  'ठ': 'B',  'ड': 'M',  'ढ': '<',  'ण': '.k',
+        'त': 'r',  'थ': 'Fk', 'द': 'n',  'ध': '/k', 'न': 'u',
+        'प': 'i',  'फ': 'Q',  'ब': 'c',  'भ': 'Hk', 'म': 'e',
+        'य': ';',  'र': 'j',  'ल': 'y',  'व': 'o',
+        'श': "\'k", 'ष': '"k', 'स': 'l',  'ह': 'g',
+        'क़': 'd+','ख़': '[k+','ग़': 'x+','ज़': 't+',
+        'ड़': 'M+','ढ़': '<+','फ़': 'Q+',
+        '।': 'A',  '॥': 'AA',
+        '०': ')',  '१': '!',  '२': '@',  '३': '#',  '४': '$',
+        '५': '%',  '६': '^',  '७': '&',  '८': '*',  '९': '(',
     }
 
-    # Rule-based conversion for Kruti Dev (Complex)
-    # 1. Handle 'i' matra (Chhoti ee) which comes BEFORE the consonant in Kruti Dev
-    # Regex to find (Consonant)(Matra 'i') and swap them
-    modified_text = re.sub(r'([\u0915-\u0939])\u093f', r'f\1', modified_text)
-    # Handle half consonants + 'i' matra
-    modified_text = re.sub(r'([\u0915-\u0939])\u094d([\u0915-\u0939])\u093f', r'f\1' + '\u094d' + r'\2', modified_text)
+    # Half consonant forms (consonant + ् → KD glyph)
+    HALF = {
+        'क': 'D',  'ख': '[',  'ग': 'X',  'घ': '?',
+        'च': 'P',  'ज': 'T',  'झ': '>',
+        'ट': 'V~', 'ड': 'M~', 'ण': '.k~',
+        'त': 'R',  'थ': 'F',  'द': 'n~', 'ध': '/',
+        'न': 'U',  'प': 'I',  'ब': 'C',  'भ': 'H',
+        'म': 'E',  'य': 'Y',  'र': 'z',
+        'ल': 'y~', 'व': 'O',
+        'श': "\'", 'ष': '"', 'स': 'L',  'ह': 'g~',
+        'ञ': '\u00a5~',
+    }
 
-    # 2. Map characters
-    res = ""
-    for char in modified_text:
-        res += mapping.get(char, char)
-    
-    # 3. Handle Halant (Half characters)
-    # In Kruti Dev, half characters are often different glyphs.
-    # d + ् -> d (different key for half k)
-    # This part is highly font-specific. For Krutidev010:
-    res = res.replace("d्", "D").replace("[k्", "K").replace("x्", "X").replace("?्", "ഘ").replace("p्", "P").replace("t्", "T").replace("r्", "R").replace("Fk्", "f").replace("n्", "N").replace("èk्", "E").replace("u्", "U").replace("i्", "I").replace("Q्", "q").replace("c्", "C").replace("Hk्", "h").replace("e्", "E").replace(";्", "Y").replace("y्", "L").replace("o्", "O").replace("l्", "L")
-    
-    # Basic cleanup
-    res = res.replace("्", "") # Remove remaining halants
-    
-    return res
+    VOWELS = set('अआइईउऊएऐओऔ')
+    MATRAS = set('ािीुूृेैोौंःँ')
+
+    result = []
+    chars = list(text)
+    n = len(chars)
+    i = 0
+
+    while i < n:
+        c = chars[i]
+
+        # Non-Devanagari (ASCII or already converted)
+        if ord(c) < 0x900 or ord(c) > 0x97F:
+            result.append(c)
+            i += 1
+            continue
+
+        # Reph: र + ् + consonant → consonant_syllable + Z
+        if c == 'र' and i + 1 < n and chars[i + 1] == HALANT:
+            if i + 2 < n and chars[i + 2] in C and chars[i + 2] not in VOWELS:
+                i += 2  # consume र + ्
+                syl = []
+                nc = chars[i]
+                if i + 1 < n and chars[i + 1] == HALANT and nc in HALF:
+                    syl.append(HALF[nc])
+                    i += 2
+                elif i + 1 < n and chars[i + 1] == 'ि':
+                    syl.append('f')
+                    syl.append(C.get(nc, nc))
+                    i += 2
+                else:
+                    syl.append(C.get(nc, nc))
+                    i += 1
+                while i < n and chars[i] in MATRAS:
+                    syl.append(C.get(chars[i], chars[i]))
+                    i += 1
+                syl.append('Z')
+                result.extend(syl)
+                continue
+
+        # Half consonant: consonant + ्
+        if c in HALF and i + 1 < n and chars[i + 1] == HALANT:
+            result.append(HALF[c])
+            i += 2
+            continue
+
+        # ि reordering: consonant + ि → 'f' + consonant_kd
+        if c in C and c not in VOWELS and c not in MATRAS:
+            if i + 1 < n and chars[i + 1] == 'ि':
+                result.append('f')
+                result.append(C.get(c, c))
+                i += 2
+                continue
+
+        result.append(C.get(c, c))
+        i += 1
+
+    return ''.join(result)
 
 def is_krutidev(font_name):
     return font_name and any(k.lower() in font_name.lower() for k in ['kruti', 'krutidev'])
@@ -783,13 +845,66 @@ def detect_thesis_structure(para, index, doc):
 
 
 def format_thesis_body(doc, opts, font_name):
-    """Apply thesis-specific paragraph formatting to body."""
+    """Apply MKU thesis-specific paragraph formatting to body.
+    
+    MKU Thesis Formatting Rules (Mahakaushal University, Jabalpur):
+    - English: Times New Roman 12pt body; captions min 10pt
+    - Hindi (Kriti-10): 15pt body; captions min 13pt
+    - Chapter Heading  (English): 16pt, Bold, Times New Roman, CAPS
+    - Section Heading  (English): 14pt, Times New Roman, CAPS
+    - Subsection Heading (English): 12pt, Times New Roman, CAPS
+    - Chapter Heading  (Hindi): 18pt, Bold, Kriti-10
+    - Section Heading  (Hindi): 17pt, Kriti-10
+    - Subsection Heading (Hindi): 15pt, Kriti-10
+    - Line spacing: 1.5 throughout; captions/TOC/lists may be single
+    - Paragraph: no orphan opening line at bottom of page
+    - Page numbers: Arabic numerals, bottom center
+    """
     black  = RGBColor(0, 0, 0)
     krutidev_mode = is_krutidev(font_name)
-    base_size = float(opts.get('font_size', 12))
-    line_spacing = float(opts.get('line_spacing', 1.15))
 
-    # We need to use a while loop because we might insert paragraphs
+    # MKU font sizes
+    if krutidev_mode:
+        # Hindi thesis (Kriti-10)
+        base_size       = 15.0   # body
+        ch_heading_size = 18.0   # chapter heading: bold
+        sec_heading_size= 17.0   # section heading
+        sub_heading_size= 15.0   # subsection heading
+        caption_min_size= 13.0
+    else:
+        # English thesis (Times New Roman)
+        base_size       = 12.0
+        ch_heading_size = 16.0   # chapter heading: bold, CAPS
+        sec_heading_size= 14.0   # section heading: CAPS
+        sub_heading_size= 12.0   # subsection heading: CAPS
+        caption_min_size= 10.0
+
+    # MKU line spacing = 1.5 throughout
+    line_spacing = 1.5
+
+    # Allow override from opts if explicitly set
+    if opts.get('font_size'):
+        base_size = float(opts['font_size'])
+    if opts.get('line_spacing'):
+        line_spacing = float(opts['line_spacing'])
+
+    def apply_caps_upper(para):
+        """Make all runs UPPERCASE (CAPS) for English headings."""
+        if krutidev_mode:
+            return  # Hindi headings don't need CAPS
+        for run in para.runs:
+            if run.text:
+                run.text = run.text.upper()
+
+    def set_widow_orphan(para):
+        """Prevent orphan first line at bottom of page (widowControl)."""
+        pPr = para._p.get_or_add_pPr()
+        wc = pPr.find(qn('w:widowControl'))
+        if wc is None:
+            wc = OxmlElement('w:widowControl')
+            pPr.append(wc)
+        wc.set(qn('w:val'), '1')
+
     i = 0
     prev_etype = None
     while i < len(doc.paragraphs):
@@ -804,76 +919,79 @@ def format_thesis_body(doc, opts, font_name):
             i += 1
             continue
 
-        # Default spacing rule: 4.0 spacing after every paragraph
-        space_after = 4.0
+        # Spacing defaults
+        space_after  = 4.0
+        space_before = 8.0
 
-        # Look ahead to detect next paragraph type
+        # Look ahead
         next_etype = None
         if i < len(doc.paragraphs) - 1:
             next_para = doc.paragraphs[i+1]
             if next_para.text.strip():
                 next_etype = detect_thesis_structure(next_para, i+1, doc)
 
-        # Headings: minimal space_after always
         if etype in ['section_heading', 'subheading']:
             space_after = 1.0
-
-        # Body/bullet followed by heading: cut space_after so no big gap before heading
         if etype in ['body', 'bullet'] and next_etype in ['section_heading', 'subheading', 'chapter_heading']:
             space_after = 1.0
-
-        # space_before for headings
-        space_before = 8.0
         if etype in ['section_heading', 'subheading'] and prev_etype in ['chapter_heading', 'section_heading', 'subheading']:
-            space_before = 2.0  # heading after heading: tight
+            space_before = 2.0
 
         if etype == 'chapter_heading':
-            # Handle 'Chapter 8: Title' by splitting it
             if ':' in text and text.lower().startswith('chapter'):
                 parts = text.split(':', 1)
                 chapter_label = parts[0].strip()
                 chapter_title = parts[1].strip()
-                
-                para.text = chapter_label.upper()
+
+                para.text = chapter_label.upper() if not krutidev_mode else chapter_label
                 apply_para_formatting(para, etype, font_name,
-                    font_size_pt=base_size + 2, bold=True, color=black,
+                    font_size_pt=ch_heading_size, bold=True, color=black,
                     align=WD_ALIGN_PARAGRAPH.CENTER,
                     space_before_pt=24, space_after_pt=0,
                     line_spacing=line_spacing)
-                
-                title_para = doc.add_paragraph(chapter_title)
+                set_widow_orphan(para)
+
+                title_para = doc.add_paragraph(chapter_title.upper() if not krutidev_mode else chapter_title)
                 para._p.addnext(title_para._p)
-                
+
                 apply_para_formatting(title_para, etype, font_name,
-                    font_size_pt=base_size + 2, bold=True, color=black,
+                    font_size_pt=ch_heading_size, bold=True, color=black,
                     align=WD_ALIGN_PARAGRAPH.CENTER,
                     space_before_pt=0, space_after_pt=space_after,
                     line_spacing=line_spacing)
+                set_widow_orphan(title_para)
                 i += 2
                 prev_etype = 'chapter_heading'
                 continue
             else:
+                if not krutidev_mode:
+                    apply_caps_upper(para)
                 apply_para_formatting(para, etype, font_name,
-                    font_size_pt=base_size + 2, bold=True, color=black,
+                    font_size_pt=ch_heading_size, bold=True, color=black,
                     align=WD_ALIGN_PARAGRAPH.CENTER,
                     space_before_pt=24, space_after_pt=space_after,
                     line_spacing=line_spacing)
+                set_widow_orphan(para)
 
         elif etype == 'section_heading':
+            if not krutidev_mode:
+                apply_caps_upper(para)
             apply_para_formatting(para, etype, font_name,
-                font_size_pt=base_size + 1, bold=True, color=black,
+                font_size_pt=sec_heading_size, bold=False, color=black,
                 align=WD_ALIGN_PARAGRAPH.LEFT,
                 space_before_pt=space_before, space_after_pt=space_after,
                 line_spacing=line_spacing)
+            set_widow_orphan(para)
 
         elif etype == 'subheading':
+            if not krutidev_mode:
+                apply_caps_upper(para)
             apply_para_formatting(para, etype, font_name,
-                font_size_pt=base_size, bold=True, color=black,
+                font_size_pt=sub_heading_size, bold=False, color=black,
                 align=WD_ALIGN_PARAGRAPH.LEFT,
                 space_before_pt=space_before, space_after_pt=space_after,
                 line_spacing=line_spacing)
-            if not krutidev_mode and ':' in para.text:
-                apply_bold_before_colon(para, font_name, krutidev_mode)
+            set_widow_orphan(para)
 
         elif etype == 'bullet':
             is_bold = is_all_bold(para)
@@ -882,21 +1000,23 @@ def format_thesis_body(doc, opts, font_name):
                 align=WD_ALIGN_PARAGRAPH.LEFT,
                 space_before_pt=0, space_after_pt=space_after,
                 line_spacing=line_spacing)
+            set_widow_orphan(para)
 
         else:  # body
             apply_clean_justify(para)
             final_align = para.alignment if para.alignment == WD_ALIGN_PARAGRAPH.JUSTIFY else WD_ALIGN_PARAGRAPH.LEFT
-            
+
             apply_para_formatting(para, etype, font_name,
                 font_size_pt=base_size, bold=False, color=black,
                 align=final_align,
                 space_before_pt=0, space_after_pt=space_after,
                 first_indent=None,
                 line_spacing=line_spacing)
-            
+            set_widow_orphan(para)
+
             if ':' in para.text:
                 apply_bold_before_colon(para, font_name, krutidev_mode)
-        
+
         prev_etype = etype
         i += 1
 
@@ -1260,9 +1380,10 @@ def format_document(input_file, output_file, opts, doc_type='book'):
         section.page_width   = page_w
         section.page_height  = page_h
         if doc_type == 'thesis':
+            # MKU Thesis: Left=1.5", Right=1", Top=1", Bottom=1"
             section.top_margin    = Inches(1.0)
             section.bottom_margin = Inches(1.0)
-            section.left_margin   = Inches(1.0)
+            section.left_margin   = Inches(1.5)
             section.right_margin  = Inches(1.0)
         elif doc_type == 'letter':
             # Preserve original margins for letters with embedded letterhead/images
@@ -1465,6 +1586,11 @@ def format_document(input_file, output_file, opts, doc_type='book'):
     }
     num_align = ALIGN_MAP.get(page_num_pos, WD_ALIGN_PARAGRAPH.CENTER)
 
+    # MKU Thesis rule: page numbers ALWAYS at bottom center, Arabic numerals
+    if doc_type == 'thesis':
+        page_numbers = True
+        num_align = WD_ALIGN_PARAGRAPH.CENTER
+
     for section in doc.sections:
         # Set start page number
         if page_numbers and start_page != 1:
@@ -1497,16 +1623,14 @@ def format_document(input_file, output_file, opts, doc_type='book'):
             r.font.color.rgb = gray
 
         if page_numbers:
-
-
             pn_para = ftr.add_paragraph()
             pn_para.alignment = num_align
             r1 = pn_para.add_run()
             set_font_properly(r1, font_name)
-            r1.font.size = Pt(9)
-            r1.font.color.rgb = gray
+            r1.font.size = Pt(10 if doc_type == 'thesis' else 9)
+            r1.font.color.rgb = RGBColor(0, 0, 0) if doc_type == 'thesis' else gray
             add_fld_char(r1, 'begin')
-            add_instr_text(r1, ' PAGE ')
+            add_instr_text(r1, ' PAGE \\* ARABIC ')  # Arabic numerals per MKU spec
             add_fld_char(r1, 'end')
 
 
@@ -1557,9 +1681,6 @@ if __name__ == '__main__':
 
 
 """
-
-
-
 
 
 
