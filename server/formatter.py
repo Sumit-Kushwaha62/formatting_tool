@@ -807,21 +807,25 @@ def format_thesis_body(doc, opts, font_name):
         # Default spacing rule: 4.0 spacing after every paragraph
         space_after = 4.0
 
-        # Look ahead to see if next paragraph is body/bullet
+        # Look ahead to detect next paragraph type
         next_etype = None
         if i < len(doc.paragraphs) - 1:
             next_para = doc.paragraphs[i+1]
             if next_para.text.strip():
                 next_etype = detect_thesis_structure(next_para, i+1, doc)
 
-        # Headings: minimal space_after always (no gap between heading and content)
+        # Headings: minimal space_after always
         if etype in ['section_heading', 'subheading']:
             space_after = 1.0
 
-        # Reduce space before if the previous paragraph was also a heading
-        space_before = 6.0
-        if etype in ['section_heading', 'subheading'] and prev_etype in ['chapter_heading', 'section_heading', 'subheading', 'body', 'bullet']:
-            space_before = 2.0  # Tight spacing after any content type
+        # Body/bullet followed by heading: cut space_after so no big gap before heading
+        if etype in ['body', 'bullet'] and next_etype in ['section_heading', 'subheading', 'chapter_heading']:
+            space_after = 1.0
+
+        # space_before for headings
+        space_before = 8.0
+        if etype in ['section_heading', 'subheading'] and prev_etype in ['chapter_heading', 'section_heading', 'subheading']:
+            space_before = 2.0  # heading after heading: tight
 
         if etype == 'chapter_heading':
             # Handle 'Chapter 8: Title' by splitting it
@@ -1162,9 +1166,18 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
     clear_pPr_sz(para)
     set_pPr_sz(para, int(font_size_pt * 2))
 
-    # Spacing & Line Spacing
+    # Spacing & Line Spacing - force at XML level to override style inheritance
     para.paragraph_format.space_before = Pt(space_before_pt)
     para.paragraph_format.space_after  = Pt(space_after_pt)
+    pPr = para._p.get_or_add_pPr()
+    spacing = pPr.find(qn('w:spacing'))
+    if spacing is None:
+        spacing = OxmlElement('w:spacing')
+        pPr.append(spacing)
+    spacing.set(qn('w:before'), str(int(space_before_pt * 20)))
+    spacing.set(qn('w:after'),  str(int(space_after_pt  * 20)))
+    spacing.set(qn('w:beforeAutospacing'), '0')
+    spacing.set(qn('w:afterAutospacing'),  '0')
     
     # Handle line spacing (1.0, 1.15, 1.5, 2.0)
     try:
