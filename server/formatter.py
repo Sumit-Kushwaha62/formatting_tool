@@ -819,7 +819,7 @@ def format_thesis_body(doc, opts, font_name):
             space_after = 2.0
 
         # Reduce space before if the previous paragraph was also a heading
-        space_before = 14.0
+        space_before = 6.0
         if etype in ['section_heading', 'subheading'] and prev_etype in ['chapter_heading', 'section_heading', 'subheading']:
             space_before = 2.0 # Reduced spacing between headings
 
@@ -859,7 +859,7 @@ def format_thesis_body(doc, opts, font_name):
             apply_para_formatting(para, etype, font_name,
                 font_size_pt=base_size + 1, bold=True, color=black,
                 align=WD_ALIGN_PARAGRAPH.LEFT,
-                space_before_pt=space_before + 4, space_after_pt=space_after,
+                space_before_pt=space_before, space_after_pt=space_after,
                 line_spacing=line_spacing)
 
         elif etype == 'subheading':
@@ -1544,6 +1544,8 @@ if __name__ == '__main__':
 
 
 """
+
+
 
 
 
