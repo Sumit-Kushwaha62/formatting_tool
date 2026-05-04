@@ -1392,3 +1392,29 @@ export default function App() {
     </div>
   );
 }
+
+/* 
+
+Kruti Dev 010
+
+iss pdf me jo instaructions hai usske according hame thesis wale section me ye sabhi chages impliment krna hai 
+
+1. page dimensions & page specification
+2. page number
+3. font
+4. paragraph
+5. heading for english and hindi
+6. line spacing
+
+maine kuch implimentions kiye aur kuch may be pending hai to iske instruction pdf se extract kr lo aur fix kro 
+
+
+
+mai normal hindi se krutidev me conversion ke liye multiple types algorithm likha but phir bhi issue solve nhi hua to internet pr research
+ke baad maine paya ki mera algorithm sahi hai file me data cruppted hai, so isn't possible to fix it from my side so may be it forworded to
+any seniour developer like mr. prashant at all 
+
+
+
+
+*/

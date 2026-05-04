@@ -366,6 +366,11 @@ def unicode_to_krutidev(text):
 def is_krutidev(font_name):
     return font_name and any(k.lower() in font_name.lower() for k in ['kruti', 'krutidev'])
 
+def has_unicode_hindi(text):
+    """Return True if text contains Unicode Devanagari characters (U+0900–U+097F).
+    Already-Krutidev text is pure ASCII, so this returns False for it."""
+    return bool(re.search(r'[\u0900-\u097F]', text))
+
 def set_font_properly(run, font_name, size_pt=None):
     # Map to formal name if exists
     formal_name = FONT_NAME_MAP.get(font_name, font_name)
@@ -897,13 +902,24 @@ def format_thesis_body(doc, opts, font_name):
                 run.text = run.text.upper()
 
     def set_widow_orphan(para):
-        """Prevent orphan first line at bottom of page (widowControl)."""
+        """Prevent orphan/widow lines per MKU spec.
+        widowControl ON (val=1) = Word keeps at least 2 lines together at page breaks."""
         pPr = para._p.get_or_add_pPr()
         wc = pPr.find(qn('w:widowControl'))
         if wc is None:
             wc = OxmlElement('w:widowControl')
             pPr.append(wc)
         wc.set(qn('w:val'), '1')
+
+    def set_keep_next(para):
+        """MKU: heading must not be orphaned from its following body paragraph.
+        keepNext=1 keeps heading on same page as the next paragraph."""
+        pPr = para._p.get_or_add_pPr()
+        kn = pPr.find(qn('w:keepNext'))
+        if kn is None:
+            kn = OxmlElement('w:keepNext')
+            pPr.append(kn)
+        kn.set(qn('w:val'), '1')
 
     i = 0
     prev_etype = None
@@ -972,26 +988,31 @@ def format_thesis_body(doc, opts, font_name):
                     space_before_pt=24, space_after_pt=space_after,
                     line_spacing=line_spacing)
                 set_widow_orphan(para)
+                set_keep_next(para)  # MKU: chapter heading must stay with body
 
         elif etype == 'section_heading':
+            # MKU: Section Heading – Font Size: 14, Times New Roman/Kriti-10, CAPS (English only)
             if not krutidev_mode:
                 apply_caps_upper(para)
             apply_para_formatting(para, etype, font_name,
                 font_size_pt=sec_heading_size, bold=False, color=black,
                 align=WD_ALIGN_PARAGRAPH.LEFT,
-                space_before_pt=space_before, space_after_pt=space_after,
+                space_before_pt=space_before, space_after_pt=3.0,
                 line_spacing=line_spacing)
             set_widow_orphan(para)
+            set_keep_next(para)  # heading must not be orphaned from its body
 
         elif etype == 'subheading':
+            # MKU: Subsection Heading – Font Size: 12, Times New Roman/Kriti-10, CAPS (English only)
             if not krutidev_mode:
                 apply_caps_upper(para)
             apply_para_formatting(para, etype, font_name,
                 font_size_pt=sub_heading_size, bold=False, color=black,
                 align=WD_ALIGN_PARAGRAPH.LEFT,
-                space_before_pt=space_before, space_after_pt=space_after,
+                space_before_pt=space_before, space_after_pt=3.0,
                 line_spacing=line_spacing)
             set_widow_orphan(para)
+            set_keep_next(para)
 
         elif etype == 'bullet':
             is_bold = is_all_bold(para)
@@ -1003,14 +1024,16 @@ def format_thesis_body(doc, opts, font_name):
             set_widow_orphan(para)
 
         else:  # body
+            # MKU: "clear, consistent separation between paragraphs"
+            # Body paragraphs: justify, 6pt after, first-line indent 0.5"
             apply_clean_justify(para)
-            final_align = para.alignment if para.alignment == WD_ALIGN_PARAGRAPH.JUSTIFY else WD_ALIGN_PARAGRAPH.LEFT
+            final_align = WD_ALIGN_PARAGRAPH.JUSTIFY if len(para.text.split()) >= 8 else WD_ALIGN_PARAGRAPH.LEFT
 
             apply_para_formatting(para, etype, font_name,
                 font_size_pt=base_size, bold=False, color=black,
                 align=final_align,
-                space_before_pt=0, space_after_pt=space_after,
-                first_indent=None,
+                space_before_pt=0, space_after_pt=6.0,
+                first_indent=Inches(0.5),
                 line_spacing=line_spacing)
             set_widow_orphan(para)
 
@@ -1357,21 +1380,60 @@ def format_document(input_file, output_file, opts, doc_type='book'):
     preprocess_document(doc)
 
     # 1b. High Priority: Hindi Unicode to Kruti Dev Conversion Pass
-    # If the user selected Kruti Dev, we MUST convert the underlying character codes
+    # A single run can contain MIXED content: some ASCII (already Krutidev) and some
+    # Unicode Devanagari (needs conversion). We split each run into segments by type,
+    # convert only Unicode segments, and leave ASCII segments untouched.
     if is_krutidev(font_name):
-        for para in doc.paragraphs:
-            # Convert paragraph text while preserving runs if possible
+        def convert_mixed_run(run):
+            """Split run text into Unicode-Hindi vs ASCII segments, convert only Hindi."""
+            text = run.text
+            if not text:
+                return
+            if not has_unicode_hindi(text):
+                return  # Pure ASCII/Krutidev — skip entirely
+
+            # Segment the text: group consecutive chars by type (Devanagari vs non-Devanagari)
+            segments = []  # list of (is_hindi: bool, text: str)
+            current_hindi = None
+            current_chunk = []
+            for ch in text:
+                ch_is_hindi = '\u0900' <= ch <= '\u097F'
+                if current_hindi is None:
+                    current_hindi = ch_is_hindi
+                if ch_is_hindi == current_hindi:
+                    current_chunk.append(ch)
+                else:
+                    segments.append((current_hindi, ''.join(current_chunk)))
+                    current_hindi = ch_is_hindi
+                    current_chunk = [ch]
+            if current_chunk:
+                segments.append((current_hindi, ''.join(current_chunk)))
+
+            if len(segments) == 1:
+                # Entire run is Unicode Hindi — simple convert
+                run.text = unicode_to_krutidev(text)
+                return
+
+            # Mixed run — need to split into multiple runs
+            # Build final text by converting Hindi segments, keeping ASCII as-is
+            converted = ''.join(
+                unicode_to_krutidev(seg) if is_hindi else seg
+                for is_hindi, seg in segments
+            )
+            run.text = converted
+
+        def convert_para_runs(para):
             for run in para.runs:
-                if run.text.strip():
-                    run.text = unicode_to_krutidev(run.text)
+                convert_mixed_run(run)
+
+        for para in doc.paragraphs:
+            convert_para_runs(para)
         # Also handle tables
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
                     for para in cell.paragraphs:
-                        for run in para.runs:
-                            if run.text.strip():
-                                run.text = unicode_to_krutidev(run.text)
+                        convert_para_runs(para)
 
     # 2. Page Size — thesis wider left margin for binding; letter tighter
     page_size_key = opts.get('page_size', 'A4')
@@ -1586,10 +1648,14 @@ def format_document(input_file, output_file, opts, doc_type='book'):
     }
     num_align = ALIGN_MAP.get(page_num_pos, WD_ALIGN_PARAGRAPH.CENTER)
 
-    # MKU Thesis rule: page numbers ALWAYS at bottom center, Arabic numerals
+    # MKU Thesis rule: page numbers ALWAYS at bottom center, Arabic numerals (1,2,3...)
+    # All text pages including source code listings — bottom center
     if doc_type == 'thesis':
         page_numbers = True
         num_align = WD_ALIGN_PARAGRAPH.CENTER
+        # Ensure Arabic numerals start from 1 unless user specified otherwise
+        if start_page == 1:
+            pass  # default, no override needed
 
     for section in doc.sections:
         # Set start page number
