@@ -806,22 +806,22 @@ def format_thesis_body(doc, opts, font_name):
 
         # Default spacing rule: 4.0 spacing after every paragraph
         space_after = 4.0
-        
+
         # Look ahead to see if next paragraph is body/bullet
         next_etype = None
         if i < len(doc.paragraphs) - 1:
             next_para = doc.paragraphs[i+1]
             if next_para.text.strip():
                 next_etype = detect_thesis_structure(next_para, i+1, doc)
-        
-        # If heading is followed by body or bullet, reduce space_after
-        if etype in ['section_heading', 'subheading'] and next_etype in ['body', 'bullet']:
-            space_after = 2.0
+
+        # Headings: minimal space_after always (no gap between heading and content)
+        if etype in ['section_heading', 'subheading']:
+            space_after = 1.0
 
         # Reduce space before if the previous paragraph was also a heading
         space_before = 6.0
-        if etype in ['section_heading', 'subheading'] and prev_etype in ['chapter_heading', 'section_heading', 'subheading']:
-            space_before = 2.0 # Reduced spacing between headings
+        if etype in ['section_heading', 'subheading'] and prev_etype in ['chapter_heading', 'section_heading', 'subheading', 'body', 'bullet']:
+            space_before = 2.0  # Tight spacing after any content type
 
         if etype == 'chapter_heading':
             # Handle 'Chapter 8: Title' by splitting it
