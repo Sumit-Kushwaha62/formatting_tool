@@ -1,0 +1,728 @@
+{
+  "pdf_instructions": "Page Dimensions & Binding Specifications:  \nThe dimension of the Thesis should be in Bond Sheet (A4 Size).  \nPage Specification:  \nLeft Margin   : 1.5 inch  \nRight Margin   : 1 inch  \nTop Margin   : 1 inch  \nBottom Margin  : 1 inch  \nThe thesis should be bound using flexible cover (Hard binding) with below mentioned \ncolored art paper. The cover should be printed in black letters and the text for printing should \nbe identical. The guidelines total number of pages in the report for each program is shown \nbelow:  \nCourse  Color of printed  \nPapers of the Thesis  Total Number of Pages  \nin the Thesis  Color of Cover of  \nthe Thesis/  \nPh.D.  White  Min. of 200 Black/Maroon /Any Other  \n \nPage numbers:  \nAll text pages as well as program source code listings should be numbered using Arabic \nnumerals ( i .e. - 1, 2, 3. . .) at the bottom center of the pages.  \n \nFont:  \n1- In the case of English Thesis Times New Roman , 12pt f ont sh ould be used consistently \nthroughou t the text. Captions for tables and figures  can be in smaller fonts, but not smaller \nthan 10pt.  \n2- In the case of Hind i Thesis Kriti -10, 15pt font sh ould be used c onsistently  throughout  the \ntext. Captions for tables and figures can be in smaller fonts,  but not smaller than 13pt.  \n \n \n  Continue Page -2 \n \n \n \n \n \n \n \n//2// \n \nParagraphs:  \nNo paragraph should have its opening line at the bottom of a page. A clear, consistent, but not \ntoo large a separation must be provided between the paragraphs throughout the thesis.  \n \nHeadings (English Thesis)  \nChapter Heading \u2013 Font Size: 16, Bold, Times New Roman, CAPS  \nSection Heading \u2013 Font Size: 14, Times New Roman, CAPS  \nSubsection Heading \u2013 Font Size: 12, Times New Roman, CAPS  \n \nHeadings (Hindi Thesis)  \nChapter Heading \u2013 Font Size: 18, Bold, Kriti -10 \nSection Heading \u2013 Font Size: 17, Kriti -10 \nSubsection Heading \u2013 Font Size: 15, Kriti -10 \n \nLine spacing  \nThe line spacing used should be the same throughout the text, and can be chosen to be \nbetween one and a half. The lines in captions for figures and tables, Table of Contents, List of \nFigures, and List of Tables can be single spaced, if desired.  \n \n3. Preparation Format:  \n \nCover Pa ge & Title Page [Thesis]:  \nAs per the format given in Appendix A. \n \nDeclaration:  \nAs per the format given in Appendix B. \n \nCertificate:  \nAs per the format given in Appendix C. \n \nThe certificate shall be followed by the Guide\u2019s signature and academic designation  \n \nAcknowledgement:  \n \nIn the \u201cAcknowledgement\u201d page, the student acknowledges the guidance and assistance of \nthe Research advisor and other members. Courtesy demands that he / she also recognizes \nspecific contributions by other persons or institutions such as  libraries and research \nfoundations. Sometimes the nature of the contribution is described (For example, permission \nfor the use of equipment, facilities and documents). Acknowledgement should be expressed \nsimply, tastefully, and tactfully.  \n \n(Appendix A ) \n\"E",
+  "docx_expected_structure": [
+    {
+      "text": "Chapter I",
+      "alignment": "CENTER (1)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 16.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 16.0,
+          "bold": true,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": " Introduction",
+      "alignment": "CENTER (1)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 16.0,
+          "bold": true,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "1. Background of Reinforcement Learning and Robotics",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 14.0,
+          "bold": true,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Introduction to Reinforcement Learning",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Reinforcement Learning (RL) is a subfield of machine learning that focuses on how agents should take",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "The RL framework typically involves an agent, an environment, actions, states, and rewards. The agen",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "In robotics, RL plays a crucial role in enabling robots to perform complex tasks autonomously. Tradi",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "The Role of Reinforcement Learning in Robotics",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Robotics involves designing machines that can perform a variety of tasks with a level of autonomy an",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "In robotics, RL has been applied across a wide range of tasks, from simple ones like moving an arm t",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "For instance, in mobile robotics, RL has enabled robots to learn how to navigate complex environment",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Key Reinforcement Learning Algorithms in Robotics",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Several RL algorithms have been developed and adapted for use in robotic systems. ",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Some of the key algorithms include:",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Q-learning: Q-learning is one of the simplest and most well-known RL algorithms. It is a model-free ",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Deep Q-Networks (DQN): DQNs combine Q-learning with deep learning techniques by utilizing deep neura",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Policy Gradient Methods: Unlike Q-learning, which focuses on learning value functions, policy gradie",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Actor-Critic Algorithms: Actor-Critic methods combine the benefits of value-based and policy-based a",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Table 1: Key RL Algorithms and Their Use in Robotics",
+      "alignment": "CENTER (1)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Challenges in Applying RL to Robotics",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Despite the successes, RL in robotics faces several challenges, primarily related to sample efficien",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Sample Efficiency: Traditional RL algorithms require vast amounts of data and experience to learn ef",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Generalization: One of the major concerns with RL is its ability to generalize from one task to anot",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Safety: In real-world applications, such as industrial robots or autonomous vehicles, ensuring safet",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Graph 1: Learning Curve of an RL Agent in a Robotic Task",
+      "alignment": "CENTER (1)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Applications of RL in Robotics",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "The combination of RL with robotics has led to numerous groundbreaking applications across industrie",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Some prominent examples include:",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Autonomous Vehicles: Autonomous vehicles use RL to learn driving policies by interacting with simula",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Robotic Manipulation: RL has been instrumental in robotic arms learning tasks such as grasping, pick",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Human-Robot Interaction: In applications where robots work alongside humans, such as collaborative r",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Takeaway Key:",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": true,
+          "italic": true
+        }
+      ]
+    },
+    {
+      "text": "Reinforcement Learning enables robots to autonomously learn optimal behaviors through interaction wi",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        },
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Key RL algorithms such as Q-learning, DQN, and Policy Gradient are fundamental in making robots capa",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Challenges like sample efficiency, generalization, and safety must be overcome for RL to be successf",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Applications of RL in robotics have revolutionized autonomous vehicles, robotic manipulation, and hu",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 12.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "2. Motivation for the Study",
+      "alignment": "JUSTIFY (3)",
+      "style": "Heading 3",
+      "runs": [
+        {
+          "font_name": "Times New Roman",
+          "font_size": 14.0,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "The motivation for this research lies in the rapidly growing field of robotics, where autonomous sys",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal (Web)",
+      "runs": [
+        {
+          "font_name": null,
+          "font_size": null,
+          "bold": null,
+          "italic": null
+        }
+      ]
+    },
+    {
+      "text": "Challenges in Traditional Robotics Systems",
+      "alignment": "JUSTIFY (3)",
+      "style": "Normal (Web)",
+      "runs": [
+        {
+          "font_name": null,
+          "font_size": null,
+          "bold": true,
+          "italic": null
+        }
+      ]
+    }
+  ]
+}

@@ -1393,26 +1393,110 @@ export default function App() {
   );
 }
 
+
+
+
+
 /* 
 
-Kruti Dev 010
 
-iss pdf me jo instaructions hai usske according hame thesis wale section me ye sabhi chages impliment krna hai 
 
-1. page dimensions & page specification
-2. page number
-3. font
-4. paragraph
-5. heading for english and hindi
-6. line spacing
+issue: 
 
-maine kuch implimentions kiye aur kuch may be pending hai to iske instruction pdf se extract kr lo aur fix kro 
+
+main yaha pr book, thesis, letter aur research papers ko formate krne ke liye iss tool ko banaya tha aur sabhi fuctions 
+and overall algorithm ko manually likh rha tha but ye desired output produce nhi kr rha hai ab mere pass kya solutions hai mai
+yaha pr kya kr skta hu aur tum kya suggest kroge? 
 
 
 
-mai normal hindi se krutidev me conversion ke liye multiple types algorithm likha but phir bhi issue solve nhi hua to internet pr research
-ke baad maine paya ki mera algorithm sahi hai file me data cruppted hai, so isn't possible to fix it from my side so may be it forworded to
-any seniour developer like mr. prashant at all 
+thesis wale part me abhi problem aa rhi hai ye sab
+
+1. sabhi data justify hona chahiye proper aur jo sentences short hai usko justify kr ke unke beech uneven space nhi rkhani hai usse left me hi align krna hai
+2. charts/ graphs, images aur kisi bhi type ke visual data ko ye delete kr deta hai ye kharab kr deta hai to vo na ho 
+3. agar koi table hai to vo bhi same font size, and font sytle ko follow kre jo user ne select kiya hai
+4. sabhi headings and subheading bold honi chahiye
+5. sabhi content left side me hi align ho kai baar bullet points mai ya subheading jaisi koi chizo hoti hai to vo left se thoda ander chali jati hai
+6. chapter ka last part jisse conclution kahate hai vo center ho jata hai to conclution ko as chapter show nhi karna hai aur usse left me hi rakhna hai 
+
+yaha pr mai ek pdf share kr rha hu ussme paragraph, font aur baki sabhi chizo ke liye formate ke instruction likhe hai vo read kr lo, vaha aur bhi kafi 
+sare details hai to yaha impliment nhi ho sakte hai to unn pr focus mat karna 
+
+aur mai yaha pr ek exprected output wali file bhi share kr rha hu ussme header, footer aur page number wale part mostly customize hota hai to uss pr bhi
+focus mat karna bs main content pr focus karna
+
+
+
+2. Page Dimensions & Binding Specifications: 
+Page numbers: 
+Font: 
+Paragraphs: 
+Headings (English Thesis) 
+Headings (Hindi Thesis) 
+Line spacing 
+
+
+
+
+  Optimized Changes for Thesis:
+   1. Page Dimensions: A4 size fix kar diya hai.
+   2. Binding Margins: Left margin 1.5" aur baki sab 1.0" kar diye hain.
+   3. Page Numbers: Arabic numerals (1, 2, 3...) Bottom Center mein fix kar diye hain.
+   4. Font (English): Body text 12pt Times New Roman aur headings ke liye:
+       * Chapter Heading: 16pt, Bold, CAPS
+       * Section Heading: 14pt, Bold, CAPS
+       * Subsection Heading: 12pt, Bold, CAPS
+   5. Font (Hindi): Body text 15pt Kriti-10 aur headings ke liye:
+       * Chapter Heading: 18pt, Bold
+       * Section Heading: 17pt, Bold
+       * Subsection Heading: 15pt, Bold
+   6. Line Spacing: Sabhi paragraphs aur headings ke liye 1.5 spacing fix kar di hai (override option hata diya hai taaki proforma follow ho).
+   7. Paragraphs: Widow/Orphan control enable kar diya hai taaki koi single line page ke end mein na choote.
+
+
+
+now ab mujhe books wale section ke liye implimention karna hai jiske liye root section me maine book_formatting ke naam se ek pdf file rkhi
+hai to instruction jo apply karna hai usska data vaha se le lo aur inn sabhi implimention ke ke baarn dusre kisi section me koi chize
+change nhi honi chahiye like thesis, letter ya koi aur section vo sab safe rhe abhi ham sirf book ke liye algorithm ko optimized kr rhe hai 
+yaha pr user ne kuch chize may be sahi se clear nhi ki hai to apne according bhi test karna isse 
+
+
+
+
+mere ko kuch issue detect hue hai yaha pr 
+
+- sabhi paragraphs me ek tab ki spacing aa rhi hai jo nhi chahiye ye starting se hi start hona chahiye
+- jab page pr contant start hota hai to paragraphs aur headings same point se start ho rhe hai jo thik hai but subheading thoda ander se start ho rhi hai to usko bhi same point se start krna hai
+- content ko justify karte time kahi-kahi pr uneven space aa jata hai jo ki thik nhi lagta to usko bhi fix karna hai
+- yaha pr top aur chapter ke naam ke baad jo spacing use ho rhi hai ye kya book instruction wale pdf ke according hai check kro 
+- may be page number select karne pr apply nhi ho rhi hai usse bhi check kro aur fix kro 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
