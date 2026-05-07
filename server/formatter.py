@@ -22,22 +22,22 @@ PAGE_SIZE_MAP = {
 
 WP_NS  = 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing'
 MC_NS  = 'http://schemas.openxmlformats.org/markup-compatibility/2006'
+W_NS   = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 
 def has_drawing(para):
-    """Return True if paragraph contains any image/chart/drawing element.
+    """Return True if paragraph contains any image/chart/drawing/object element.
     These paragraphs must NEVER be touched by formatting logic."""
     p = para._p
-    # Standard inline/anchor drawings
-    if p.find(f'{{{WP_NS}}}inline') is not None:
-        return True
-    if p.find(f'{{{WP_NS}}}anchor') is not None:
-        return True
-    # Fallback: any w:drawing child
-    if p.find(qn('w:drawing')) is not None:
-        return True
+
+    # Search all descendants for drawing/image/object tags
+    for tag in [qn('w:drawing'), qn('w:pict'), qn('w:object')]:
+        if p.find('.//' + tag) is not None:
+            return True
+
     # AlternateContent (charts, SmartArt, etc.)
     if p.find(f'{{{MC_NS}}}AlternateContent') is not None:
         return True
+
     return False
 
 
@@ -59,8 +59,21 @@ def remove_proof_errors(para):
         p.remove(proof_err)
 
 
+def run_has_drawing(run):
+    """Return True if this run contains any drawing/image element."""
+    r = run._r
+    if r.find(qn('w:drawing')) is not None:
+        return True
+    if r.find(qn('w:pict')) is not None:
+        return True
+    if r.find(qn('w:object')) is not None:
+        return True
+    return False
+
+
 def merge_runs_in_para(para):
-    """Merge adjacent runs with identical formatting to prevent mid-word splits."""
+    """Merge adjacent runs with identical formatting to prevent mid-word splits.
+    NEVER merges runs that contain drawings/images."""
     if len(para.runs) <= 1:
         return
 
@@ -68,6 +81,11 @@ def merge_runs_in_para(para):
     while i < len(para.runs) - 1:
         r1 = para.runs[i]
         r2 = para.runs[i + 1]
+
+        # Never touch runs that contain drawings
+        if run_has_drawing(r1) or run_has_drawing(r2):
+            i += 1
+            continue
 
         def fmt_sig(run):
             rPr = run._element.find(qn('w:rPr'))
@@ -496,8 +514,14 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
                            space_before_pt, space_after_pt,
                            first_indent=None, left_indent=None,
                            line_spacing=1.15):
-    """Apply all formatting to a paragraph — run-level and pPr-level."""
-    set_para_font(para, font_name)
+    """Apply all formatting to a paragraph — run-level and pPr-level.
+    For chapter_heading / chapter_title etypes, font_name is NOT applied to runs
+    (those headings keep original font or document default)."""
+    # Chapter/title headings: skip font override so user font change doesn't affect them
+    skip_font = etype in ('chapter_heading', 'chapter_title', 'book_title')
+
+    if not skip_font:
+        set_para_font(para, font_name)
     clear_pPr_sz(para)
     set_pPr_sz(para, int(font_size_pt * 2))
 
@@ -552,8 +576,14 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
 
     # Run-level
     for run in para.runs:
+        if run_has_drawing(run):
+            continue  # never reformat drawing/image runs
         run.bold = bold
-        set_font_properly(run, font_name, font_size_pt)
+        if not skip_font:
+            set_font_properly(run, font_name, font_size_pt)
+        else:
+            # Still set size even for chapter headings
+            run.font.size = Pt(font_size_pt)
         run.font.color.rgb = color
 
 
@@ -919,19 +949,23 @@ def detect_thesis_structure(para, index, doc):
 
 
 def format_table_cells(doc, font_name, base_size, line_spacing, black):
-    """FIX 3: Apply font/size to all table cell content."""
+    """Apply font/size to all table cell content."""
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
                 for para in cell.paragraphs:
-                    if not para.text.strip():
+                    if not para.text.strip() and not has_drawing(para):
                         continue
+                    if has_drawing(para):
+                        continue  # preserve images in table cells
                     # Apply para-level font
                     set_para_font(para, font_name)
                     clear_pPr_sz(para)
                     set_pPr_sz(para, int(base_size * 2))
                     # Apply run-level font/size (preserve bold/italic)
                     for run in para.runs:
+                        if run_has_drawing(run):
+                            continue
                         was_bold   = run.bold
                         was_italic = run.italic
                         set_font_properly(run, font_name, base_size)
@@ -1292,8 +1326,21 @@ def format_letter_body(doc, opts, font_name):
 # STRUCTURE DETECTION — BOOK / RESEARCH
 # ═══════════════════════════
 
+def _is_conclusion_heading(text):
+    """Return True if text looks like a chapter conclusion/summary section."""
+    CONCLUSION_WORDS = {
+        'conclusion', 'conclusions', 'summary', 'chapter summary',
+        'concluding remarks', 'unit summary', 'let us sum up',
+        'let us sumup', 'key points', 'review questions',
+        # Hindi equivalents (Unicode)
+        'निष्कर्ष', 'सारांश', 'समापन', 'अध्याय सारांश',
+    }
+    t = text.lower().strip().rstrip(':').strip()
+    return t in CONCLUSION_WORDS or t.startswith('conclusion') or t.startswith('निष्कर्ष')
+
+
 def detect_structure(para, index, doc=None):
-    """Book-aware structure detection updated with PDF instructions."""
+    """Book-aware structure detection."""
     text  = para.text.strip()
     words = text.split()
     wc    = len(words)
@@ -1302,39 +1349,79 @@ def detect_structure(para, index, doc=None):
         return 'empty'
     if has_drawing(para):
         return 'drawing'
-    if is_bullet_para(para):
-        return 'bullet'
 
     is_bold = is_all_bold(para)
 
-    # 10. Book Title: ALL CAPS + Large Font (heuristically detected at start)
+    if is_bullet_para(para):
+        # Bold short bullet items are heading-style, treat as sub_heading
+        if is_bold and wc <= 15:
+            return 'sub_heading'
+        return 'bullet'
+
+    # ── Book Title ──
     if index < 5 and text.isupper() and wc <= 15 and is_bold:
         return 'book_title'
 
-    # 10. Chapter Heading: CHAPTER + Bold
-    if re.match(r'^chapter\s+(\d+|[ivxlcdmIVXLCDM]+)\b', text, re.IGNORECASE) and wc <= 15:
+    # ── Chapter / Unit / Part / Lesson heading ──
+    if re.match(
+        r'^(chapter|unit|part|lesson)\s*[-–—]?\s*(\d+|[ivxlcdmIVXLCDM]+)\b',
+        text, re.IGNORECASE
+    ) and wc <= 20:
         return 'chapter_heading'
 
-    # Main Heading: Numbering 1, 2, 3 + Bold
-    if re.match(r'^\d+\.?\s+[A-Z]', text) and is_bold and wc <= 15:
-        return 'main_heading'
+    # Chapter title on line immediately AFTER chapter-number line
+    if doc and index > 0:
+        prev_text = doc.paragraphs[index - 1].text.strip()
+        if re.match(
+            r'^(chapter|unit|part|lesson)\s*[-–—]?\s*(\d+|[ivxlcdmIVXLCDM]+)\b',
+            prev_text, re.IGNORECASE
+        ) and wc <= 20:
+            return 'chapter_heading'
 
-    # Sub Heading: Numbering 1.1, 1.2 + Bold
-    if re.match(r'^\d+\.\d+\.?\s+', text) and is_bold and wc <= 15:
-        return 'sub_heading'
+    # ── Table / Figure caption — check BEFORE numbered heading rules ──
+    TABLE_PAT  = r'(table|तालिका|सारणी)'
+    FIGURE_PAT = r'(figure|fig\.?|चित्र|आकृति)'
 
-    # Table Caption detection
-    if re.match(r'^table\s+\d+', text, re.IGNORECASE) and wc <= 20:
+    if re.match(TABLE_PAT, text, re.IGNORECASE) and wc <= 25:
         return 'table_caption'
-
-    # Figure Caption detection
-    if re.match(r'^figure\s+\d+', text, re.IGNORECASE) and wc <= 20:
+    if re.match(FIGURE_PAT, text, re.IGNORECASE) and wc <= 25:
         return 'figure_caption'
 
-    # Citation: (Author, Year)
-    if re.search(r'\([A-Za-z]+,\s+\d{4}\)', text):
-        return 'body' # Keep as body but maybe apply specific run formatting later
+    # Numbered caption: "1.1 Table: ..." or "1. Figure ..."
+    if re.match(r'^\d+(\.\d+)?\s+' + TABLE_PAT, text, re.IGNORECASE) and wc <= 25:
+        return 'table_caption'
+    if re.match(r'^\d+(\.\d+)?\s+' + FIGURE_PAT, text, re.IGNORECASE) and wc <= 25:
+        return 'figure_caption'
 
+    # ── Content-section words — NOT structural headings ──
+    # These appear in book content (examples, exercises, activities, etc.)
+    # and must stay as body even when bold or numbered.
+    CONTENT_SECTION_WORDS = {
+        # English
+        'example', 'examples', 'exercise', 'exercises', 'activity', 'activities',
+        'practice', 'practices', 'problem', 'problems', 'question', 'questions',
+        'solution', 'solutions', 'answer', 'answers', 'task', 'tasks',
+        'assignment', 'assignments', 'note', 'notes', 'tip', 'tips',
+        'hint', 'hints', 'remark', 'remarks', 'illustration', 'illustrations',
+        'case study', 'case studies', 'sample', 'samples',
+        # Hindi
+        'उदाहरण', 'अभ्यास', 'प्रश्न', 'उत्तर', 'समाधान', 'कार्य', 'टिप्पणी',
+    }
+
+    # Strip leading number prefix to get the bare word(s): "2.14 Examples" → "examples"
+    bare = re.sub(r'^\d+(\.\d+)*\.?\s+', '', text).strip().rstrip(':').lower()
+    if bare in CONTENT_SECTION_WORDS:
+        return 'body'
+
+    # ── Sub Heading: X.Y numbering (must check BEFORE main_heading) ──
+    if re.match(r'^\d+\.\d+\.?\s+\S', text) and is_bold and wc <= 20:
+        return 'sub_heading'
+
+    # ── Main Heading: plain number (e.g. "1. Introduction", "2 Methods") ──
+    if re.match(r'^[1-9]\d*\.?\s+\S', text) and is_bold and wc <= 20:
+        return 'main_heading'
+
+    # ── Bold short line = sub_heading fallback ──
     if is_bold and wc <= 15:
         return 'sub_heading'
 
@@ -1357,6 +1444,32 @@ def center_all_tables(doc):
             jc = OxmlElement('w:jc')
             tblPr.append(jc)
         jc.set(qn('w:val'), 'center')
+
+
+def set_para_text_formatted(para, new_text, font_size_pt, bold, color, font_name=None):
+    """Set paragraph text while preserving run-level formatting.
+    Replaces all runs with a single formatted run — use AFTER apply_para_formatting."""
+    # Clear all existing runs
+    p = para._p
+    for r in p.findall(qn('w:r')):
+        p.remove(r)
+    # Add single new run
+    run = para.add_run(new_text)
+    run.bold = True if bold else False
+    run.font.size = Pt(font_size_pt)
+    run.font.color.rgb = color
+    if font_name:
+        set_font_properly(run, font_name, font_size_pt)
+
+
+def strip_list_numbering(para):
+    """Remove w:numPr from paragraph so Word doesn't render list number prefix."""
+    pPr = para._p.find(qn('w:pPr'))
+    if pPr is None:
+        return
+    numPr = pPr.find(qn('w:numPr'))
+    if numPr is not None:
+        pPr.remove(numPr)
 
 
 # ═══════════════════════════
@@ -1462,13 +1575,16 @@ def format_document(input_file, output_file, opts, doc_type='book'):
         base_size     = float(opts.get('font_size', 12))
         line_spacing  = float(opts.get('line_spacing', 1.5)) # Default 1.5 for book
 
+        # Heading numbering counters
+        heading_counters = [0, 0]  # [main_heading, sub_heading]
+
         i          = 0
         prev_etype = None
 
         while i < len(doc.paragraphs):
             para = doc.paragraphs[i]
 
-            # Skip drawing paragraphs
+            # Skip drawing paragraphs — preserve images entirely
             if has_drawing(para):
                 i += 1
                 continue
@@ -1483,82 +1599,177 @@ def format_document(input_file, output_file, opts, doc_type='book'):
                 i += 1
                 continue
 
-            space_after  = 4.0
-            space_before = 14.0
+            # Spacing logic
+            space_after  = 5.0  # Para end spacing
+            space_before = 0.0
 
             if etype == 'book_title':
-                para.text = text.upper() # Force CAPS
                 apply_para_formatting(para, etype, font_name,
                     font_size_pt=24, bold=True, color=black,
                     align=WD_ALIGN_PARAGRAPH.CENTER,
                     space_before_pt=72, space_after_pt=36,
                     line_spacing=line_spacing)
+                set_para_text_formatted(para, text.upper(), 24, True, black)
 
             elif etype == 'chapter_heading':
-                para.text = text.upper() # Force CAPS
-                apply_para_formatting(para, etype, font_name,
-                    font_size_pt=18, bold=True, color=black,
-                    align=WD_ALIGN_PARAGRAPH.CENTER,
-                    space_before_pt=48, space_after_pt=24,
-                    line_spacing=line_spacing)
+                # Reset heading counters for each new chapter
+                heading_counters[0] = 0
+                heading_counters[1] = 0
+                # CHAPTER label: 24pt, bold, ALL CAPS, center, 15pt above, 10pt below
+
+                if ':' in text and re.match(r'^(chapter|unit|part|lesson)\s*[-–—]?\s*\S+', text, re.IGNORECASE):
+                    parts         = text.split(':', 1)
+                    chapter_label = parts[0].strip()
+                    chapter_title = parts[1].strip()
+
+                    apply_para_formatting(para, etype, font_name,
+                        font_size_pt=24, bold=True, color=black,
+                        align=WD_ALIGN_PARAGRAPH.CENTER,
+                        space_before_pt=15, space_after_pt=0,
+                        line_spacing=line_spacing)
+                    set_para_text_formatted(para,
+                        chapter_label.upper() if not krutidev_mode else chapter_label,
+                        24, True, black)
+
+                    title_para = doc.add_paragraph()
+                    para._p.addnext(title_para._p)
+                    apply_para_formatting(title_para, 'chapter_title', font_name,
+                        font_size_pt=18, bold=True, color=black,
+                        align=WD_ALIGN_PARAGRAPH.CENTER,
+                        space_before_pt=0, space_after_pt=10,
+                        line_spacing=line_spacing)
+                    set_para_text_formatted(title_para,
+                        chapter_title.upper() if not krutidev_mode else chapter_title,
+                        18, True, black)
+                    i += 2
+                    prev_etype = 'chapter_heading'
+                    continue
+                else:
+                    # Check if next paragraph is the chapter name/title
+                    next_is_title = False
+                    if i + 1 < len(doc.paragraphs):
+                        nxt      = doc.paragraphs[i + 1]
+                        nxt_text = nxt.text.strip()
+                        nxt_etype = detect_structure(nxt, i + 1, doc) if nxt_text else 'empty'
+                        if nxt_etype == 'chapter_heading' and not re.match(
+                                r'^(chapter|unit|part|lesson)\s*[-–—]?\s*\S+',
+                                nxt_text, re.IGNORECASE):
+                            next_is_title = True
+
+                    apply_para_formatting(para, etype, font_name,
+                        font_size_pt=24, bold=True, color=black,
+                        align=WD_ALIGN_PARAGRAPH.CENTER,
+                        space_before_pt=15, space_after_pt=0 if next_is_title else 10,
+                        line_spacing=line_spacing)
+                    set_para_text_formatted(para,
+                        text.upper() if not krutidev_mode else text,
+                        24, True, black)
+                    prev_etype = etype
+                    i += 1
+
+                    if next_is_title and i < len(doc.paragraphs):
+                        title_para  = doc.paragraphs[i]
+                        title_text  = title_para.text.strip()
+                        apply_para_formatting(title_para, 'chapter_title', font_name,
+                            font_size_pt=18, bold=True, color=black,
+                            align=WD_ALIGN_PARAGRAPH.CENTER,
+                            space_before_pt=0, space_after_pt=10,
+                            line_spacing=line_spacing)
+                        set_para_text_formatted(title_para,
+                            title_text.upper() if not krutidev_mode else title_text,
+                            18, True, black)
+                        prev_etype = 'chapter_title'
+                        i += 1
+                    continue
 
             elif etype == 'main_heading':
+                # Strip list numbering
+                strip_list_numbering(para)
+                # 16pt, bold, numbered (1, 2, 3...)
+                heading_counters[0] += 1
+                heading_counters[1]  = 0  # reset sub counter
+                # Add numbering if not already present
+                if not re.match(r'^\d+\.?\s+', text):
+                    # prepend to first non-empty run
+                    num_prefix = f"{heading_counters[0]}. "
+                    for run in para.runs:
+                        if run.text.strip():
+                            run.text = num_prefix + run.text
+                            break
                 apply_para_formatting(para, etype, font_name,
                     font_size_pt=16, bold=True, color=black,
                     align=WD_ALIGN_PARAGRAPH.LEFT,
-                    space_before_pt=18, space_after_pt=6,
+                    space_before_pt=4, space_after_pt=4,
                     left_indent=0.0, first_indent=0.0,
                     line_spacing=line_spacing)
 
             elif etype == 'sub_heading':
+                # Strip list numbering — prevents Word from prepending "1." to the heading
+                strip_list_numbering(para)
+
+                # 14pt, bold, numbered (1.1, 1.2...)
+                heading_counters[1] += 1
+                # If text already has X.Y numbering, sync counters from it
+                m = re.match(r'^(\d+)\.(\d+)\.?\s+', text)
+                if m:
+                    heading_counters[0] = int(m.group(1))
+                    heading_counters[1] = int(m.group(2))
+                else:
+                    # Add numbering prefix if missing
+                    num_prefix = f"{heading_counters[0]}.{heading_counters[1]} "
+                    for run in para.runs:
+                        if run.text.strip():
+                            run.text = num_prefix + run.text
+                            break
+
                 apply_para_formatting(para, etype, font_name,
                     font_size_pt=14, bold=True, color=black,
                     align=WD_ALIGN_PARAGRAPH.LEFT,
-                    space_before_pt=12, space_after_pt=6,
+                    space_before_pt=4, space_after_pt=4,
                     left_indent=0.0, first_indent=0.0,
                     line_spacing=line_spacing)
 
             elif etype == 'table_caption':
                 apply_para_formatting(para, etype, font_name,
-                    font_size_pt=10, bold=True, color=black,
+                    font_size_pt=12, bold=True, color=black,
                     align=WD_ALIGN_PARAGRAPH.CENTER,
                     space_before_pt=6, space_after_pt=4,
                     line_spacing=1.0)
 
             elif etype == 'figure_caption':
                 apply_para_formatting(para, etype, font_name,
-                    font_size_pt=10, bold=False, color=black,
+                    font_size_pt=12, bold=False, color=black,
                     align=WD_ALIGN_PARAGRAPH.CENTER,
                     space_before_pt=4, space_after_pt=6,
                     line_spacing=1.0)
                 for run in para.runs:
-                    run.italic = True
+                    if not run_has_drawing(run):
+                        run.italic = True
 
             elif etype == 'bullet':
                 is_bold_para = is_all_bold(para)
                 apply_para_formatting(para, etype, font_name,
                     font_size_pt=base_size, bold=is_bold_para, color=black,
                     align=WD_ALIGN_PARAGRAPH.LEFT,
-                    space_before_pt=0, space_after_pt=4,
-                    left_indent=0.25, first_indent=-0.25, # Consistent bullet hanging indent
+                    space_before_pt=0, space_after_pt=space_after,
+                    left_indent=0.25, first_indent=-0.25,
                     line_spacing=line_spacing)
 
             else:  # body
                 apply_clean_justify(para)
-                final_align = para.alignment if para.alignment == WD_ALIGN_PARAGRAPH.JUSTIFY else WD_ALIGN_PARAGRAPH.LEFT
+                final_align = para.alignment if para.alignment == WD_ALIGN_PARAGRAPH.JUSTIFY else WD_ALIGN_PARAGRAPH.JUSTIFY
 
                 apply_para_formatting(para, etype, font_name,
                     font_size_pt=base_size, bold=False, color=black,
                     align=final_align,
-                    space_before_pt=0, space_after_pt=6,
-                    left_indent=0.0, first_indent=0.0, # NO TAB, flush left
+                    space_before_pt=0, space_after_pt=space_after,
+                    left_indent=0.0, first_indent=0.0,
                     line_spacing=line_spacing)
-
 
             prev_etype = etype
             i += 1
 
-        # Apply font/size to book/research tables too
+        # Apply font/size to book/research tables once (OUTSIDE while loop)
         format_table_cells(doc, font_name, base_size, line_spacing, black)
 
     # 5. Headers & Footers
@@ -1584,6 +1795,7 @@ def format_document(input_file, output_file, opts, doc_type='book'):
         num_align    = WD_ALIGN_PARAGRAPH.CENTER
 
     for section in doc.sections:
+        section.footer_distance = Inches(1.0) # Ensure footer 1 inch from bottom
         if page_numbers and start_page != 1:
             sectPr    = section._sectPr
             pgNumType = sectPr.find(qn('w:pgNumType'))
@@ -1640,4 +1852,3 @@ if __name__ == '__main__':
 
     format_document(in_p, out_p, options, doc_type=type_d)
     print(f'Success: {out_p}')
-

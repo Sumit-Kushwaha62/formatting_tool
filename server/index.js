@@ -43,7 +43,9 @@ app.post('/format', upload.single('file'), (req, res) => {
       console.error('Format Error:', fStderr);
       return res.status(500).json({ error: 'Formatting failed' });
     }
-    res.download(outputPath, 'formatted_document.docx', (dlErr) => {
+
+    const originalName = req.file.originalname || 'formatted_document.docx';
+    res.download(outputPath, originalName, (dlErr) => {
       if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
     });
   });

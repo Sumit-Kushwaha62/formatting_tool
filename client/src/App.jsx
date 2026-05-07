@@ -1475,22 +1475,87 @@ mere ko kuch issue detect hue hai yaha pr
 
 
 
+yaha pr book wale section me thodi corrections hai - 
+
+- chapter 1 aur ke top me 15pt aur uske bottom me 10pt ki spacing chahiye abhi ye kaafi jayada hai, chapter ka naam center mai hoga,
+iske liye ek screenshort rakh hai root folder me dekh lena
+- agar file me do headings hai main jaise 12.2 and 12.2.1 to sab heading 12pt , heading 14pt hoga jaise pdf me likha tha aur
+agar sift ek heading hai ya do bhi ho to heading ke upper aur niche 4pt ka space rahega ek corner case ye hai ki agar 2 heading hai to dono
+to saath me hi rahegi jaise abhi bhi hai lekin in dono ke uppar aur niche wale part me spacing 4pt ko impliment karna hai 
+- jab paragraph end hoga to new kuch bhi start hone ke pahale 5pt ki spacing chahiye hogi 
+- jab ham headings ko numbers me divide kr rhe hai like 1,2,3 ki number kr rhe hai to sabhi headings ke font different ho rhe hai isse bhi
+fix kro
+- footer 1 inch ke space ke saath hona chahiye but abhi yaha pr kahi-kahi ye bahut jayada space le rha hai
+- aur headings proper justify honi chahiye jo ki abhi nhi hai aur agar heading chhoti hai to left me hi rhe uneven space na create ho
+abhi headings justify nhi hai aur chipke huye hai words ke beech mai space nhi hai 
+
+
+
+now ab thesis wale sectio ke liye:
+
+- 
 
 
 
 
 
 
+Now a few correction required here -
+- jab bhi file me koi graphs, charts, images ya koi bhi visual data hoga to vo delete ho jata hai ya kharab ho jata hai isko fix karna hai
+- jab bhi file downlaod hoti hai to donwloaded file na naam "formatted_document.docx" hota hai jisse yesa karna hai ki original file jo input me di gyi hai ussi naam se downlaod ho 
+
+
+***************** Last optimizaton ********************
+
+
+Books fomatting instructions:
+yaha pr main kuch implimentions likh rha hu to sirf book wale section kr karna hai aur baki sabhi section me koi bhi change nhi krna hai
+
+- input file me kisi bhi tarah ka image,graph,chart ya koi bhi visual data/figure ho to vo same rhe delete na ho abhi vo apne aapne aap hi 
+delete ho jata hai during formatting process isko fix karna hai
+- table, images aur kisi tarah ke visual data ke upper jo heading hogi jo uska title hoga vo hamesha center me hona chahiye sirft visual data ka
+- chapter like "CHAPTER 1, UNIT - 1" jaisi chize to hamesha center hogi aur iska title bhi like "MACHINE LEARNING" etc. 
+      CHAPTERS should be - 24pt, BOLD, ALL CAPS,center aligned with 15pt spacing above and 10pt spacing below
+      CHAPTER NAME/TITLE should be - 18pt, BOLD, ALL CAPS,center 
+      main headings - 16pt, bold aur issme 1,2,3 ya 1.1, 1.2 jaise numberings bhi impliment karni hai according to headings
+      subheadings - 14pt, bold aur issme bhi numbering impliment karni hai according to headings
+      paragraphs - 12pt, justified, line spacing 1.5pt, no extra spacing between paragraphs except 5pt after the end of paragraph, first line of each paragraph should start from the left margin with no indentation
+- chapter ka conclution jo last me hoga vo hamesha left me hona chahiye center me nhi 
+
+- bhi jab bhi user ui se font style ko select kare to font style CHAPTER, CHAPTER NAME/TITIL pr impliment na ho baki sabhi pages pr ho jaye
+
+yaha pr main apni formatting script ki file share aur formating ki kuch refferences file share kr rha hu 
+
+
+
+yaha pr kuch mistacks hai -
+- 0.1 chapter ka naam hai 
+- 0.2 yaha pr heading hai aur 1. subheading hai
+- UNIT -2 CHAPTER hai jo 24pt, bold, CAPS hona chahiye tha jo ki nhi hai means
+ye heading ki number achhe se nhi kr paa rha hai aur chapter ko detect nhi pa rha hai
+
+
+yaha pr 1.1 table: , ek table title hai jo center me hona chahiye na ki left me , table ke just upper wala heading usually table ka
+title hi hota hai
+aur 1.custodian of knowledge , wali line me 1. bold nhi hai aur heading bold hai yaha pr numbering bhi bold
+rahegi means entire heading start to end bold hoga
+
+inn sabhi mistacks ko fix kro 
 
 
 
 
 
 
+again kuch mistacks hai -
+
+-- 1.	1.2 Custodian of Knowledge ye wali line dekho yaha pr 1.2 aur reamining headings thik hai but 1. kyu likha hai vo nhi chahiye bs "1.2 Custodian of Knowledge" hona chahiye
+-- aur UNIT -2  jo likha hai page ka pahala sentence vo chapter hai jo bold , 24pt, ALL CAPS hona chahiye jo abhi bahut small hai
 
 
 
 
+kuch aur chize khrab na ho remaing things same rhe to ab ye sab thesis pr bhi impliment kr do 
 
 
 
