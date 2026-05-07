@@ -902,6 +902,24 @@ def detect_thesis_structure(para, index, doc):
 
     is_bold = is_all_bold(para)
 
+    # Table/Figure captions — center-aligned titles above/below visuals
+    # Pattern: "Table 1: ...", "Figure 2.", "Fig. 3 -", "तालिका 1", "चित्र 2"
+    if re.match(r'^(table|figure|fig|chart|graph|diagram|image|photo|plate|'
+                r'तालिका|चित्र|आकृति|ग्राफ)\s*[\.\-–—:1-9]', text, re.IGNORECASE):
+        return 'figure_caption'
+
+    # Check if NEXT paragraph has a drawing — this paragraph is a pre-visual title/caption
+    if index + 1 < len(doc.paragraphs):
+        nxt = doc.paragraphs[index + 1]
+        if has_drawing(nxt):
+            return 'figure_caption'
+
+    # Check if PREVIOUS paragraph has a drawing — this is a post-visual caption
+    if index > 0:
+        prev = doc.paragraphs[index - 1]
+        if has_drawing(prev):
+            return 'figure_caption'
+
     # FIX: Increase word count to handle long chapter titles like "CHAPTER 12: ..."
     if re.match(r'^chapter\s+(\d+|[ivxlcdmIVXLCDM]+)\b', text, re.IGNORECASE) and wc <= 15:
         return 'chapter_heading'
@@ -920,28 +938,44 @@ def detect_thesis_structure(para, index, doc):
     special_sections = {
         'abstract', 'introduction', 'references', 'bibliography',
         'acknowledgement', 'acknowledgements', 'appendix', 'keywords',
-        'methodology', 'discussion', 'results', 'preface', 'index'
+        'methodology', 'discussion', 'results', 'preface', 'index',
+        'conclusion', 'conclusions', 'summary', 'recommendations',
+        'निष्कर्ष', 'सारांश', 'अनुशंसाएँ', 'संदर्भ', 'ग्रंथसूची',
     }
     if text.lower().strip('.').strip() in special_sections and wc <= 3:
         return 'section_heading'
 
-    # Section headings: "12.1", "12.2", or "A.", "B." - SHOULD BE 14pt (section_heading)
-    if (re.match(r'^(\d+\.\d+)\b', text) or re.match(r'^[A-Z]\.\s', text)) and is_bold and wc <= 15:
-        return 'section_heading'
+    # ── Numbered heading detection — ORDER MATTERS: deepest level first ──
 
-    # Lower-level numbered headings: "12.1.1", "12.1.2" - 12pt (subheading)
-    if re.match(r'^(\d+\.\d+\.\d+)\b', text) and is_bold and wc <= 15:
+    # Subsection: "1.1.1 ..." or deeper (12pt)
+    if re.match(r'^\d+\.\d+\.\d+', text) and (is_bold or text == text.upper()):
         return 'subheading'
 
-    # Lines ending with a colon: "Teachers must reflect on:" - MUST BE BOLD & LEFT ALIGNED
-    if text.endswith(':') and wc <= 15:
+    # Section: "1.1 ..." (14pt) — checked AFTER subsection to avoid false match
+    if re.match(r'^\d+\.\d+\.?\s', text) and (is_bold or text == text.upper()):
+        return 'section_heading'
+
+    # Main numbered heading: "1. Title" or "2 Title" → section_heading
+    if re.match(r'^\d+\.?\s+\S', text) and is_bold:
+        return 'section_heading'
+
+    # Alphabetical section: "A. Title", "B. Title"
+    if re.match(r'^[A-Z]\.\s', text) and is_bold:
+        return 'section_heading'
+
+    # Lines ending with a colon — bold subheading
+    if text.endswith(':') and is_bold and wc <= 20:
         return 'subheading_colon'
 
-    # ALL CAPS short
+    # ALL CAPS line (any length) that is bold → section_heading
+    if text.isupper() and is_bold:
+        return 'section_heading'
+
+    # ALL CAPS short line (not bold) → section_heading
     if text.isupper() and 2 <= wc <= 6:
         return 'section_heading'
 
-    # Bold short line = subheading
+    # Bold short line → subheading fallback
     if is_bold and wc <= 15:
         return 'subheading'
 
@@ -994,17 +1028,19 @@ def format_thesis_body(doc, opts, font_name):
     black        = RGBColor(0, 0, 0)
     krutidev_mode = is_krutidev(font_name)
 
-    # MKU font sizes
+    # User-specified heading sizes for thesis chapters
     if krutidev_mode:
         base_size        = 15.0
-        ch_heading_size  = 18.0
-        sec_heading_size = 17.0
-        sub_heading_size = 15.0
+        ch_heading_size  = 24.0   # CHAPTER label: 24pt (UI spec)
+        ch_title_size    = 18.0   # CHAPTER NAME/TITLE: 18pt (UI spec)
+        sec_heading_size = 17.0   # Section heading (Hindi guidelines)
+        sub_heading_size = 15.0   # Subsection heading (Hindi guidelines)
     else:
         base_size        = 12.0
-        ch_heading_size  = 16.0
-        sec_heading_size = 14.0
-        sub_heading_size = 12.0
+        ch_heading_size  = 24.0   # CHAPTER label: 24pt (UI spec)
+        ch_title_size    = 18.0   # CHAPTER NAME/TITLE: 18pt (UI spec)
+        sec_heading_size = 14.0   # Section heading: 14pt (English guidelines)
+        sub_heading_size = 12.0   # Subsection heading: 12pt (English guidelines)
 
     line_spacing = 1.5 # Fixed at 1.5 for thesis per proforma guidelines
 
@@ -1062,6 +1098,19 @@ def format_thesis_body(doc, opts, font_name):
             i += 1
             continue
 
+        # ── Figure / Table caption: center, smaller font, preserve visuals ──
+        if etype == 'figure_caption':
+            apply_para_formatting(para, etype, font_name,
+                font_size_pt=max(base_size - 2, 10.0 if not krutidev_mode else 13.0),
+                bold=False, color=black,
+                align=WD_ALIGN_PARAGRAPH.CENTER,
+                space_before_pt=4, space_after_pt=4,
+                line_spacing=1.0)
+            set_widow_orphan(para)
+            prev_etype = etype
+            i += 1
+            continue
+
         # Spacing defaults
         space_after  = 4.0
         space_before = 8.0
@@ -1087,10 +1136,10 @@ def format_thesis_body(doc, opts, font_name):
                 chapter_title = parts[1].strip()
 
                 para.text = chapter_label.upper() if not krutidev_mode else chapter_label
-                apply_para_formatting(para, etype, heading_font, # Mandatory Thesis Heading Font
+                apply_para_formatting(para, etype, heading_font,
                     font_size_pt=ch_heading_size, bold=True, color=black,
                     align=WD_ALIGN_PARAGRAPH.CENTER,
-                    space_before_pt=24, space_after_pt=0,
+                    space_before_pt=15, space_after_pt=0,
                     line_spacing=line_spacing)
                 set_widow_orphan(para)
 
@@ -1098,25 +1147,54 @@ def format_thesis_body(doc, opts, font_name):
                     chapter_title.upper() if not krutidev_mode else chapter_title)
                 para._p.addnext(title_para._p)
 
-                apply_para_formatting(title_para, etype, heading_font, # Mandatory Thesis Heading Font
-                    font_size_pt=ch_heading_size, bold=True, color=black,
+                apply_para_formatting(title_para, 'chapter_title', heading_font,
+                    font_size_pt=ch_title_size, bold=True, color=black,
                     align=WD_ALIGN_PARAGRAPH.CENTER,
-                    space_before_pt=0, space_after_pt=space_after,
+                    space_before_pt=0, space_after_pt=10,
                     line_spacing=line_spacing)
                 set_widow_orphan(title_para)
                 i += 2
                 prev_etype = 'chapter_heading'
                 continue
             else:
+                # Check if next para is chapter title
+                next_is_title = False
+                if i + 1 < len(doc.paragraphs):
+                    nxt = doc.paragraphs[i + 1]
+                    nxt_text = nxt.text.strip()
+                    if nxt_text and not has_drawing(nxt):
+                        nxt_etype = detect_thesis_structure(nxt, i + 1, doc)
+                        if nxt_etype == 'chapter_heading' and not re.match(
+                                r'^(chapter|unit|part|lesson)\s*[-–—]?\s*\S+',
+                                nxt_text, re.IGNORECASE):
+                            next_is_title = True
+
                 if not krutidev_mode:
                     apply_caps_upper(para)
-                apply_para_formatting(para, etype, heading_font, # Mandatory Thesis Heading Font
+                apply_para_formatting(para, etype, heading_font,
                     font_size_pt=ch_heading_size, bold=True, color=black,
                     align=WD_ALIGN_PARAGRAPH.CENTER,
-                    space_before_pt=24, space_after_pt=space_after,
+                    space_before_pt=15, space_after_pt=0 if next_is_title else 10,
                     line_spacing=line_spacing)
                 set_widow_orphan(para)
                 set_keep_next(para)
+
+                if next_is_title and i + 1 < len(doc.paragraphs):
+                    title_para = doc.paragraphs[i + 1]
+                    title_text = title_para.text.strip()
+                    if not krutidev_mode:
+                        for run in title_para.runs:
+                            if run.text:
+                                run.text = run.text.upper()
+                    apply_para_formatting(title_para, 'chapter_title', heading_font,
+                        font_size_pt=ch_title_size, bold=True, color=black,
+                        align=WD_ALIGN_PARAGRAPH.CENTER,
+                        space_before_pt=0, space_after_pt=10,
+                        line_spacing=line_spacing)
+                    set_widow_orphan(title_para)
+                    prev_etype = 'chapter_title'
+                    i += 2
+                    continue
 
         elif etype == 'section_heading':
             if not krutidev_mode:
@@ -1163,15 +1241,20 @@ def format_thesis_body(doc, opts, font_name):
             set_widow_orphan(para)
 
         else:  # body
-            apply_clean_justify(para)
-            final_align = para.alignment if para.alignment == WD_ALIGN_PARAGRAPH.JUSTIFY else WD_ALIGN_PARAGRAPH.LEFT
-
+            # Always justify body paragraphs in thesis (per guidelines)
             apply_para_formatting(para, etype, font_name, # User-selected Font for body
                 font_size_pt=base_size, bold=False, color=black,
-                align=final_align,
-                space_before_pt=0, space_after_pt=6.0,
-                left_indent=0.0, first_indent=0.0, # Flush left to match headings
+                align=WD_ALIGN_PARAGRAPH.JUSTIFY,
+                space_before_pt=0, space_after_pt=5.0,
+                left_indent=0.0, first_indent=0.0,
                 line_spacing=line_spacing)
+            # Force justify at XML level
+            pPr = para._p.get_or_add_pPr()
+            for jc in pPr.findall(qn('w:jc')):
+                pPr.remove(jc)
+            jc_el = OxmlElement('w:jc')
+            jc_el.set(qn('w:val'), 'both')
+            pPr.append(jc_el)
             set_widow_orphan(para)
 
         prev_etype = etype

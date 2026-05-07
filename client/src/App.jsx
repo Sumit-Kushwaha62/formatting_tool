@@ -1508,13 +1508,13 @@ Now a few correction required here -
 ***************** Last optimizaton ********************
 
 
-Books fomatting instructions:
-yaha pr main kuch implimentions likh rha hu to sirf book wale section kr karna hai aur baki sabhi section me koi bhi change nhi krna hai
+Thesis fomatting instructions:
+yaha pr main kuch implimentions likh rha hu to sirf thesis wale section pr karna hai aur baki sabhi section me koi bhi changes nhi krna hai
 
-- input file me kisi bhi tarah ka image,graph,chart ya koi bhi visual data/figure ho to vo same rhe delete na ho abhi vo apne aapne aap hi 
+- input file me kisi bhi tarah ka image,graph,chart ya koi bhi visual data/figure ho to vo same rhe delete na ho abhi vo aapne aap hi 
 delete ho jata hai during formatting process isko fix karna hai
 - table, images aur kisi tarah ke visual data ke upper jo heading hogi jo uska title hoga vo hamesha center me hona chahiye sirft visual data ka
-- chapter like "CHAPTER 1, UNIT - 1" jaisi chize to hamesha center hogi aur iska title bhi like "MACHINE LEARNING" etc. 
+- chapter like "CHAPTER 1, UNIT - 1" jaisi chize to hamesha center hogi aur iska title bhi like "MACHINE LEARNING" etc. yaha title kuch bhi ho sakta hai 
       CHAPTERS should be - 24pt, BOLD, ALL CAPS,center aligned with 15pt spacing above and 10pt spacing below
       CHAPTER NAME/TITLE should be - 18pt, BOLD, ALL CAPS,center 
       main headings - 16pt, bold aur issme 1,2,3 ya 1.1, 1.2 jaise numberings bhi impliment karni hai according to headings
@@ -1522,41 +1522,47 @@ delete ho jata hai during formatting process isko fix karna hai
       paragraphs - 12pt, justified, line spacing 1.5pt, no extra spacing between paragraphs except 5pt after the end of paragraph, first line of each paragraph should start from the left margin with no indentation
 - chapter ka conclution jo last me hoga vo hamesha left me hona chahiye center me nhi 
 
-- bhi jab bhi user ui se font style ko select kare to font style CHAPTER, CHAPTER NAME/TITIL pr impliment na ho baki sabhi pages pr ho jaye
+- jab bhi user ui se font style ko select kare to font style CHAPTER, CHAPTER NAME/TITIL pr impliment na ho baki sabhi pages pr ho jaye
 
-yaha pr main apni formatting script ki file share aur formating ki kuch refferences file share kr rha hu 
-
-
-
-yaha pr kuch mistacks hai -
-- 0.1 chapter ka naam hai 
-- 0.2 yaha pr heading hai aur 1. subheading hai
-- UNIT -2 CHAPTER hai jo 24pt, bold, CAPS hona chahiye tha jo ki nhi hai means
-ye heading ki number achhe se nhi kr paa rha hai aur chapter ko detect nhi pa rha hai
+yaha pr main apni formatting script ki file share aur formating ki kuch refferences file share kr rha hu, dhyan rhe inn sabhi implimentions ko karte time dusri koi
+chiz book section se ya kahi aur se kharab na ho vo sb same hi rhe yaha pr ham sirf thesis ke liye implimention kr rhe hai  
 
 
-yaha pr 1.1 table: , ek table title hai jo center me hona chahiye na ki left me , table ke just upper wala heading usually table ka
-title hi hota hai
-aur 1.custodian of knowledge , wali line me 1. bold nhi hai aur heading bold hai yaha pr numbering bhi bold
-rahegi means entire heading start to end bold hoga
+mai yaha pr kuch aur text paste kr rha hu jo as instructions mujhe mile hai for refference isse bhi check kr lena aur uske according bhi implimention krna hai 
+aur ye sabh chize ham hindi aur english dono type ke thesis ke liye impliment karni hai
 
-inn sabhi mistacks ko fix kro 
-
-
-
-
-
-
-again kuch mistacks hai -
-
--- 1.	1.2 Custodian of Knowledge ye wali line dekho yaha pr 1.2 aur reamining headings thik hai but 1. kyu likha hai vo nhi chahiye bs "1.2 Custodian of Knowledge" hona chahiye
--- aur UNIT -2  jo likha hai page ka pahala sentence vo chapter hai jo bold , 24pt, ALL CAPS hona chahiye jo abhi bahut small hai
+Page Dimensions & Binding Specifications: 
+The dimension of the Thesis should be in Bond Sheet (A4 Size). 
+Page Specification: 
+Left Margin  : 1.5 inch 
+Right Margin : 1 inch   
+Top Margin : 1 inch   
+Bottom Margin  : 1 inch 
 
 
+Font: 
+1- In the case of English Thesis Times New Roman, 12pt font should be used consistently 
+throughout the text. Captions for tables and figures can be in smaller fonts, but not smaller 
+than 10pt. 
+2- In the case of Hindi Thesis Kriti-10, 15pt font should be used consistently throughout the 
+text. Captions for tables and figures can be in smaller fonts, but not smaller than 13pt. 
+ 
 
-
-kuch aur chize khrab na ho remaing things same rhe to ab ye sab thesis pr bhi impliment kr do 
-
+Paragraphs: 
+No paragraph should have its opening line at the bottom of a page. A clear, consistent, but not 
+too large a separation must be provided between the paragraphs throughout the thesis. 
+Headings (English Thesis) 
+Chapter Heading – Font Size: 16, Bold, Times New Roman, CAPS 
+Section Heading – Font Size: 14, Times New Roman, CAPS 
+Subsection Heading – Font Size: 12, Times New Roman, CAPS 
+Headings (Hindi Thesis) 
+Chapter Heading – Font Size: 18, Bold, Kriti-10 
+Section Heading – Font Size: 17, Kriti-10 
+Subsection Heading – Font Size: 15, Kriti-10 
+Line spacing 
+The line spacing used should be the same throughout the text, and can be chosen to be 
+between one and a half. The lines in captions for figures and tables, Table of Contents, List of 
+Figures, and List of Tables can be single spaced, if desired. 
 
 
 
