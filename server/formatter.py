@@ -517,11 +517,12 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
     """Apply all formatting to a paragraph — run-level and pPr-level.
     For chapter_heading / chapter_title etypes, font_name is NOT applied to runs
     (those headings keep original font or document default)."""
-    # Chapter/title headings: skip font override so user font change doesn't affect them
-    skip_font = etype in ('chapter_heading', 'chapter_title', 'book_title')
+    # For chapter_heading/chapter_title: ALWAYS use heading_font (Times New Roman / Kruti Dev 010)
+    # regardless of user font selection. Caller must pass heading_font for these etypes.
+    # For all other etypes: use user-selected font_name.
+    is_chapter_type = etype in ('chapter_heading', 'chapter_title', 'book_title')
 
-    if not skip_font:
-        set_para_font(para, font_name)
+    set_para_font(para, font_name)  # para-level: font_name = heading_font for chapter types
     clear_pPr_sz(para)
     set_pPr_sz(para, int(font_size_pt * 2))
 
@@ -571,19 +572,30 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
         para.paragraph_format.first_line_indent = None
         para.paragraph_format.left_indent       = None
 
-    # Alignment
+    # Alignment — set both at python-docx level AND XML level to prevent override
     para.alignment = align
+    # Force XML-level alignment (overrides inherited styles completely)
+    pPr2 = para._p.get_or_add_pPr()
+    for jc_el in pPr2.findall(qn('w:jc')):
+        pPr2.remove(jc_el)
+    jc_new = OxmlElement('w:jc')
+    align_val_map = {
+        WD_ALIGN_PARAGRAPH.JUSTIFY: 'both',
+        WD_ALIGN_PARAGRAPH.CENTER:  'center',
+        WD_ALIGN_PARAGRAPH.LEFT:    'left',
+        WD_ALIGN_PARAGRAPH.RIGHT:   'right',
+    }
+    jc_new.set(qn('w:val'), align_val_map.get(align, 'both'))
+    pPr2.append(jc_new)
 
     # Run-level
     for run in para.runs:
         if run_has_drawing(run):
             continue  # never reformat drawing/image runs
         run.bold = bold
-        if not skip_font:
-            set_font_properly(run, font_name, font_size_pt)
-        else:
-            # Still set size even for chapter headings
-            run.font.size = Pt(font_size_pt)
+        # chapter/title types: font_name passed by caller IS heading_font — apply it directly
+        # this ensures user font selection never bleeds into chapter headings at run level
+        set_font_properly(run, font_name, font_size_pt)
         run.font.color.rgb = color
 
 
@@ -983,8 +995,34 @@ def detect_thesis_structure(para, index, doc):
 
 
 def format_table_cells(doc, font_name, base_size, line_spacing, black):
-    """Apply font/size to all table cell content."""
+    """Apply font/size to all table cell content + 5pt spacing after each table."""
     for table in doc.tables:
+        # Set 5pt spacing after the table (via the paragraph after table in XML)
+        tbl = table._tbl
+        tblPr = tbl.find(qn('w:tblPr'))
+        if tblPr is None:
+            tblPr = OxmlElement('w:tblPr')
+            tbl.insert(0, tblPr)
+        # tblCellSpacing → use tblLook/after spacing via paragraph after table
+        # Best approach: find next sibling paragraph after table and set space_before=5pt
+        tbl_parent = tbl.getparent()
+        tbl_siblings = list(tbl_parent)
+        tbl_idx = tbl_siblings.index(tbl)
+        if tbl_idx + 1 < len(tbl_siblings):
+            next_el = tbl_siblings[tbl_idx + 1]
+            if next_el.tag == qn('w:p'):
+                # Set space_before 5pt on the paragraph following the table
+                nPr = next_el.get_or_add_pPr() if hasattr(next_el, 'get_or_add_pPr') else next_el.find(qn('w:pPr'))
+                if nPr is None:
+                    nPr = OxmlElement('w:pPr')
+                    next_el.insert(0, nPr)
+                sp = nPr.find(qn('w:spacing'))
+                if sp is None:
+                    sp = OxmlElement('w:spacing')
+                    nPr.append(sp)
+                sp.set(qn('w:before'), '100')  # 5pt before next para = 5pt gap after table
+                sp.set(qn('w:beforeAutospacing'), '0')
+
         for row in table.rows:
             for cell in row.cells:
                 for para in cell.paragraphs:
@@ -1028,19 +1066,19 @@ def format_thesis_body(doc, opts, font_name):
     black        = RGBColor(0, 0, 0)
     krutidev_mode = is_krutidev(font_name)
 
-    # User-specified heading sizes for thesis chapters
+    # Heading sizes per university guidelines (exact)
     if krutidev_mode:
         base_size        = 15.0
-        ch_heading_size  = 24.0   # CHAPTER label: 24pt (UI spec)
-        ch_title_size    = 18.0   # CHAPTER NAME/TITLE: 18pt (UI spec)
-        sec_heading_size = 17.0   # Section heading (Hindi guidelines)
-        sub_heading_size = 15.0   # Subsection heading (Hindi guidelines)
+        ch_heading_size  = 18.0   # Chapter Heading: 18pt (Hindi guidelines)
+        ch_title_size    = 18.0   # Chapter Name: same as chapter heading
+        sec_heading_size = 17.0   # Section Heading: 17pt (Hindi guidelines)
+        sub_heading_size = 15.0   # Subsection Heading: 15pt (Hindi guidelines)
     else:
         base_size        = 12.0
-        ch_heading_size  = 24.0   # CHAPTER label: 24pt (UI spec)
-        ch_title_size    = 18.0   # CHAPTER NAME/TITLE: 18pt (UI spec)
-        sec_heading_size = 14.0   # Section heading: 14pt (English guidelines)
-        sub_heading_size = 12.0   # Subsection heading: 12pt (English guidelines)
+        ch_heading_size  = 16.0   # Chapter Heading: 16pt (English guidelines)
+        ch_title_size    = 16.0   # Chapter Name: same as chapter heading
+        sec_heading_size = 14.0   # Section Heading: 14pt (English guidelines)
+        sub_heading_size = 12.0   # Subsection Heading: 12pt (English guidelines)
 
     line_spacing = 1.5 # Fixed at 1.5 for thesis per proforma guidelines
 
@@ -1083,8 +1121,16 @@ def format_thesis_body(doc, opts, font_name):
         para = doc.paragraphs[i]
         text = para.text.strip()
 
-        # FIX 2: Skip image/drawing paragraphs entirely
+        # FIX 2: Skip image/drawing paragraphs — but apply 5pt spacing after them
         if has_drawing(para):
+            para.paragraph_format.space_after = Pt(5)
+            pPr_d = para._p.get_or_add_pPr()
+            sp_d = pPr_d.find(qn('w:spacing'))
+            if sp_d is None:
+                sp_d = OxmlElement('w:spacing')
+                pPr_d.append(sp_d)
+            sp_d.set(qn('w:after'), '100')  # 5pt = 100 twips
+            sp_d.set(qn('w:afterAutospacing'), '0')
             i += 1
             continue
 
@@ -1199,11 +1245,11 @@ def format_thesis_body(doc, opts, font_name):
         elif etype == 'section_heading':
             if not krutidev_mode:
                 apply_caps_upper(para)
-            apply_para_formatting(para, etype, heading_font, # Mandatory Thesis Heading Font
+            apply_para_formatting(para, etype, heading_font,
                 font_size_pt=sec_heading_size, bold=True, color=black,
                 align=WD_ALIGN_PARAGRAPH.LEFT,
                 space_before_pt=space_before, space_after_pt=3.0,
-                left_indent=0.0, first_indent=0.0, # Explicitly flush left
+                left_indent=0.0, first_indent=0.0,
                 line_spacing=line_spacing)
             set_widow_orphan(para)
             set_keep_next(para)
@@ -1211,11 +1257,11 @@ def format_thesis_body(doc, opts, font_name):
         elif etype == 'subheading':
             if not krutidev_mode:
                 apply_caps_upper(para)
-            apply_para_formatting(para, etype, heading_font, # Mandatory Thesis Heading Font
+            apply_para_formatting(para, etype, heading_font,
                 font_size_pt=sub_heading_size, bold=True, color=black,
                 align=WD_ALIGN_PARAGRAPH.LEFT,
                 space_before_pt=space_before, space_after_pt=3.0,
-                left_indent=0.0, first_indent=0.0, # Explicitly flush left
+                left_indent=0.0, first_indent=0.0,
                 line_spacing=line_spacing)
             set_widow_orphan(para)
             set_keep_next(para)
@@ -1658,6 +1704,10 @@ def format_document(input_file, output_file, opts, doc_type='book'):
         base_size     = float(opts.get('font_size', 12))
         line_spacing  = float(opts.get('line_spacing', 1.5)) # Default 1.5 for book
 
+        # Chapter/title headings always use Times New Roman (or Kruti Dev 010 for Hindi)
+        # regardless of user font selection — same as thesis
+        heading_font = 'Kruti Dev 010' if krutidev_mode else 'Times New Roman'
+
         # Heading numbering counters
         heading_counters = [0, 0]  # [main_heading, sub_heading]
 
@@ -1667,8 +1717,16 @@ def format_document(input_file, output_file, opts, doc_type='book'):
         while i < len(doc.paragraphs):
             para = doc.paragraphs[i]
 
-            # Skip drawing paragraphs — preserve images entirely
+            # Skip drawing paragraphs — preserve images, apply 5pt spacing after
             if has_drawing(para):
+                para.paragraph_format.space_after = Pt(5)
+                pPr_d = para._p.get_or_add_pPr()
+                sp_d = pPr_d.find(qn('w:spacing'))
+                if sp_d is None:
+                    sp_d = OxmlElement('w:spacing')
+                    pPr_d.append(sp_d)
+                sp_d.set(qn('w:after'), '100')
+                sp_d.set(qn('w:afterAutospacing'), '0')
                 i += 1
                 continue
 
@@ -1687,43 +1745,42 @@ def format_document(input_file, output_file, opts, doc_type='book'):
             space_before = 0.0
 
             if etype == 'book_title':
-                apply_para_formatting(para, etype, font_name,
+                apply_para_formatting(para, etype, heading_font,
                     font_size_pt=24, bold=True, color=black,
                     align=WD_ALIGN_PARAGRAPH.CENTER,
-                    space_before_pt=72, space_after_pt=36,
+                    space_before_pt=15, space_after_pt=10,
                     line_spacing=line_spacing)
-                set_para_text_formatted(para, text.upper(), 24, True, black)
+                set_para_text_formatted(para, text.upper(), 24, True, black, heading_font)
 
             elif etype == 'chapter_heading':
                 # Reset heading counters for each new chapter
                 heading_counters[0] = 0
                 heading_counters[1] = 0
-                # CHAPTER label: 24pt, bold, ALL CAPS, center, 15pt above, 10pt below
 
                 if ':' in text and re.match(r'^(chapter|unit|part|lesson)\s*[-–—]?\s*\S+', text, re.IGNORECASE):
                     parts         = text.split(':', 1)
                     chapter_label = parts[0].strip()
                     chapter_title = parts[1].strip()
 
-                    apply_para_formatting(para, etype, font_name,
+                    apply_para_formatting(para, etype, heading_font,
                         font_size_pt=24, bold=True, color=black,
                         align=WD_ALIGN_PARAGRAPH.CENTER,
                         space_before_pt=15, space_after_pt=0,
                         line_spacing=line_spacing)
                     set_para_text_formatted(para,
                         chapter_label.upper() if not krutidev_mode else chapter_label,
-                        24, True, black)
+                        24, True, black, heading_font)
 
                     title_para = doc.add_paragraph()
                     para._p.addnext(title_para._p)
-                    apply_para_formatting(title_para, 'chapter_title', font_name,
+                    apply_para_formatting(title_para, 'chapter_title', heading_font,
                         font_size_pt=18, bold=True, color=black,
                         align=WD_ALIGN_PARAGRAPH.CENTER,
                         space_before_pt=0, space_after_pt=10,
                         line_spacing=line_spacing)
                     set_para_text_formatted(title_para,
                         chapter_title.upper() if not krutidev_mode else chapter_title,
-                        18, True, black)
+                        18, True, black, heading_font)
                     i += 2
                     prev_etype = 'chapter_heading'
                     continue
@@ -1739,28 +1796,28 @@ def format_document(input_file, output_file, opts, doc_type='book'):
                                 nxt_text, re.IGNORECASE):
                             next_is_title = True
 
-                    apply_para_formatting(para, etype, font_name,
+                    apply_para_formatting(para, etype, heading_font,
                         font_size_pt=24, bold=True, color=black,
                         align=WD_ALIGN_PARAGRAPH.CENTER,
                         space_before_pt=15, space_after_pt=0 if next_is_title else 10,
                         line_spacing=line_spacing)
                     set_para_text_formatted(para,
                         text.upper() if not krutidev_mode else text,
-                        24, True, black)
+                        24, True, black, heading_font)
                     prev_etype = etype
                     i += 1
 
                     if next_is_title and i < len(doc.paragraphs):
                         title_para  = doc.paragraphs[i]
                         title_text  = title_para.text.strip()
-                        apply_para_formatting(title_para, 'chapter_title', font_name,
+                        apply_para_formatting(title_para, 'chapter_title', heading_font,
                             font_size_pt=18, bold=True, color=black,
                             align=WD_ALIGN_PARAGRAPH.CENTER,
                             space_before_pt=0, space_after_pt=10,
                             line_spacing=line_spacing)
                         set_para_text_formatted(title_para,
                             title_text.upper() if not krutidev_mode else title_text,
-                            18, True, black)
+                            18, True, black, heading_font)
                         prev_etype = 'chapter_title'
                         i += 1
                     continue
@@ -1781,7 +1838,7 @@ def format_document(input_file, output_file, opts, doc_type='book'):
                             break
                 apply_para_formatting(para, etype, font_name,
                     font_size_pt=16, bold=True, color=black,
-                    align=WD_ALIGN_PARAGRAPH.LEFT,
+                    align=WD_ALIGN_PARAGRAPH.JUSTIFY,
                     space_before_pt=4, space_after_pt=4,
                     left_indent=0.0, first_indent=0.0,
                     line_spacing=line_spacing)
@@ -1807,7 +1864,7 @@ def format_document(input_file, output_file, opts, doc_type='book'):
 
                 apply_para_formatting(para, etype, font_name,
                     font_size_pt=14, bold=True, color=black,
-                    align=WD_ALIGN_PARAGRAPH.LEFT,
+                    align=WD_ALIGN_PARAGRAPH.JUSTIFY,
                     space_before_pt=4, space_after_pt=4,
                     left_indent=0.0, first_indent=0.0,
                     line_spacing=line_spacing)
@@ -1878,7 +1935,8 @@ def format_document(input_file, output_file, opts, doc_type='book'):
         num_align    = WD_ALIGN_PARAGRAPH.CENTER
 
     for section in doc.sections:
-        section.footer_distance = Inches(1.0) # Ensure footer 1 inch from bottom
+        section.header_distance = Mm(12.5)  # 1.25cm header distance
+        section.footer_distance = Mm(12.5)  # 1.25cm footer distance
         if page_numbers and start_page != 1:
             sectPr    = section._sectPr
             pgNumType = sectPr.find(qn('w:pgNumType'))

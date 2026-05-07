@@ -1568,6 +1568,32 @@ Figures, and List of Tables can be single spaced, if desired.
 
 
 
+1.chi-square(x2) test
+2.cofidence limits (95% aur 99%)
+3.t-test
+4.analysis of variance (ANOVA)
+5.multiplication theorem
+6.conditional theorem
+7.addition theorem 
+
+
+yaha pr kuch aur correction hai aur ye corrections books and thesis dono pr implement karni hai:
+-- page pr footer and header 1.25cm ka hona chahiye
+-- page pr koi visual content, table, graph, chart ya paragraphs ke baad ki spacing 5pt honi chahiye 
+-- sabhi content justify hona chaiye abhi ye proper justify nhi hai headings ko priority pr rakho isse justify kro 
+-- 
+
+still yaha pr kuch errors hai abhi dekho headings ke starting and ending line page ke margin ke hisaab se nhi hai issse justifiy kro 
+aur CHAPTER  ke just nichhe wala heading chapter name hai jo ALL CAPS , BOLD , NEW TIMES ROMON font ko follow kartu hua hona chahiye tha 
+
+
+jisme chapter titile new times roman font ko follow nhi kr rha hai aur saath hi
+UNIT - 2 ek chapter hai jo aur bhi kaafi spacing le rha hai isse thesis wale section ke jaise kr
+do yaha pr bhi titil same fort ko follow kare aur chapter unta hi spacing le 
+
+
+
+
 
 
 
