@@ -144,9 +144,6 @@ const FEATURES = [
 
 // ─── UserDashboard Component ──────────────────────────────────
 function UserDashboard({ user, navTo, openModal }) {
-  const [dashTab, setDashTab] = useState('overview');
-  const [profileForm, setProfileForm] = useState({ name: user?.name || '', email: user?.email || '', phone: '', org: '' });
-  const [profileSaved, setProfileSaved] = useState(false);
 
   const mockPlan = { name: 'Professional', price: '₹199/mo', renew: '8 June 2026', docsUsed: 7 };
   const mockActivity = [
@@ -160,222 +157,187 @@ function UserDashboard({ user, navTo, openModal }) {
 
   if (!user) return (
     <div style={{ textAlign: 'center', padding: '160px 20px' }}>
-      <div style={{ fontFamily: "'EB Garamond', serif", fontSize: 28, color: 'var(--navy)', marginBottom: 12 }}>Login required</div>
-      <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: 'var(--text3)', marginBottom: 24 }}>Sign in to access your dashboard.</div>
+      <div style={{ fontFamily: "\'EB Garamond\', serif", fontSize: 28, color: 'var(--navy)', marginBottom: 12 }}>Login required</div>
+      <div style={{ fontFamily: "\'DM Sans\', sans-serif", fontSize: 14, color: 'var(--text3)', marginBottom: 24 }}>Sign in to access your dashboard.</div>
       <button className="btn-primary" onClick={() => openModal('login')}>Sign In →</button>
     </div>
   );
 
-  const navItems = [
-    { id: 'overview', icon: '◈', label: 'Overview' },
-    { id: 'activity', icon: '⟳', label: 'Activity' },
-    { id: 'subscription', icon: '✦', label: 'Subscription' },
-    { id: 'profile', icon: '◯', label: 'Profile' },
-  ];
-
   return (
-    <div className="dash-shell">
-      {/* Sidebar */}
-      <aside className="dash-sidebar">
-        <div className="dash-sidebar-user">
-          <div className="dash-sidebar-avatar">{user.name.charAt(0).toUpperCase()}</div>
-          <div className="dash-sidebar-name">{user.name}</div>
-          <div className="dash-sidebar-email">{user.email}</div>
+    <div className="dash-page">
+      <div className="dash-header">
+        <div>
+          <div className="dash-welcome">Welcome back, <span>{user.name}</span></div>
+          <div className="dash-email">{user.email}</div>
         </div>
-        <nav className="dash-sidebar-nav">
-          {navItems.map(item => (
-            <button
-              key={item.id}
-              className={`dash-sidebar-item ${dashTab === item.id ? 'active' : ''}`}
-              onClick={() => setDashTab(item.id)}
-            >
-              <span className="item-icon">{item.icon}</span>
-              {item.label}
-            </button>
-          ))}
-          <button className="dash-sidebar-item" onClick={() => navTo('tool')} style={{ marginTop: 8 }}>
-            <span className="item-icon">→</span>
-            Format Document
-          </button>
-        </nav>
-        <div className="dash-sidebar-footer">
-          <div style={{ padding: '0 2px' }}>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 10, color: 'var(--text3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Current Plan</div>
-            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, color: 'var(--navy)' }}>{mockPlan.name}</div>
-            <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: 'var(--gold)', marginTop: 2 }}>{mockPlan.price}</div>
+        <button className="btn-primary" onClick={() => navTo('tool')}>Format New Document →</button>
+      </div>
+
+      <div className="dash-tabs">
+        {[['overview', 'Overview'], ['activity', 'Activity'], ['subscription', 'Subscription'], ['profile', 'Profile']].map(([id, label]) => (
+          <button key={id} className={`dash-tab ${dashTab === id ? 'active' : ''}`} onClick={() => setDashTab(id)}>{label}</button>
+        ))}
+      </div>
+
+      {dashTab === 'overview' && (
+        <>
+          <div className="plan-banner">
+            <div>
+              <div className="plan-badge-lrg">✦ Current Plan</div>
+              <div className="plan-name-lrg">{mockPlan.name} — {mockPlan.price}</div>
+              <div className="plan-renew">Renews on {mockPlan.renew}</div>
+            </div>
+            <div className="plan-actions">
+              <button className="btn-plan-upgrade" onClick={() => navTo('pricing')}>Upgrade Plan</button>
+              <button className="btn-plan-cancel">Cancel</button>
+            </div>
           </div>
-        </div>
-      </aside>
+          <div className="dash-grid">
+            <div className="dash-stat-card">
+              <div className="dash-stat-label">Documents This Month</div>
+              <div className="dash-stat-val">{mockPlan.docsUsed}</div>
+              <div className="dash-stat-sub">Unlimited on Pro plan</div>
+            </div>
+            <div className="dash-stat-card">
+              <div className="dash-stat-label">Member Since</div>
+              <div className="dash-stat-val" style={{ fontSize: 22, marginTop: 6 }}>April 2026</div>
+              <div className="dash-stat-sub">Active subscription</div>
+            </div>
+          </div>
+          <div className="dash-section-title">Recent Activity</div>
+          <div className="activity-list">
+            {mockActivity.slice(0, 3).map((a, i) => (
+              <div className="activity-row" key={i}>
+                <div className="activity-icon">{a.icon}</div>
+                <div>
+                  <div className="activity-name">{a.name}</div>
+                  <div className="activity-meta">{a.meta}</div>
+                </div>
+                <div className="activity-spacer" />
+                <span className={`activity-badge ${a.status === 'done' ? 'badge-done' : 'badge-fail'}`}>
+                  {a.status === 'done' ? 'Success' : 'Failed'}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 12, textAlign: 'right' }}>
+            <button className="btn-secondary" style={{ fontSize: 12 }} onClick={() => setDashTab('activity')}>View all activity →</button>
+          </div>
+        </>
+      )}
 
-      {/* Main content */}
-      <main className="dash-content">
-        {dashTab === 'overview' && (
-          <>
-            <div className="dash-page-title">Welcome back, <span>{user.name}</span></div>
-            <div className="dash-page-sub">Here is your account overview for this month.</div>
-            <div className="plan-banner">
-              <div>
-                <div className="plan-badge-lrg">✦ Current Plan</div>
-                <div className="plan-name-lrg">{mockPlan.name} — {mockPlan.price}</div>
-                <div className="plan-renew">Renews on {mockPlan.renew}</div>
-              </div>
-              <div className="plan-actions">
-                <button className="btn-plan-upgrade" onClick={() => navTo('pricing')}>Upgrade Plan</button>
-                <button className="btn-plan-cancel">Cancel</button>
-              </div>
-            </div>
-            <div className="dash-grid">
-              <div className="dash-stat-card">
-                <div className="dash-stat-label">Documents This Month</div>
-                <div className="dash-stat-val">{mockPlan.docsUsed}</div>
-                <div className="dash-stat-sub">Unlimited on Pro plan</div>
-              </div>
-              <div className="dash-stat-card">
-                <div className="dash-stat-label">Member Since</div>
-                <div className="dash-stat-val" style={{ fontSize: 22, marginTop: 6 }}>April 2026</div>
-                <div className="dash-stat-sub">Active subscription</div>
-              </div>
-            </div>
-            <div className="dash-section-title">Recent Activity</div>
-            <div className="activity-list">
-              {mockActivity.slice(0, 3).map((a, i) => (
-                <div className="activity-row" key={i}>
-                  <div className="activity-icon">{a.icon}</div>
-                  <div>
-                    <div className="activity-name">{a.name}</div>
-                    <div className="activity-meta">{a.meta}</div>
-                  </div>
-                  <div className="activity-spacer" />
-                  <span className={`activity-badge ${a.status === 'done' ? 'badge-done' : 'badge-fail'}`}>
-                    {a.status === 'done' ? 'Success' : 'Failed'}
-                  </span>
+      {dashTab === 'activity' && (
+        <>
+          <div className="dash-section-title">All Formatting Activity</div>
+          <div className="activity-list">
+            {mockActivity.map((a, i) => (
+              <div className="activity-row" key={i}>
+                <div className="activity-icon">{a.icon}</div>
+                <div>
+                  <div className="activity-name">{a.name}</div>
+                  <div className="activity-meta">{a.meta}</div>
                 </div>
-              ))}
-            </div>
-            <div style={{ marginTop: 12, textAlign: 'right' }}>
-              <button className="btn-secondary" style={{ fontSize: 12 }} onClick={() => setDashTab('activity')}>View all activity →</button>
-            </div>
-          </>
-        )}
+                <div className="activity-spacer" />
+                <span className={`activity-badge ${a.status === 'done' ? 'badge-done' : 'badge-fail'}`}>
+                  {a.status === 'done' ? 'Success' : 'Failed'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
-        {dashTab === 'activity' && (
-          <>
-            <div className="dash-page-title">Activity</div>
-            <div className="dash-page-sub">Your complete document formatting history.</div>
-            <div className="activity-list">
-              {mockActivity.map((a, i) => (
-                <div className="activity-row" key={i}>
-                  <div className="activity-icon">{a.icon}</div>
-                  <div>
-                    <div className="activity-name">{a.name}</div>
-                    <div className="activity-meta">{a.meta}</div>
-                  </div>
-                  <div className="activity-spacer" />
-                  <span className={`activity-badge ${a.status === 'done' ? 'badge-done' : 'badge-fail'}`}>
-                    {a.status === 'done' ? 'Success' : 'Failed'}
-                  </span>
-                </div>
-              ))}
+      {dashTab === 'subscription' && (
+        <>
+          <div className="plan-banner" style={{ marginBottom: 20 }}>
+            <div>
+              <div className="plan-badge-lrg">✦ Active Plan</div>
+              <div className="plan-name-lrg">{mockPlan.name}</div>
+              <div className="plan-renew">Next billing: {mockPlan.renew} · {mockPlan.price}</div>
             </div>
-          </>
-        )}
+            <div className="plan-actions">
+              <button className="btn-plan-upgrade" onClick={() => navTo('pricing')}>Change Plan</button>
+              <button className="btn-plan-cancel">Cancel Subscription</button>
+            </div>
+          </div>
+          <div className="dash-section-title">Usage This Month</div>
+          <div className="profile-form" style={{ marginBottom: 16 }}>
+            <div className="usage-bar-wrap">
+              <div className="usage-bar-top">
+                <span className="usage-bar-label">Documents Formatted</span>
+                <span className="usage-bar-count">{mockPlan.docsUsed} / Unlimited</span>
+              </div>
+              <div className="usage-bar-track"><div className="usage-bar-fill" style={{ width: '23%' }} /></div>
+            </div>
+            <div className="usage-bar-wrap">
+              <div className="usage-bar-top">
+                <span className="usage-bar-label">Storage Used</span>
+                <span className="usage-bar-count">12 MB / 500 MB</span>
+              </div>
+              <div className="usage-bar-track"><div className="usage-bar-fill" style={{ width: '2.4%' }} /></div>
+            </div>
+          </div>
+          <div className="dash-section-title">Billing History</div>
+          <div className="activity-list">
+            {[
+              { date: '8 May 2026', amount: '₹199' },
+              { date: '8 Apr 2026', amount: '₹199' },
+              { date: '8 Mar 2026', amount: '₹199' },
+            ].map((b, i) => (
+              <div className="activity-row" key={i}>
+                <div className="activity-icon">🧾</div>
+                <div>
+                  <div className="activity-name">Professional Plan</div>
+                  <div className="activity-meta">{b.date}</div>
+                </div>
+                <div className="activity-spacer" />
+                <span style={{ fontFamily: "\'DM Mono\', monospace", fontSize: 13, color: 'var(--navy)', fontWeight: 600 }}>{b.amount}</span>
+                <span className="activity-badge badge-done" style={{ marginLeft: 10 }}>Paid</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
-        {dashTab === 'subscription' && (
-          <>
-            <div className="dash-page-title">Subscription</div>
-            <div className="dash-page-sub">Manage your plan and billing.</div>
-            <div className="plan-banner" style={{ marginBottom: 20 }}>
-              <div>
-                <div className="plan-badge-lrg">✦ Active Plan</div>
-                <div className="plan-name-lrg">{mockPlan.name}</div>
-                <div className="plan-renew">Next billing: {mockPlan.renew} · {mockPlan.price}</div>
-              </div>
-              <div className="plan-actions">
-                <button className="btn-plan-upgrade" onClick={() => navTo('pricing')}>Change Plan</button>
-                <button className="btn-plan-cancel">Cancel Subscription</button>
-              </div>
-            </div>
-            <div className="dash-section-title">Usage This Month</div>
-            <div className="profile-form" style={{ marginBottom: 16 }}>
-              <div className="usage-bar-wrap">
-                <div className="usage-bar-top">
-                  <span className="usage-bar-label">Documents Formatted</span>
-                  <span className="usage-bar-count">{mockPlan.docsUsed} / Unlimited</span>
-                </div>
-                <div className="usage-bar-track"><div className="usage-bar-fill" style={{ width: '23%' }} /></div>
-              </div>
-              <div className="usage-bar-wrap">
-                <div className="usage-bar-top">
-                  <span className="usage-bar-label">Storage Used</span>
-                  <span className="usage-bar-count">12 MB / 500 MB</span>
-                </div>
-                <div className="usage-bar-track"><div className="usage-bar-fill" style={{ width: '2.4%' }} /></div>
-              </div>
-            </div>
-            <div className="dash-section-title">Billing History</div>
-            <div className="activity-list">
+      {dashTab === 'profile' && (
+        <>
+          <div className="dash-section-title">Profile Information</div>
+          <div className="profile-form">
+            <div className="profile-avatar">{user.name.charAt(0).toUpperCase()}</div>
+            <div className="profile-grid">
               {[
-                { date: '8 May 2026', amount: '₹199' },
-                { date: '8 Apr 2026', amount: '₹199' },
-                { date: '8 Mar 2026', amount: '₹199' },
-              ].map((b, i) => (
-                <div className="activity-row" key={i}>
-                  <div className="activity-icon">🧾</div>
-                  <div>
-                    <div className="activity-name">Professional Plan</div>
-                    <div className="activity-meta">{b.date}</div>
-                  </div>
-                  <div className="activity-spacer" />
-                  <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, color: 'var(--navy)', fontWeight: 600 }}>{b.amount}</span>
-                  <span className="activity-badge badge-done" style={{ marginLeft: 10 }}>Paid</span>
+                { key: 'name', label: 'Full Name', placeholder: 'Your name', type: 'text' },
+                { key: 'email', label: 'Email Address', placeholder: 'you@example.com', type: 'email' },
+                { key: 'phone', label: 'Phone Number', placeholder: '+91 00000 00000', type: 'text' },
+                { key: 'org', label: 'Organization / University', placeholder: 'e.g. IIT Delhi', type: 'text' },
+              ].map(f => (
+                <div className="field-group" key={f.key}>
+                  <label className="field-label">{f.label}</label>
+                  <input className="field-input" type={f.type} placeholder={f.placeholder}
+                    value={profileForm[f.key]} onChange={e => setProfileForm(p => ({ ...p, [f.key]: e.target.value }))} />
                 </div>
               ))}
             </div>
-          </>
-        )}
-
-        {dashTab === 'profile' && (
-          <>
-            <div className="dash-page-title">Profile</div>
-            <div className="dash-page-sub">Manage your account information and security.</div>
-            <div className="dash-section-title">Profile Information</div>
-            <div className="profile-form">
-              <div className="profile-avatar">{user.name.charAt(0).toUpperCase()}</div>
-              <div className="profile-grid">
-                {[
-                  { key: 'name', label: 'Full Name', placeholder: 'Your name', type: 'text' },
-                  { key: 'email', label: 'Email Address', placeholder: 'you@example.com', type: 'email' },
-                  { key: 'phone', label: 'Phone Number', placeholder: '+91 00000 00000', type: 'text' },
-                  { key: 'org', label: 'Organization / University', placeholder: 'e.g. IIT Delhi', type: 'text' },
-                ].map(f => (
-                  <div className="field-group" key={f.key}>
-                    <label className="field-label">{f.label}</label>
-                    <input className="field-input" type={f.type} placeholder={f.placeholder}
-                      value={profileForm[f.key]} onChange={e => setProfileForm(p => ({ ...p, [f.key]: e.target.value }))} />
-                  </div>
-                ))}
-              </div>
-              <div className="divider" />
-              <div className="btn-row">
-                <button className="btn-primary" onClick={saveProfile}>{profileSaved ? '✓ Saved' : 'Save Changes'}</button>
-              </div>
+            <div className="divider" />
+            <div className="btn-row">
+              <button className="btn-primary" onClick={saveProfile}>{profileSaved ? '✓ Saved' : 'Save Changes'}</button>
             </div>
-            <div className="dash-section-title" style={{ marginTop: 24 }}>Security</div>
-            <div className="profile-form" style={{ marginBottom: 0 }}>
-              <div className="field-group" style={{ maxWidth: 360 }}>
-                <label className="field-label">New Password</label>
-                <input className="field-input" type="password" placeholder="Min. 8 characters" />
-              </div>
-              <div style={{ marginTop: 16 }}><button className="btn-secondary">Update Password</button></div>
+          </div>
+          <div className="dash-section-title" style={{ marginTop: 24 }}>Security</div>
+          <div className="profile-form" style={{ marginBottom: 0 }}>
+            <div className="field-group" style={{ maxWidth: 360 }}>
+              <label className="field-label">New Password</label>
+              <input className="field-input" type="password" placeholder="Min. 8 characters" />
             </div>
-            <div className="danger-zone">
-              <div className="danger-title">Danger Zone</div>
-              <div className="danger-desc">Permanently delete your account and all associated data. This action cannot be undone.</div>
-              <button className="btn-danger">Delete Account</button>
-            </div>
-          </>
-        )}
-      </main>
+            <div style={{ marginTop: 16 }}><button className="btn-secondary">Update Password</button></div>
+          </div>
+          <div className="danger-zone">
+            <div className="danger-title">Danger Zone</div>
+            <div className="danger-desc">Permanently delete your account and all associated data. This action cannot be undone.</div>
+            <button className="btn-danger">Delete Account</button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -396,6 +358,9 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const heroRef = useRef(null);
+  const [dashTab, setDashTab] = useState('overview');
+  const [profileForm, setProfileForm] = useState({ name: '', email: '', phone: '', org: '' });
+  const [profileSaved, setProfileSaved] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -410,15 +375,13 @@ export default function App() {
     if (!authForm.email || !authForm.password) { setAuthError('Email aur password required hai.'); return; }
     setUser({ name: authForm.email.split('@')[0], email: authForm.email });
     closeModal();
-    setPage('dashboard');
   };
   const handleSignup = () => {
     if (!authForm.name || !authForm.email || !authForm.password) { setAuthError('All fields required.'); return; }
     setUser({ name: authForm.name, email: authForm.email });
     closeModal();
-    setPage('dashboard');
   };
-  const handleLogout = () => { setUser(null); setPage('home'); };
+  const handleLogout = () => setUser(null);
 
   const currentType = DOC_TYPES.find(t => t.id === selectedType);
   const fontList = formData.font_script === 'hindi' ? HINDI_FONTS : formData.font_script === 'english' ? ENGLISH_FONTS : [];
@@ -1221,56 +1184,30 @@ export default function App() {
         .licence-text { font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text2); line-height: 1.7; }
 
         /* ── Dashboard ── */
-        .dash-shell { display: flex; min-height: 100vh; padding-top: 60px; background: var(--bg); }
-        .dash-sidebar {
-          width: 240px; flex-shrink: 0;
-          background: var(--surface); border-right: 1px solid var(--border);
-          padding: 32px 0; position: sticky; top: 60px; height: calc(100vh - 60px);
-          overflow-y: auto; display: flex; flex-direction: column;
-        }
-        .dash-sidebar-user { padding: 0 20px 24px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
-        .dash-sidebar-avatar {
-          width: 48px; height: 48px; border-radius: 50%;
-          background: var(--navy); display: flex; align-items: center; justify-content: center;
-          font-family: 'EB Garamond', serif; font-size: 22px; font-weight: 600;
-          color: var(--gold2); margin-bottom: 10px;
-          box-shadow: 0 0 0 3px rgba(184,146,42,0.2);
-        }
-        .dash-sidebar-name { font-family: 'EB Garamond', serif; font-size: 16px; font-weight: 600; color: var(--navy); }
-        .dash-sidebar-email { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--text3); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .dash-sidebar-nav { padding: 0 10px; flex: 1; }
-        .dash-sidebar-item {
-          display: flex; align-items: center; gap: 10px;
-          font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
-          color: var(--text2); padding: 9px 12px; border-radius: var(--r-sm);
-          cursor: pointer; border: none; background: none; width: 100%; text-align: left;
-          transition: all .15s; margin-bottom: 2px;
-        }
-        .dash-sidebar-item:hover { color: var(--navy); background: var(--bg2); }
-        .dash-sidebar-item.active { color: var(--navy); background: var(--bg2); font-weight: 600; }
-        .dash-sidebar-item .item-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
-        .dash-sidebar-footer { padding: 16px 10px 0; border-top: 1px solid var(--border); margin-top: auto; }
-        .dash-content { flex: 1; padding: 40px 48px 60px; min-width: 0; }
-        .dash-page-title { font-family: 'EB Garamond', serif; font-size: 28px; font-weight: 500; color: var(--navy); letter-spacing: -0.02em; margin-bottom: 4px; }
-        .dash-page-title span { font-style: italic; color: var(--gold); }
-        .dash-page-sub { font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text3); margin-bottom: 28px; }
+        .dash-page { padding: 80px 40px 60px; max-width: 1000px; margin: 0 auto; }
+        .dash-header { margin-bottom: 32px; display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+        .dash-welcome { font-family: 'EB Garamond', serif; font-size: 32px; font-weight: 500; color: var(--navy); letter-spacing: -0.02em; }
+        .dash-welcome span { font-style: italic; color: var(--gold); }
+        .dash-email { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text3); margin-top: 4px; }
 
-        .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
-        .dash-stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 20px 22px; position: relative; overflow: hidden; transition: box-shadow .2s; }
-        .dash-stat-card:hover { box-shadow: 0 4px 16px rgba(26,39,68,0.08); }
-        .dash-stat-card::after { content: ''; position: absolute; right: -20px; bottom: -20px; width: 80px; height: 80px; border-radius: 50%; background: rgba(26,39,68,0.03); }
+        .dash-tabs { display: flex; gap: 2px; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 4px; margin-bottom: 28px; width: fit-content; }
+        .dash-tab { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--text2); padding: 7px 18px; border: none; background: none; border-radius: 4px; cursor: pointer; transition: all .15s; }
+        .dash-tab.active { background: var(--surface); color: var(--navy); box-shadow: 0 1px 3px rgba(26,39,68,0.1); }
+
+        .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+        .dash-stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 22px 24px; }
         .dash-stat-label { font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text3); margin-bottom: 10px; }
-        .dash-stat-val { font-family: 'EB Garamond', serif; font-size: 36px; font-weight: 500; color: var(--navy); line-height: 1; }
+        .dash-stat-val { font-family: 'EB Garamond', serif; font-size: 34px; font-weight: 500; color: var(--navy); line-height: 1; }
         .dash-stat-sub { font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--text3); margin-top: 6px; }
 
-        .plan-banner { background: linear-gradient(135deg, var(--navy) 0%, var(--navy3) 100%); border-radius: var(--r-md); padding: 24px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; position: relative; overflow: hidden; }
-        .plan-banner::before { content: ''; position: absolute; right: -40px; top: -40px; width: 160px; height: 160px; border-radius: 50%; background: rgba(212,168,67,0.08); pointer-events: none; }
+        .plan-banner { background: var(--navy); border-radius: var(--r-md); padding: 24px 28px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
+        .plan-banner-left {}
         .plan-badge-lrg { display: inline-block; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 10px; border-radius: 2px; background: rgba(212,168,67,0.2); color: var(--gold2); border: 1px solid rgba(212,168,67,0.35); margin-bottom: 10px; }
         .plan-name-lrg { font-family: 'EB Garamond', serif; font-size: 22px; font-weight: 500; color: var(--bg); margin-bottom: 4px; }
         .plan-renew { font-family: 'DM Sans', sans-serif; font-size: 13px; color: rgba(247,244,239,0.55); }
-        .plan-actions { display: flex; gap: 10px; flex-wrap: wrap; position: relative; z-index: 1; }
+        .plan-actions { display: flex; gap: 10px; flex-wrap: wrap; }
         .btn-plan-upgrade { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; padding: 9px 20px; background: var(--gold2); color: var(--navy); border: none; border-radius: var(--r-sm); cursor: pointer; transition: all .15s; }
-        .btn-plan-upgrade:hover { background: #E8BC50; transform: translateY(-1px); }
+        .btn-plan-upgrade:hover { background: #E8BC50; }
         .btn-plan-cancel { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; padding: 9px 20px; background: none; color: rgba(247,244,239,0.6); border: 1px solid rgba(247,244,239,0.2); border-radius: var(--r-sm); cursor: pointer; transition: all .15s; }
         .btn-plan-cancel:hover { border-color: rgba(192,57,43,0.5); color: #e87c72; }
 
@@ -1280,19 +1217,19 @@ export default function App() {
         .activity-list { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
         .activity-row { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid var(--border); transition: background .15s; }
         .activity-row:last-child { border-bottom: none; }
-        .activity-row:hover { background: rgba(26,39,68,0.02); }
-        .activity-icon { width: 36px; height: 36px; border-radius: var(--r-sm); background: var(--bg2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+        .activity-row:hover { background: var(--bg2); }
+        .activity-icon { width: 34px; height: 34px; border-radius: var(--r-sm); background: var(--bg2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
         .activity-name { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--navy); }
         .activity-meta { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text3); margin-top: 2px; }
         .activity-spacer { flex: 1; }
-        .activity-badge { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 9px; border-radius: 20px; }
-        .badge-done { background: rgba(26,107,60,0.08); color: var(--green); border: 1px solid rgba(26,107,60,0.2); }
-        .badge-fail { background: rgba(192,57,43,0.08); color: var(--red); border: 1px solid rgba(192,57,43,0.2); }
+        .activity-badge { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 8px; border-radius: 2px; }
+        .badge-done { background: rgba(26,107,60,0.1); color: var(--green); }
+        .badge-fail { background: rgba(192,57,43,0.1); color: var(--red); }
 
         .profile-form { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 28px; }
-        .profile-avatar { width: 56px; height: 56px; border-radius: 50%; background: var(--navy); display: flex; align-items: center; justify-content: center; font-family: 'EB Garamond', serif; font-size: 24px; font-weight: 600; color: var(--gold2); margin-bottom: 20px; box-shadow: 0 0 0 4px rgba(184,146,42,0.15); }
+        .profile-avatar { width: 60px; height: 60px; border-radius: 50%; background: var(--navy); display: flex; align-items: center; justify-content: center; font-family: 'EB Garamond', serif; font-size: 26px; font-weight: 600; color: var(--gold2); margin-bottom: 20px; }
         .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
-        .danger-zone { background: rgba(192,57,43,0.03); border: 1px solid rgba(192,57,43,0.18); border-radius: var(--r-md); padding: 20px 24px; margin-top: 16px; }
+        .danger-zone { background: rgba(192,57,43,0.04); border: 1px solid rgba(192,57,43,0.2); border-radius: var(--r-md); padding: 20px 24px; margin-top: 16px; }
         .danger-title { font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--red); margin-bottom: 10px; }
         .danger-desc { font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text2); margin-bottom: 14px; line-height: 1.5; }
         .btn-danger { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; padding: 8px 18px; background: none; color: var(--red); border: 1px solid rgba(192,57,43,0.4); border-radius: var(--r-sm); cursor: pointer; transition: all .15s; }
@@ -1302,23 +1239,12 @@ export default function App() {
         .usage-bar-top { display: flex; justify-content: space-between; margin-bottom: 6px; }
         .usage-bar-label { font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text2); }
         .usage-bar-count { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text3); }
-        .usage-bar-track { height: 5px; background: var(--bg2); border-radius: 3px; overflow: hidden; }
+        .usage-bar-track { height: 6px; background: var(--bg2); border-radius: 3px; overflow: hidden; }
         .usage-bar-fill { height: 100%; border-radius: 3px; background: var(--navy); transition: width .4s ease; }
         .usage-bar-fill.warn { background: var(--gold); }
         .usage-bar-fill.over { background: var(--red); }
 
         @media (max-width: 768px) {
-          .dash-shell { flex-direction: column; }
-          .dash-sidebar { width: 100%; height: auto; position: static; flex-direction: row; flex-wrap: wrap; padding: 12px; border-right: none; border-bottom: 1px solid var(--border); }
-          .dash-sidebar-user { display: none; }
-          .dash-sidebar-nav { display: flex; flex-wrap: wrap; gap: 4px; padding: 0; }
-          .dash-sidebar-footer { border-top: none; padding: 0; margin: 0; }
-          .dash-content { padding: 24px 20px 50px; }
-          .dash-grid { grid-template-columns: 1fr; }
-          .profile-grid { grid-template-columns: 1fr; }
-          .plan-banner { flex-direction: column; align-items: flex-start; }
-        }
-                @media (max-width: 768px) {
           .dash-page { padding: 80px 20px 50px; }
           .dash-grid { grid-template-columns: 1fr; }
           .profile-grid { grid-template-columns: 1fr; }
@@ -1725,6 +1651,17 @@ export default function App() {
                           </div>
                         ))}
                       </div>
+                      <div className="field-group" style={{ marginTop: 14, maxWidth: 240 }}>
+                        <label className="field-label">Start Page Number From <span className="field-opt">Default: 1</span></label>
+                        <input
+                          className="field-input"
+                          type="number"
+                          min="1"
+                          placeholder="e.g. 4, 9, 12"
+                          value={formData.page_number_start || ''}
+                          onChange={e => handleFieldChange('page_number_start', e.target.value)}
+                        />
+                      </div>
                     </div>
                   )}
                   <div className="form-grid-2" style={{ marginTop: 12 }}>
@@ -1841,13 +1778,8 @@ export default function App() {
         </div>
       )}
 
-      {/* ══════════ DASHBOARD PAGE ══════════ */}
-      {page === 'dashboard' && (
-        <UserDashboard user={user} navTo={navTo} openModal={openModal} />
-      )}
-
       {/* ══════════ FOOTER ══════════ */}
-      {page !== 'dashboard' && <footer className="footer">
+      <footer className="footer">
         <div className="footer-inner">
           <div className="footer-top">
             <div>
@@ -1889,7 +1821,12 @@ export default function App() {
             </div>
           </div>
         </div>
-      </footer>}
+      </footer>
+
+      {/* ══════════ DASHBOARD PAGE ══════════ */}
+      {page === 'dashboard' && (
+        <UserDashboard user={user} navTo={navTo} openModal={openModal} />
+      )}
 
       {/* ══════════ MODALS ══════════ */}
       {modal === 'login' && (
@@ -1969,85 +1906,7 @@ export default function App() {
 }
 
 
-
 /* 
-
-yaha mai ek document formatting tool designe kr rha hu jisme ek
-hindi to kruti dev 010 converter model use kiya hai jo abhi thoda sahi se kaam nhi kr rha hai aur ab mujhe 
-issme corrections karne hai to batao ki vo kiss file me hoga i think utill.py me maine shared logic rakhe hai 
-aur baaki section ke alag-alag logics alag files me vo bhi share kr rha hu , yaha pr conversion logic me kya issue
-hai isse fix kro aur model aur accurate and optimize kr do taaki vo sahi conversion sake 
-
-
-
-now ab mujhe yaha pr ke book.py, thesis.py etc. ke jaise hi ek aur file ready karni hai jo ki research paper ke liye
-hoga mai yaha pr ek exprected output wali file de rha hu ussi uss ke dekh ke ek pattern bana lo aur usse algorithm me impliment
-kr do , aur ye bhi batao ki iss file ko server directery me rakhe jaha baki ke files like book.py hai to ye work karega 
-ya kuch aur duskri file me changes karne padege isse connect karne ke liye agar han to usski details de dena aur ab ke research.py 
-ready kr do - yaha pr kuch patter jo maine detect kiye hai to bata deta hu -
-
-1. entire page ka font timew new roman me hi hai
-2. ek hi heading me agar multiple paragraph aati hai
-to ek 0.25 ka tab space aata hai 
-3. "keywords:" naam ke koi word aaye file mai to 
-uske befor and after 4px ka spacing hai
-4. introduction word se lekar aage ke jitne bhi word aye
-unme numbering hogi
-5. entire page black color me hi hoga
-6. headings hamesha bold hi hongi
-7. last page hamesha references: ka hota hai jisme
-numbering hogi
-
-
-
-
-
-
-
-yaha pr reseach wali file me kuch issue hai like-
-
-1. sabhi side heading bold hona hai abhi nahi hai 
-2. sabh kuch left margine se start hoga ek ki point se (ek hi paragraph me agar paragraph change hoga to 0.25 ka tab space lega)
-3. page ka pahale heading usually uss paper ka title hota hai jo always center aayega
-4. aur qustion wala section kuch bullet point style me hai jisko tumne paragraph me rakh diya hai, refference text dekho
-
-Questionnaire
-Section A: General Information
-1. What is your age group?
-2. How long have you been diagnosed with osteoporosis?
-3. Do you regularly take Vitamin D supplements?
-4. How frequently are you exposed to sunlight?
-5. Do you consume calcium-rich foods regularly?
-
-Section B: Treatment Outcomes
-6. Have you experienced reduced bone pain after supplementation?
-7. Has your physical mobility improved?
-8. Have you experienced fewer falls or fractures?
-9. Are you satisfied with your osteoporosis treatment plan?
-10. Would you recommend Vitamin D supplementation to other elderly patients?
-
-
-
-
-
-file me ham side headings ki numbering kr rhe hai lekin yaha pr numbering kabhi bhi "Abstract" word pr nhi hogi numbering
-hamesha "Introduction" word se start hogi , abstract word without number ka hoga aur abstract word ke pahle jo bhi text ayega vo sab center me hoga aur 
-iske below pura content justify hoga 
-
-
-
-
-ye dono file dekho yaha yaha maine ek fomatting tool mai hindi to kruti dev 010 converstion ka login likha hai lekin iska output
-sahi nhi aa rha hai maine screenshort share kiya hai may ye util.py sectio me hi fix hoga
-
-
-
-
-
-
-
-
-
 
 
 

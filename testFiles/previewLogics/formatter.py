@@ -15,7 +15,6 @@ from utils import (
 from book import insert_title_page, format_book_body
 from thesis import insert_thesis_title_page, format_thesis_body
 from letter import insert_letter_header, has_existing_letter_header, format_letter_body
-from research import insert_research_title_page, format_research_body
 
 PAGE_SIZE_MAP = {
     'A4':     (Mm(210), Mm(297)),
@@ -109,8 +108,6 @@ def format_document(input_file, output_file, opts, doc_type='book'):
         has_user_header = opts.get('org_name') or opts.get('subject')
         if has_user_header and not has_existing_letter_header(doc):
             insert_letter_header(doc, opts, font_name)
-    elif doc_type == 'research':
-        insert_research_title_page(doc, opts, font_name)
     else:
         insert_title_page(doc, opts, font_name)
 
@@ -119,8 +116,6 @@ def format_document(input_file, output_file, opts, doc_type='book'):
         format_thesis_body(doc, opts, font_name)
     elif doc_type == 'letter':
         format_letter_body(doc, opts, font_name)
-    elif doc_type == 'research':
-        format_research_body(doc, opts, font_name)
     else:
         # book / research paper
         format_book_body(doc, opts, font_name)
