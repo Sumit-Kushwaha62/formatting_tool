@@ -21,6 +21,8 @@ yarn-error.log*
 .env.*
 client/.env
 server/.env
+.env
+.env.production
 
 # ================================
 # Build folders
@@ -67,3 +69,5 @@ __pycache__/
 coverage/
 .cache/
 .tmp/
+
+

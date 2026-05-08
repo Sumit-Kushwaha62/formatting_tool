@@ -199,6 +199,37 @@ def preprocess_document(doc):
 KRUTIDEV_FONTS = {'Kruti Dev 010', 'Kruti Dev 011', 'Krutidev010', 'Krutidev011',
                   'KrutiDev010', 'KrutiDev011', 'Kruti Dev010', 'Kruti Dev011'}
 
+# ═══════════════════════════
+# SHARED DETECTION CONSTANTS
+# ═══════════════════════════
+
+# Hindi + English chapter/unit words, ASCII + Devanagari numerals
+CHAPTER_HEADING_RE = re.compile(
+    r'^(chapter|unit|part|lesson|अध्याय|इकाई|भाग|पाठ)'
+    r'\s*[-–—]?\s*(\d+|[ivxlcdmIVXLCDM]+|[०-९]+)\b',
+    re.IGNORECASE
+)
+
+
+def inject_heading_number(para, sec, sub=None, krutidev_mode=False):
+    """
+    Inject section number prefix into heading para.
+    Skipped in krutidev_mode because Hindi documents already carry
+    Devanagari numerals in the text — adding an ASCII counter would
+    produce garbage like '0१' or '1२'.
+    Also skipped if the paragraph already starts with a digit.
+    """
+    if krutidev_mode:
+        return
+    text = para.text.strip()
+    if re.match(r'^\d+', text):
+        return
+    prefix = f"{sec}. " if sub is None else f"{sec}.{sub} "
+    if para.runs:
+        para.runs[0].text = prefix + para.runs[0].text.lstrip()
+    else:
+        para.add_run(prefix)
+
 FONT_NAME_MAP = {
     'Krutidev010': 'Kruti Dev 010',
     'Krutidev011': 'Kruti Dev 011',
@@ -221,13 +252,17 @@ def unicode_to_krutidev(text):
     if not re.search(r'[\u0900-\u097F]', text):
         return text
 
+    import unicodedata
+    # NFC normalize: combine decomposed nukta forms (क + ़ -> क़), etc.
+    text = unicodedata.normalize('NFC', text)
+
     HALANT = '\u094D'
 
     CONJUNCTS = [
         ('\u0915\u094D\u0937', '{k'),
         ('\u0924\u094D\u0930', '\u00d8'),
         ('\u091C\u094D\u091E', 'K'),
-        ('\u0936\u094D\u0930', 'J'),
+        ('\u0936\u094D\u0930', "'J"),
         ('\u092A\u094D\u0930', 'iz'),
         ('\u0917\u094D\u0930', 'xz'),
         ('\u0915\u094D\u0930', 'dz'),
@@ -263,10 +298,12 @@ def unicode_to_krutidev(text):
     C = {
         'अ': 'v',  'आ': 'vk', 'इ': 'b',  'ई': 'bZ',
         'उ': 'm',  'ऊ': 'Å',  'ए': ',',  'ऐ': ',s',
-        'ओ': 'vks','औ': 'vkS',
+        'ओ': 'vks','औ': 'vkS','ऋ': '_',  'ॠ': '__',
+        'ऑ': 'vkW',
         'ा': 'k',  'ि': 'f',  'ी': 'h',  'ु': 'q',
         'ू': 'w',  'ृ': '`',  'े': 's',  'ै': 'S',
         'ो': 'ks', 'ौ': 'kS', 'ं': 'a',  'ः': '%',  'ँ': '\u00a1',
+        'ॉ': 'W',  'ॊ': 'ks',
         'क': 'd',  'ख': '[k', 'ग': 'x',  'घ': '?k', 'ङ': 'M~',
         'च': 'p',  'छ': 'N',  'ज': 't',  'झ': '>k', 'ञ': '\u00a5',
         'ट': 'V',  'ठ': 'B',  'ड': 'M',  'ढ': '<',  'ण': '.k',
@@ -274,12 +311,27 @@ def unicode_to_krutidev(text):
         'प': 'i',  'फ': 'Q',  'ब': 'c',  'भ': 'Hk', 'म': 'e',
         'य': ';',  'र': 'j',  'ल': 'y',  'व': 'o',
         'श': "'k", 'ष': '"k', 'स': 'l',  'ह': 'g',
-        'क़': 'd+','ख़': '[k+','ग़': 'x+','ज़': 't+',
-        'ड़': 'M+','ढ़': '<+','फ़': 'Q+',
+        'ॐ': 'ks',
+        '़': '',   # nukta — absorbed into combined form via NFC; bare nukta → drop
+        'ऽ': '\'', # avagraha
         '।': 'A',  '॥': 'AA',
         '०': ')',  '१': '!',  '२': '@',  '३': '#',  '४': '$',
         '५': '%',  '६': '^',  '७': '&',  '८': '*',  '९': '(',
     }
+
+    # Nukta-combined consonants (NFC precomposed or decomposed both handled)
+    NUKTA_MAP = {
+        'क\u093C': 'd+', 'ख\u093C': '[k+', 'ग\u093C': 'x+', 'ज\u093C': 't+',
+        'ड\u093C': 'M+', 'ढ\u093C': '<+', 'फ\u093C': 'Q+', 'य\u093C': ';+',
+        'र\u093C': 'j+',
+    }
+    # Apply nukta combinations before char loop
+    for uni_pair, kd_val in NUKTA_MAP.items():
+        text = text.replace(uni_pair, kd_val)
+    # Also handle precomposed nukta forms from C dict (legacy path)
+    for uni_ch, kd_val in [('क़','d+'),('ख़','[k+'),('ग़','x+'),('ज़','t+'),
+                             ('ड़','M+'),('ढ़','<+'),('फ़','Q+')]:
+        text = text.replace(uni_ch, kd_val)
 
     HALF = {
         'क': 'D',  'ख': '[',  'ग': 'X',  'घ': '?',
@@ -293,8 +345,8 @@ def unicode_to_krutidev(text):
         'ञ': '\u00a5~',
     }
 
-    VOWELS = set('अआइईउऊएऐओऔ')
-    MATRAS = set('ािीुूृेैोौंःँ')
+    VOWELS = set('अआइईउऊएऐओऔऋॠऑ')
+    MATRAS = set('ािीुूृेैोौंःँॉॊ')
 
     result = []
     chars  = list(text)
@@ -321,17 +373,29 @@ def unicode_to_krutidev(text):
                     syl.append('f')
                     syl.append(C.get(nc, nc))
                     i += 2
+                    # consume any additional matras after ि
+                    while i < n and chars[i] in MATRAS and chars[i] != 'ि':
+                        syl.append(C.get(chars[i], chars[i]))
+                        i += 1
                 else:
                     syl.append(C.get(nc, nc))
                     i += 1
-                while i < n and chars[i] in MATRAS:
-                    syl.append(C.get(chars[i], chars[i]))
-                    i += 1
+                    while i < n and chars[i] in MATRAS:
+                        syl.append(C.get(chars[i], chars[i]))
+                        i += 1
                 syl.append('Z')
                 result.extend(syl)
                 continue
 
         if c in HALF and i + 1 < n and chars[i + 1] == HALANT:
+            # Check if after halant there's a consonant with ि matra
+            if i + 2 < n and chars[i + 2] in C and chars[i + 2] not in VOWELS:
+                if i + 3 < n and chars[i + 3] == 'ि':
+                    result.append('f')
+                    result.append(HALF[c])
+                    result.append(C.get(chars[i + 2], chars[i + 2]))
+                    i += 4
+                    continue
             result.append(HALF[c])
             i += 2
             continue
@@ -367,11 +431,19 @@ def set_font_properly(run, font_name, size_pt=None):
 
     if is_krutidev(formal_name):
         rFonts.set(qn('w:hint'), 'default')
+        # Kruti Dev is ASCII-encoded; do NOT set cs font to Kruti Dev
+        # (Word uses cs font for non-ASCII glyphs like \u00a5, causing ¥ to render
+        #  via system font instead of Kruti Dev glyph)
+        for attr in ['ascii', 'hAnsi', 'eastAsia']:
+            rFonts.set(qn(f'w:{attr}'), formal_name)
+        # Remove cs override so Word falls back to ascii font for rendering
+        cs_attr = qn('w:cs')
+        if rFonts.get(cs_attr):
+            del rFonts.attrib[cs_attr]
     else:
         rFonts.set(qn('w:hint'), 'complex')
-
-    for attr in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
-        rFonts.set(qn(f'w:{attr}'), formal_name)
+        for attr in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
+            rFonts.set(qn(f'w:{attr}'), formal_name)
 
     lang = rPr.find(qn('w:lang'))
     if lang is None:
@@ -389,11 +461,12 @@ def set_font_properly(run, font_name, size_pt=None):
 
     if size_pt:
         run.font.size = Pt(size_pt)
-        sz_cs = rPr.find(qn('w:szCs'))
-        if sz_cs is None:
-            sz_cs = OxmlElement('w:szCs')
-            rPr.append(sz_cs)
-        sz_cs.set(qn('w:val'), str(int(size_pt * 2)))
+        if not is_krutidev(formal_name):
+            sz_cs = rPr.find(qn('w:szCs'))
+            if sz_cs is None:
+                sz_cs = OxmlElement('w:szCs')
+                rPr.append(sz_cs)
+            sz_cs.set(qn('w:val'), str(int(size_pt * 2)))
 
 
 def set_para_font(para, font_name):
@@ -412,9 +485,15 @@ def set_para_font(para, font_name):
 
     if is_krutidev(formal_name):
         rFonts.set(qn('w:hint'), 'default')
-
-    for attr in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
-        rFonts.set(qn(f'w:{attr}'), formal_name)
+        for attr in ['ascii', 'hAnsi', 'eastAsia']:
+            rFonts.set(qn(f'w:{attr}'), formal_name)
+        # Remove cs so Word uses ascii font for all glyphs
+        cs_attr = qn('w:cs')
+        if rFonts.get(cs_attr):
+            del rFonts.attrib[cs_attr]
+    else:
+        for attr in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
+            rFonts.set(qn(f'w:{attr}'), formal_name)
 
     lang = rPr.find(qn('w:lang'))
     if lang is None:
@@ -655,3 +734,61 @@ def apply_caps_upper(para, krutidev_mode=False):
     for run in para.runs:
         if run.text:
             run.text = run.text.upper()
+
+
+# ═══════════════════════════
+# FULL-DOCUMENT KRUTI DEV CONVERSION
+# ═══════════════════════════
+
+def convert_run_to_krutidev(run):
+    """Convert a single run's text from Unicode Devanagari to Kruti Dev encoding."""
+    text = run.text
+    if not text or not has_unicode_hindi(text):
+        return
+    # Process mixed runs (Hindi + non-Hindi segments)
+    segments = []
+    current_hindi = None
+    current_chunk = []
+    for ch in text:
+        ch_is_hindi = '\u0900' <= ch <= '\u097F'
+        if current_hindi is None:
+            current_hindi = ch_is_hindi
+        if ch_is_hindi == current_hindi:
+            current_chunk.append(ch)
+        else:
+            segments.append((current_hindi, ''.join(current_chunk)))
+            current_hindi = ch_is_hindi
+            current_chunk = [ch]
+    if current_chunk:
+        segments.append((current_hindi, ''.join(current_chunk)))
+
+    run.text = ''.join(
+        unicode_to_krutidev(seg) if is_h else seg
+        for is_h, seg in segments
+    )
+
+
+def convert_doc_runs(doc, font_name):
+    """
+    Convert all Unicode Devanagari text in the document to Kruti Dev encoding.
+    This must be called AFTER all title pages and body formatting are complete,
+    so that runs added by formatters are also converted.
+    """
+    if not is_krutidev(font_name):
+        return
+
+    def process_para(para):
+        if has_drawing(para):
+            return
+        for run in para.runs:
+            if not run_has_drawing(run):
+                convert_run_to_krutidev(run)
+
+    for para in doc.paragraphs:
+        process_para(para)
+
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for para in cell.paragraphs:
+                    process_para(para)

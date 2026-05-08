@@ -1,7 +1,9 @@
 import { useCallback, useState, useEffect, useRef } from 'react';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
+import { supabase } from './lib/supabaseClient'
 import edwincover from './assets/edwin_inc_cover.jpeg';
+
 
 // ─── Constants ───────────────────────────────────────────────
 const DOC_TYPES = [
@@ -143,12 +145,60 @@ const FEATURES = [
 ];
 
 // ─── UserDashboard Component ──────────────────────────────────
+// function UserDashboard({ user, navTo, openModal }) {
+//   const [dashTab, setDashTab] = useState('overview');
+//   const [profileForm, setProfileForm] = useState({ name: user?.name || '', email: user?.email || '', phone: '', org: '' });
+//   const [profileSaved, setProfileSaved] = useState(false);
+//    const [realDocs, setRealDocs] = useState([]);
+//   const [realPlan, setRealPlan] = useState('free');
+
+
+
+
+// const mockPlan = { name: 'Professional', price: '₹199/mo', renew: '8 June 2026', docsUsed: 7 };
+
+// const mockPlan = { name: realPlan === 'free' ? 'Scholar' : 'Professional', price: '₹199/mo', renew: '8 June 2026', docsUsed: realDocs.length };
+
+//   const mockActivity = [
+//     { icon: '📖', name: 'Book — The Art of Science', meta: '3 May 2026 · 142 pages', status: 'done' },
+//     { icon: '🎓', name: 'Thesis — Impact of AI on Education', meta: '1 May 2026 · 87 pages', status: 'done' },
+//     { icon: '🔬', name: 'Research Paper — Climate Model', meta: '28 Apr 2026 · 24 pages', status: 'done' },
+//     { icon: '✉️', name: 'Letter — Ministry Notice', meta: '25 Apr 2026 · 4 pages', status: 'fail' },
+//     { icon: '📖', name: 'Book — Hindi Grammar Guide', meta: '20 Apr 2026 · 211 pages', status: 'done' },
+//   ];
+//   const saveProfile = () => { setProfileSaved(true); setTimeout(() => setProfileSaved(false), 2500); };
+
+
+// ───----- UserDashboard Component ──────────────────────────────────
 function UserDashboard({ user, navTo, openModal }) {
+  const [realDocs, setRealDocs] = useState([]);
+  const [realPlan, setRealPlan] = useState('free');
+
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from('documents')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (data) setRealDocs(data);
+      });
+    supabase
+      .from('profiles')
+      .select('plan')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) setRealPlan(data.plan);
+      });
+  }, [user]);
+
   const [dashTab, setDashTab] = useState('overview');
   const [profileForm, setProfileForm] = useState({ name: user?.name || '', email: user?.email || '', phone: '', org: '' });
   const [profileSaved, setProfileSaved] = useState(false);
 
-  const mockPlan = { name: 'Professional', price: '₹199/mo', renew: '8 June 2026', docsUsed: 7 };
+  const mockPlan = { name: realPlan === 'free' ? 'Scholar' : 'Professional', price: '₹199/mo', renew: '8 June 2026', docsUsed: realDocs.length };
   const mockActivity = [
     { icon: '📖', name: 'Book — The Art of Science', meta: '3 May 2026 · 142 pages', status: 'done' },
     { icon: '🎓', name: 'Thesis — Impact of AI on Education', meta: '1 May 2026 · 87 pages', status: 'done' },
@@ -157,6 +207,9 @@ function UserDashboard({ user, navTo, openModal }) {
     { icon: '📖', name: 'Book — Hindi Grammar Guide', meta: '20 Apr 2026 · 211 pages', status: 'done' },
   ];
   const saveProfile = () => { setProfileSaved(true); setTimeout(() => setProfileSaved(false), 2500); };
+
+
+
 
   if (!user) return (
     <div style={{ textAlign: 'center', padding: '160px 20px' }}>
@@ -237,14 +290,35 @@ function UserDashboard({ user, navTo, openModal }) {
               </div>
             </div>
             <div className="dash-section-title">Recent Activity</div>
+
+
+
             <div className="activity-list">
-              {mockActivity.slice(0, 3).map((a, i) => (
+              {/* {mockActivity.slice(0, 3).map((a, i) => ( */}
+
+{(realDocs.length > 0 ? realDocs.slice(0, 3).map(doc => ({
+  icon: doc.doc_type === 'book' ? '📖' : doc.doc_type === 'thesis' ? '🎓' : doc.doc_type === 'research' ? '🔬' : '✉️',
+  name: `${doc.doc_type.charAt(0).toUpperCase() + doc.doc_type.slice(1)} — ${doc.file_name}`,
+  meta: new Date(doc.created_at).toLocaleDateString('en-IN'),
+  status: doc.status,
+})) : mockActivity.slice(0, 3)).map((a, i) => (
+
+
+
+
+
                 <div className="activity-row" key={i}>
                   <div className="activity-icon">{a.icon}</div>
                   <div>
                     <div className="activity-name">{a.name}</div>
                     <div className="activity-meta">{a.meta}</div>
                   </div>
+
+
+
+
+
+
                   <div className="activity-spacer" />
                   <span className={`activity-badge ${a.status === 'done' ? 'badge-done' : 'badge-fail'}`}>
                     {a.status === 'done' ? 'Success' : 'Failed'}
@@ -403,22 +477,106 @@ export default function App() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+
+useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    if (session?.user) {
+      setUser({
+        name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+        email: session.user.email,
+        id: session.user.id,
+      });
+    }
+  });
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) {
+      setUser({
+        name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+        email: session.user.email,
+        id: session.user.id,
+      });
+    } else {
+      setUser(null);
+    }
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
+
+
   const openModal = (m) => { setModal(m); setAuthError(''); setAuthForm({ name: '', email: '', password: '' }); };
   const closeModal = () => setModal(null);
 
-  const handleLogin = () => {
-    if (!authForm.email || !authForm.password) { setAuthError('Email aur password required hai.'); return; }
-    setUser({ name: authForm.email.split('@')[0], email: authForm.email });
-    closeModal();
-    setPage('dashboard');
-  };
-  const handleSignup = () => {
-    if (!authForm.name || !authForm.email || !authForm.password) { setAuthError('All fields required.'); return; }
-    setUser({ name: authForm.name, email: authForm.email });
-    closeModal();
-    setPage('dashboard');
-  };
-  const handleLogout = () => { setUser(null); setPage('home'); };
+  // const handleLogin = () => {
+  //   if (!authForm.email || !authForm.password) { setAuthError('Email aur password required hai.'); return; }
+  //   setUser({ name: authForm.email.split('@')[0], email: authForm.email });
+  //   closeModal();
+  //   setPage('dashboard');
+  // };
+
+
+
+
+
+const handleLogin = async () => {
+  if (!authForm.email || !authForm.password) {
+    setAuthError('Email aur password required hai.');
+    return;
+  }
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: authForm.email,
+    password: authForm.password,
+  });
+  if (error) { setAuthError(error.message); return; }
+  setUser({ name: data.user.email.split('@')[0], email: data.user.email, id: data.user.id });
+  closeModal();
+  setPage('dashboard');
+};
+
+
+
+
+
+
+  // const handleSignup = () => {
+  //   if (!authForm.name || !authForm.email || !authForm.password) { setAuthError('All fields required.'); return; }
+  //   setUser({ name: authForm.name, email: authForm.email });
+  //   closeModal();
+  //   setPage('dashboard');
+  // };
+
+
+
+const handleSignup = async () => {
+  if (!authForm.name || !authForm.email || !authForm.password) {
+    setAuthError('All fields required.');
+    return;
+  }
+  const { data, error } = await supabase.auth.signUp({
+    email: authForm.email,
+    password: authForm.password,
+    options: { data: { full_name: authForm.name } }
+  });
+  if (error) { setAuthError(error.message); return; }
+  setUser({ name: authForm.name, email: authForm.email, id: data.user.id });
+  closeModal();
+  setPage('dashboard');
+};
+
+
+
+
+  // const handleLogout = () => { setUser(null); setPage('home'); };
+
+
+const handleLogout = async () => {
+  await supabase.auth.signOut();
+  setUser(null);
+  setPage('home');
+};
+
+
 
   const currentType = DOC_TYPES.find(t => t.id === selectedType);
   const fontList = formData.font_script === 'hindi' ? HINDI_FONTS : formData.font_script === 'english' ? ENGLISH_FONTS : [];
@@ -441,6 +599,7 @@ export default function App() {
     fd.append('file', file);
     fd.append('docType', selectedType);
     fd.append('options', JSON.stringify(formData));
+    if (user?.id) fd.append('userId', user.id);
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       const res = await axios.post(`${API_URL}/format`, fd, { responseType: 'blob' });
@@ -1846,6 +2005,9 @@ export default function App() {
         <UserDashboard user={user} navTo={navTo} openModal={openModal} />
       )}
 
+
+
+
       {/* ══════════ FOOTER ══════════ */}
       {page !== 'dashboard' && <footer className="footer">
         <div className="footer-inner">
@@ -2046,7 +2208,12 @@ sahi nhi aa rha hai maine screenshort share kiya hai may ye util.py sectio me hi
 
 
 
+auth - supabase auth
+database - supabaseDB
+payments razorpay
+analytics - posthog
 
+now to ab batao ki kya kru step by step ? 
 
 
 

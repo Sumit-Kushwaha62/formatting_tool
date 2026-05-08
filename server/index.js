@@ -1,3 +1,11 @@
+require('dotenv').config();
+const { createClient } = require('@supabase/supabase-js');
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
+
+
 const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
@@ -22,6 +30,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 app.post('/format', upload.single('file'), (req, res) => {
+  console.log('userId received:', req.body.userId);
   const inputPath = path.resolve(req.file.path);
   const outputName = uuidv4() + '_formatted.docx';
   const outputPath = path.resolve('outputs', outputName);
@@ -44,12 +53,43 @@ app.post('/format', upload.single('file'), (req, res) => {
       return res.status(500).json({ error: 'Formatting failed' });
     }
 
-    const originalName = req.file.originalname || 'formatted_document.docx';
-    res.download(outputPath, originalName, (dlErr) => {
-      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+    // const originalName = req.file.originalname || 'formatted_document.docx';
+
+const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8') || 'formatted_document.docx';
+
+    // res.download(outputPath, originalName, (dlErr) => {
+    //   if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+    // });
+
+res.download(outputPath, originalName, async (dlErr) => {
+  if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+  const userId = req.body.userId;
+  if (userId) {
+    await supabase.from('documents').insert({
+      user_id: userId,
+      doc_type: docType,
+      file_name: originalName,
+      status: 'done',
     });
+  }
+});
   });
 });
 
+// console.log('originalName:', originalName);
+// console.log('outputPath:', outputPath);
+
+
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+
+
+
+
+
+
+
+
+

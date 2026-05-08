@@ -295,6 +295,24 @@ def unicode_to_krutidev(text):
     for uni, kd in CONJUNCTS:
         text = text.replace(uni, kd)
 
+    # Smart quotes, dashes, special unicode → ASCII equivalents
+    SPECIAL_CHARS = [
+        ('\u201c', '"'),    # " left double quote
+        ('\u201d', '"'),    # " right double quote
+        ('\u2018', "'"),    # ' left single quote
+        ('\u2019', "'"),    # ' right single quote
+        ('\u2013', '-'),    # – en dash
+        ('\u2014', '--'),   # — em dash
+        ('\u2026', '...'),  # … ellipsis
+        ('\u00a0', ' '),    # non-breaking space
+        ('\u2022', '*'),    # • bullet
+        ('\u00b7', '*'),    # · middle dot
+        ('\u2012', '-'),    # ‒ figure dash
+        ('\u2015', '--'),   # ― horizontal bar
+    ]
+    for uni, repl in SPECIAL_CHARS:
+        text = text.replace(uni, repl)
+
     C = {
         'अ': 'v',  'आ': 'vk', 'इ': 'b',  'ई': 'bZ',
         'उ': 'm',  'ऊ': 'Å',  'ए': ',',  'ऐ': ',s',
@@ -740,11 +758,39 @@ def apply_caps_upper(para, krutidev_mode=False):
 # FULL-DOCUMENT KRUTI DEV CONVERSION
 # ═══════════════════════════
 
+ENGLISH_SPECIAL_CHARS = [
+    ('\u201c', '"'),    # " left double quote
+    ('\u201d', '"'),    # " right double quote
+    ('\u2018', "'"),    # ' left single quote
+    ('\u2019', "'"),    # ' right single quote
+    ('\u2013', '-'),    # – en dash
+    ('\u2014', '--'),   # — em dash
+    ('\u2026', '...'),  # … ellipsis
+    ('\u00a0', ' '),    # non-breaking space
+    ('\u2022', '*'),    # • bullet
+    ('\u00b7', '*'),    # · middle dot
+]
+
+def _fix_english_special(text):
+    """Fix special unicode chars in English/non-Hindi segments."""
+    for uni, repl in ENGLISH_SPECIAL_CHARS:
+        text = text.replace(uni, repl)
+    return text
+
+
 def convert_run_to_krutidev(run):
     """Convert a single run's text from Unicode Devanagari to Kruti Dev encoding."""
     text = run.text
-    if not text or not has_unicode_hindi(text):
+    if not text:
         return
+
+    # Even if no Hindi, fix smart quotes/dashes in English text
+    if not has_unicode_hindi(text):
+        fixed = _fix_english_special(text)
+        if fixed != text:
+            run.text = fixed
+        return
+
     # Process mixed runs (Hindi + non-Hindi segments)
     segments = []
     current_hindi = None
@@ -763,7 +809,7 @@ def convert_run_to_krutidev(run):
         segments.append((current_hindi, ''.join(current_chunk)))
 
     run.text = ''.join(
-        unicode_to_krutidev(seg) if is_h else seg
+        unicode_to_krutidev(seg) if is_h else _fix_english_special(seg)
         for is_h, seg in segments
     )
 
