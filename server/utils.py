@@ -199,6 +199,37 @@ def preprocess_document(doc):
 KRUTIDEV_FONTS = {'Kruti Dev 010', 'Kruti Dev 011', 'Krutidev010', 'Krutidev011',
                   'KrutiDev010', 'KrutiDev011', 'Kruti Dev010', 'Kruti Dev011'}
 
+# ═══════════════════════════
+# SHARED DETECTION CONSTANTS
+# ═══════════════════════════
+
+# Hindi + English chapter/unit words, ASCII + Devanagari numerals
+CHAPTER_HEADING_RE = re.compile(
+    r'^(chapter|unit|part|lesson|अध्याय|इकाई|भाग|पाठ)'
+    r'\s*[-–—]?\s*(\d+|[ivxlcdmIVXLCDM]+|[०-९]+)\b',
+    re.IGNORECASE
+)
+
+
+def inject_heading_number(para, sec, sub=None, krutidev_mode=False):
+    """
+    Inject section number prefix into heading para.
+    Skipped in krutidev_mode because Hindi documents already carry
+    Devanagari numerals in the text — adding an ASCII counter would
+    produce garbage like '0१' or '1२'.
+    Also skipped if the paragraph already starts with a digit.
+    """
+    if krutidev_mode:
+        return
+    text = para.text.strip()
+    if re.match(r'^\d+', text):
+        return
+    prefix = f"{sec}. " if sub is None else f"{sec}.{sub} "
+    if para.runs:
+        para.runs[0].text = prefix + para.runs[0].text.lstrip()
+    else:
+        para.add_run(prefix)
+
 FONT_NAME_MAP = {
     'Krutidev010': 'Kruti Dev 010',
     'Krutidev011': 'Kruti Dev 011',
@@ -703,3 +734,61 @@ def apply_caps_upper(para, krutidev_mode=False):
     for run in para.runs:
         if run.text:
             run.text = run.text.upper()
+
+
+# ═══════════════════════════
+# FULL-DOCUMENT KRUTI DEV CONVERSION
+# ═══════════════════════════
+
+def convert_run_to_krutidev(run):
+    """Convert a single run's text from Unicode Devanagari to Kruti Dev encoding."""
+    text = run.text
+    if not text or not has_unicode_hindi(text):
+        return
+    # Process mixed runs (Hindi + non-Hindi segments)
+    segments = []
+    current_hindi = None
+    current_chunk = []
+    for ch in text:
+        ch_is_hindi = '\u0900' <= ch <= '\u097F'
+        if current_hindi is None:
+            current_hindi = ch_is_hindi
+        if ch_is_hindi == current_hindi:
+            current_chunk.append(ch)
+        else:
+            segments.append((current_hindi, ''.join(current_chunk)))
+            current_hindi = ch_is_hindi
+            current_chunk = [ch]
+    if current_chunk:
+        segments.append((current_hindi, ''.join(current_chunk)))
+
+    run.text = ''.join(
+        unicode_to_krutidev(seg) if is_h else seg
+        for is_h, seg in segments
+    )
+
+
+def convert_doc_runs(doc, font_name):
+    """
+    Convert all Unicode Devanagari text in the document to Kruti Dev encoding.
+    This must be called AFTER all title pages and body formatting are complete,
+    so that runs added by formatters are also converted.
+    """
+    if not is_krutidev(font_name):
+        return
+
+    def process_para(para):
+        if has_drawing(para):
+            return
+        for run in para.runs:
+            if not run_has_drawing(run):
+                convert_run_to_krutidev(run)
+
+    for para in doc.paragraphs:
+        process_para(para)
+
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for para in cell.paragraphs:
+                    process_para(para)

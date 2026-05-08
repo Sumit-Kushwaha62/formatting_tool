@@ -8,7 +8,7 @@ from utils import (
     has_drawing, run_has_drawing, is_all_bold, is_bullet_para,
     apply_para_formatting, set_para_text_formatted, strip_list_numbering,
     apply_clean_justify, format_table_cells, add_run_with_font,
-    set_font_properly, is_krutidev
+    set_font_properly, is_krutidev, CHAPTER_HEADING_RE, inject_heading_number
 )
 
 
@@ -122,18 +122,12 @@ def detect_structure(para, index, doc=None):
     if index < 5 and text.isupper() and wc <= 15 and is_bold:
         return 'book_title'
 
-    if re.match(
-        r'^(chapter|unit|part|lesson)\s*[-–—]?\s*(\d+|[ivxlcdmIVXLCDM]+)\b',
-        text, re.IGNORECASE
-    ) and wc <= 20:
+    if CHAPTER_HEADING_RE.match(text) and wc <= 20:
         return 'chapter_heading'
 
     if doc and index > 0:
         prev_text = doc.paragraphs[index - 1].text.strip()
-        if re.match(
-            r'^(chapter|unit|part|lesson)\s*[-–—]?\s*(\d+|[ivxlcdmIVXLCDM]+)\b',
-            prev_text, re.IGNORECASE
-        ) and wc <= 20:
+        if CHAPTER_HEADING_RE.match(prev_text) and wc <= 20:
             return 'chapter_heading'
 
     TABLE_PAT  = r'(table|तालिका|सारणी)'
@@ -299,12 +293,7 @@ def format_book_body(doc, opts, font_name):
             strip_list_numbering(para)
             heading_counters[0] += 1
             heading_counters[1]  = 0
-            if not re.match(r'^\d+\.?\s+', text):
-                num_prefix = f"{heading_counters[0]}. "
-                for run in para.runs:
-                    if run.text.strip():
-                        run.text = num_prefix + run.text
-                        break
+            inject_heading_number(para, heading_counters[0], krutidev_mode=krutidev_mode)
             apply_para_formatting(para, etype, font_name,
                 font_size_pt=16, bold=True, color=black,
                 align=WD_ALIGN_PARAGRAPH.JUSTIFY,
@@ -320,11 +309,7 @@ def format_book_body(doc, opts, font_name):
                 heading_counters[0] = int(m.group(1))
                 heading_counters[1] = int(m.group(2))
             else:
-                num_prefix = f"{heading_counters[0]}.{heading_counters[1]} "
-                for run in para.runs:
-                    if run.text.strip():
-                        run.text = num_prefix + run.text
-                        break
+                inject_heading_number(para, heading_counters[0], heading_counters[1], krutidev_mode=krutidev_mode)
 
             apply_para_formatting(para, etype, font_name,
                 font_size_pt=14, bold=True, color=black,

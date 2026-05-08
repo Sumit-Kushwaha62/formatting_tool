@@ -7,7 +7,7 @@ from docx.oxml import OxmlElement
 from utils import (
     has_drawing, run_has_drawing, is_all_bold, is_bullet_para,
     apply_para_formatting, set_para_text_formatted, set_font_properly,
-    format_table_cells, add_run_with_font, is_krutidev
+    format_table_cells, add_run_with_font, is_krutidev, inject_heading_number
 )
 
 # ═══════════════════════════════════════════════
@@ -46,7 +46,7 @@ QUESTIONNAIRE_TRIGGERS = {
 
 def insert_research_title_page(doc, opts, font_name):
     """Insert title page when user provides explicit metadata"""
-    font = RESEARCH_FONT
+    font = font_name if font_name else RESEARCH_FONT
     title = opts.get('title', '').strip()
     if not title:
         return
@@ -239,17 +239,6 @@ def _set_first_line_indent(para, indent=0.25):
     twips = int(indent * 1440)
     ind.set(qn('w:firstLine'), str(twips))
     pPr.append(ind)
-
-def _inject_number(para, sec, sub=None):
-    text = para.text.strip()
-    if re.match(r'^\d+', text):
-        return
-    prefix = f"{sec}. " if sub is None else f"{sec}.{sub} "
-    if para.runs:
-        para.runs[0].text = prefix + para.runs[0].text.lstrip()
-    else:
-        para.add_run(prefix)
-
 
 def _split_merged_numbered_items(doc):
     """
@@ -498,6 +487,7 @@ def _handle_keywords_and_refs_prepass(doc, font_name):
 def format_research_body(doc, opts, font_name):
     font = font_name if font_name else RESEARCH_FONT
     base_size = float(opts.get('font_size', BASE_SIZE))
+    krutidev_mode = is_krutidev(font)
 
     # === PRE-PASS ===
     title_elem, table_heading_elems, heading1_elems, abstract_elem, intro_elem = _handle_keywords_and_refs_prepass(doc, font)
@@ -677,12 +667,12 @@ def format_research_body(doc, opts, font_name):
                 if not already_numbered:
                     sec_counter = 1
                     sub_counter = 0
-                    _inject_number(para, sec_counter)
+                    inject_heading_number(para, sec_counter, krutidev_mode=krutidev_mode)
             elif etype == 'numbered_section_heading' and numbering_started:
                 if not already_numbered:
                     sec_counter += 1
                     sub_counter = 0
-                    _inject_number(para, sec_counter)
+                    inject_heading_number(para, sec_counter, krutidev_mode=krutidev_mode)
                 else:
                     existing = _get_existing_number(text)
                     if existing is not None:
@@ -691,7 +681,7 @@ def format_research_body(doc, opts, font_name):
             elif etype == 'numbered_subsection_heading' and numbering_started:
                 if not already_numbered:
                     sub_counter += 1
-                    _inject_number(para, sec_counter, sub_counter)
+                    inject_heading_number(para, sec_counter, sub_counter, krutidev_mode=krutidev_mode)
                 else:
                     existing = _get_existing_number(text)
                     if existing is not None:

@@ -7,7 +7,7 @@ from docx.oxml import OxmlElement
 from utils import (
     has_drawing, run_has_drawing, is_all_bold, is_bullet_para,
     apply_para_formatting, set_font_properly, format_table_cells,
-    is_krutidev
+    is_krutidev, CHAPTER_HEADING_RE
 )
 
 
@@ -152,15 +152,12 @@ def detect_thesis_structure(para, index, doc):
         if has_drawing(prev):
             return 'figure_caption'
 
-    if re.match(r'^chapter\s+(\d+|[ivxlcdmIVXLCDM]+)\b', text, re.IGNORECASE) and wc <= 15:
-        return 'chapter_heading'
-
-    if re.match(r'^(unit|part|lesson)\s+(\d+|[ivxlcdmIVXLCDM]+)\b', text, re.IGNORECASE) and wc <= 6:
+    if CHAPTER_HEADING_RE.match(text) and wc <= 20:
         return 'chapter_heading'
 
     if index > 0:
         prev_text = doc.paragraphs[index - 1].text.strip()
-        if re.match(r'^(chapter|unit|part|lesson)\s+(\d+|[ivxlcdmIVXLCDM]+)\b', prev_text, re.IGNORECASE) and wc <= 15:
+        if CHAPTER_HEADING_RE.match(prev_text) and wc <= 15:
             return 'chapter_heading'
 
     special_sections = {
@@ -317,7 +314,13 @@ def format_thesis_body(doc, opts, font_name):
                 chapter_label = parts[0].strip()
                 chapter_title = parts[1].strip()
 
-                para.text = chapter_label.upper() if not krutidev_mode else chapter_label
+                label_text = chapter_label.upper() if not krutidev_mode else chapter_label
+                # Clear and re-add as a run so font/conversion applies properly
+                for r in list(para.runs):
+                    r._r.getparent().remove(r._r)
+                r_new = para.add_run(label_text)
+                r_new.bold = True
+                set_font_properly(r_new, heading_font)
                 apply_para_formatting(para, etype, heading_font,
                     font_size_pt=ch_heading_size, bold=True, color=black,
                     align=WD_ALIGN_PARAGRAPH.CENTER,
@@ -325,9 +328,11 @@ def format_thesis_body(doc, opts, font_name):
                     line_spacing=line_spacing)
                 set_widow_orphan(para)
 
-                title_para = doc.add_paragraph(
-                    chapter_title.upper() if not krutidev_mode else chapter_title)
+                title_para = doc.add_paragraph()
                 para._p.addnext(title_para._p)
+                title_run = title_para.add_run(chapter_title.upper() if not krutidev_mode else chapter_title)
+                title_run.bold = True
+                set_font_properly(title_run, heading_font)
 
                 apply_para_formatting(title_para, 'chapter_title', heading_font,
                     font_size_pt=ch_title_size, bold=True, color=black,
@@ -345,9 +350,7 @@ def format_thesis_body(doc, opts, font_name):
                     nxt_text = nxt.text.strip()
                     if nxt_text and not has_drawing(nxt):
                         nxt_etype = detect_thesis_structure(nxt, i + 1, doc)
-                        if nxt_etype == 'chapter_heading' and not re.match(
-                                r'^(chapter|unit|part|lesson)\s*[-–—]?\s*\S+',
-                                nxt_text, re.IGNORECASE):
+                        if nxt_etype == 'chapter_heading' and not CHAPTER_HEADING_RE.match(nxt_text):
                             next_is_title = True
 
                 if not krutidev_mode:

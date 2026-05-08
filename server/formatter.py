@@ -10,7 +10,8 @@ from docx.oxml import OxmlElement
 from utils import (
     preprocess_document, is_krutidev, has_unicode_hindi,
     unicode_to_krutidev, has_drawing, set_font_properly,
-    center_all_tables, add_fld_char, add_instr_text
+    center_all_tables, add_fld_char, add_instr_text,
+    convert_doc_runs
 )
 from book import insert_title_page, format_book_body
 from thesis import insert_thesis_title_page, format_thesis_body
@@ -34,47 +35,6 @@ def format_document(input_file, output_file, opts, doc_type='book'):
 
     # 1. Pre-clean
     preprocess_document(doc)
-
-    # 1b. Hindi Unicode → Kruti Dev conversion
-    if is_krutidev(font_name):
-        def convert_mixed_run(run):
-            text = run.text
-            if not text or not has_unicode_hindi(text):
-                return
-            segments      = []
-            current_hindi = None
-            current_chunk = []
-            for ch in text:
-                ch_is_hindi = '\u0900' <= ch <= '\u097F'
-                if current_hindi is None:
-                    current_hindi = ch_is_hindi
-                if ch_is_hindi == current_hindi:
-                    current_chunk.append(ch)
-                else:
-                    segments.append((current_hindi, ''.join(current_chunk)))
-                    current_hindi = ch_is_hindi
-                    current_chunk = [ch]
-            if current_chunk:
-                segments.append((current_hindi, ''.join(current_chunk)))
-
-            converted = ''.join(
-                unicode_to_krutidev(seg) if is_h else seg
-                for is_h, seg in segments
-            )
-            run.text = converted
-
-        def convert_para_runs(para):
-            for run in para.runs:
-                convert_mixed_run(run)
-
-        for para in doc.paragraphs:
-            if not has_drawing(para):
-                convert_para_runs(para)
-        for table in doc.tables:
-            for row in table.rows:
-                for cell in row.cells:
-                    for para in cell.paragraphs:
-                        convert_para_runs(para)
 
     # 2. Page Size & Margins
     page_size_key = opts.get('page_size', 'A4')
@@ -189,6 +149,10 @@ def format_document(input_file, output_file, opts, doc_type='book'):
             add_fld_char(r1, 'begin')
             add_instr_text(r1, ' PAGE \\* ARABIC ')
             add_fld_char(r1, 'end')
+
+    # 6. Kruti Dev Unicode → ASCII conversion (must run AFTER all formatting
+    #    so runs added by title-page and body formatters are also converted)
+    convert_doc_runs(doc, font_name)
 
     doc.save(output_file)
 
