@@ -37,6 +37,9 @@ app.post('/format', upload.single('file'), (req, res) => {
   const docType = req.body.docType || 'book';
   const options = req.body.options || '{}';
 
+
+console.log('options received:', options);
+
   const optionsFile = path.resolve('uploads', uuidv4() + '_options.json');
   fs.writeFileSync(optionsFile, options);
 
