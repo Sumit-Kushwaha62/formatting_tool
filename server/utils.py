@@ -814,6 +814,20 @@ def convert_run_to_krutidev(run):
     )
 
 
+
+
+
+
+
+import sys
+print("utils.py version: NEW_WITH_FONT_FIX", file=sys.stderr)
+
+
+
+
+
+
+
 def convert_doc_runs(doc, font_name):
     """
     Convert all Unicode Devanagari text in the document to Kruti Dev encoding.
@@ -852,4 +866,3 @@ def convert_doc_runs(doc, font_name):
 
 
 
-                    
