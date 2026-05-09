@@ -2381,4 +2381,22 @@ now to ab batao ki kya kru step by step ?
 
 
 
+
+
+
+inn sabhi files ko dekho yaha pr maine ek document formatting tool designe kr rha hu
+aur isme krutidev 010 model achhe se kaam nhi kr rha hai ye model sabhi section like book, thesis sabhi
+pr apply hona hai maine kuch tumhare test ke liye docx file diye hai jisse formate krna hai aur dusri chiz 
+ki ek screen short bhi jo abhi as output receive ho rha hai mujhe
+
+
+
+
+
+
+
+
+
+
+
 */

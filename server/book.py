@@ -8,7 +8,8 @@ from utils import (
     has_drawing, run_has_drawing, is_all_bold, is_bullet_para,
     apply_para_formatting, set_para_text_formatted, strip_list_numbering,
     apply_clean_justify, format_table_cells, add_run_with_font,
-    set_font_properly, is_krutidev, CHAPTER_HEADING_RE, inject_heading_number
+    set_font_properly, is_krutidev, CHAPTER_HEADING_RE, CHAPTER_HEADING_LOOSE_RE,
+    inject_heading_number
 )
 
 
@@ -125,6 +126,10 @@ def detect_structure(para, index, doc=None):
     if CHAPTER_HEADING_RE.match(text) and wc <= 20:
         return 'chapter_heading'
 
+    # 'षष्ठम अध्याय: ...' style — word before अध्याय
+    if CHAPTER_HEADING_LOOSE_RE.match(text) and wc <= 20:
+        return 'chapter_heading'
+
     if doc and index > 0:
         prev_text = doc.paragraphs[index - 1].text.strip()
         if CHAPTER_HEADING_RE.match(prev_text) and wc <= 20:
@@ -160,7 +165,12 @@ def detect_structure(para, index, doc=None):
     if re.match(r'^\d+\.\d+\.?\s+\S', text) and is_bold and wc <= 20:
         return 'sub_heading'
 
+    # ASCII digit OR Devanagari digit starting numbered heading
     if re.match(r'^[1-9]\d*\.?\s+\S', text) and is_bold and wc <= 20:
+        return 'main_heading'
+
+    # Devanagari numeral starting heading (१., २. etc.)
+    if re.match(r'^[१-९][०-९]*\.?\s+\S', text) and is_bold and wc <= 20:
         return 'main_heading'
 
     if is_bold and wc <= 15:

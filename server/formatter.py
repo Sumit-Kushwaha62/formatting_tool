@@ -33,6 +33,101 @@ def format_document(input_file, output_file, opts, doc_type='book'):
     black     = RGBColor(0, 0, 0)
     gray      = RGBColor(100, 100, 100)
 
+    # Fix document-level default font for KrutiDev
+    # Without this, Word falls back to Mangal (system Hindi font) for runs
+    # that don't have an explicit font set
+    if is_krutidev(font_name):
+        formal_name = font_name
+        from utils import FONT_NAME_MAP
+        formal_name = FONT_NAME_MAP.get(font_name, font_name)
+        # Fix Normal style
+        try:
+            normal_style = doc.styles['Normal']
+            normal_style.font.name = formal_name
+            from docx.oxml.ns import qn as _qn
+            rPr = normal_style.element.get_or_add_rPr()
+            rFonts = rPr.find(_qn('w:rFonts'))
+            if rFonts is None:
+                from docx.oxml import OxmlElement as _OE
+                rFonts = _OE('w:rFonts')
+                rPr.insert(0, rFonts)
+            for attr in ['ascii', 'hAnsi', 'eastAsia']:
+                rFonts.set(_qn(f'w:{attr}'), formal_name)
+            cs_attr = _qn('w:cs')
+            if rFonts.get(cs_attr):
+                del rFonts.attrib[cs_attr]
+            for ta in ['w:asciiTheme', 'w:hAnsiTheme', 'w:eastAsiaTheme', 'w:cstheme']:
+                t = _qn(ta)
+                if rFonts.get(t):
+                    del rFonts.attrib[t]
+        except Exception:
+            pass
+
+        # Fix document defaults (docDefaults in settings)
+        try:
+            from docx.oxml.ns import qn as _qn
+            from docx.oxml import OxmlElement as _OE
+            doc_elm = doc.element
+            body = doc_elm.find(_qn('w:body'))
+            styles_elm = doc_elm.find(_qn('w:styles'))
+            if styles_elm is not None:
+                docDefaults = styles_elm.find(_qn('w:docDefaults'))
+                if docDefaults is not None:
+                    rPrDefault = docDefaults.find(_qn('w:rPrDefault'))
+                    if rPrDefault is None:
+                        rPrDefault = _OE('w:rPrDefault')
+                        docDefaults.append(rPrDefault)
+                    rPr = rPrDefault.find(_qn('w:rPr'))
+                    if rPr is None:
+                        rPr = _OE('w:rPr')
+                        rPrDefault.append(rPr)
+                    rFonts = rPr.find(_qn('w:rFonts'))
+                    if rFonts is None:
+                        rFonts = _OE('w:rFonts')
+                        rPr.insert(0, rFonts)
+                    for attr in ['ascii', 'hAnsi', 'eastAsia']:
+                        rFonts.set(_qn(f'w:{attr}'), formal_name)
+                    cs_attr = _qn('w:cs')
+                    if rFonts.get(cs_attr):
+                        del rFonts.attrib[cs_attr]
+                    for ta in ['w:asciiTheme', 'w:hAnsiTheme', 'w:eastAsiaTheme', 'w:cstheme']:
+                        t = _qn(ta)
+                        if rFonts.get(t):
+                            del rFonts.attrib[t]
+        except Exception:
+            pass
+
+        # Fix Word theme fonts (theme/theme1.xml) - this is where "Mangal (Body)" comes from
+        try:
+            from docx.oxml.ns import qn as _qn
+            from docx.oxml import OxmlElement as _OE
+            import zipfile, shutil, os, re
+
+            # Access the theme part directly via document's part
+            theme_part = None
+            for rel in doc.part.rels.values():
+                if 'theme' in rel.reltype.lower():
+                    theme_part = rel.target_part
+                    break
+
+            if theme_part is not None:
+                theme_xml = theme_part.blob.decode('utf-8', errors='replace')
+                # Replace majorFont and minorFont Hindi/Urdu/Devanagari scripts with KrutiDev
+                # Also replace the main latin font references
+                theme_xml = re.sub(
+                    r'<a:font script="Deva"[^/]*/?>',
+                    f'<a:font script="Deva" typeface="{formal_name}"/>',
+                    theme_xml
+                )
+                theme_xml = re.sub(
+                    r'<a:font script="Sinh"[^/]*/?>',
+                    f'<a:font script="Sinh" typeface="{formal_name}"/>',
+                    theme_xml
+                )
+                theme_part._blob = theme_xml.encode('utf-8')
+        except Exception as e:
+            pass
+
     # 1. Pre-clean
     preprocess_document(doc)
 

@@ -210,6 +210,14 @@ CHAPTER_HEADING_RE = re.compile(
     re.IGNORECASE
 )
 
+# Matches headings where chapter word appears ANYWHERE in first 3 words
+# e.g. 'षष्ठम अध्याय: ...' or 'तृतीय अध्याय: ...'
+CHAPTER_HEADING_LOOSE_RE = re.compile(
+    r'^[\w\u0900-\u097F]+\s+(अध्याय|chapter|unit|part|lesson|इकाई|भाग|पाठ)'
+    r'\s*[-:–—]',
+    re.IGNORECASE
+)
+
 
 def inject_heading_number(para, sec, sub=None, krutidev_mode=False):
     """
@@ -222,7 +230,8 @@ def inject_heading_number(para, sec, sub=None, krutidev_mode=False):
     if krutidev_mode:
         return
     text = para.text.strip()
-    if re.match(r'^\d+', text):
+    # Skip if already starts with ASCII or Devanagari digit
+    if re.match(r'^[\d०-९]', text):
         return
     prefix = f"{sec}. " if sub is None else f"{sec}.{sub} "
     if para.runs:
@@ -458,6 +467,16 @@ def set_font_properly(run, font_name, size_pt=None):
         cs_attr = qn('w:cs')
         if rFonts.get(cs_attr):
             del rFonts.attrib[cs_attr]
+        # Force theme font override to none so Word doesn't substitute Mangal
+        for theme_attr in ['w:asciiTheme', 'w:hAnsiTheme', 'w:eastAsiaTheme', 'w:cstheme']:
+            ta = qn(theme_attr)
+            if rFonts.get(ta):
+                del rFonts.attrib[ta]
+        # Remove rtl/cs script markers that trigger Word's complex script path
+        for cs_tag in ['w:rtl', 'w:cs']:
+            el = rPr.find(qn(cs_tag))
+            if el is not None:
+                rPr.remove(el)
     else:
         rFonts.set(qn('w:hint'), 'complex')
         for attr in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
@@ -509,6 +528,16 @@ def set_para_font(para, font_name):
         cs_attr = qn('w:cs')
         if rFonts.get(cs_attr):
             del rFonts.attrib[cs_attr]
+        # Remove theme font attributes that cause Word to substitute Mangal
+        for theme_attr in ['w:asciiTheme', 'w:hAnsiTheme', 'w:eastAsiaTheme', 'w:cstheme']:
+            ta = qn(theme_attr)
+            if rFonts.get(ta):
+                del rFonts.attrib[ta]
+        # Remove rtl/cs script markers from para-level rPr
+        for cs_tag in ['w:rtl', 'w:cs']:
+            el = rPr.find(qn(cs_tag))
+            if el is not None:
+                rPr.remove(el)
     else:
         for attr in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
             rFonts.set(qn(f'w:{attr}'), formal_name)
@@ -655,6 +684,17 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
         if run_has_drawing(run):
             continue
         run.bold = bold
+        run.italic = False
+        run.underline = False
+        # Clear strikethrough, highlight, and other decorative formatting
+        r = run._element
+        rPr = r.find(qn('w:rPr'))
+        if rPr is not None:
+            for tag in ['w:strike', 'w:dstrike', 'w:highlight', 'w:shd',
+                        'w:em', 'w:outline', 'w:shadow', 'w:emboss', 'w:imprint']:
+                el = rPr.find(qn(tag))
+                if el is not None:
+                    rPr.remove(el)
         set_font_properly(run, font_name, font_size_pt)
         run.font.color.rgb = color
 
@@ -814,14 +854,6 @@ def convert_run_to_krutidev(run):
     )
 
 
-
-
-
-
-
-
-
-
 def convert_doc_runs(doc, font_name):
     """
     Convert all Unicode Devanagari text in the document to Kruti Dev encoding.
@@ -834,10 +866,21 @@ def convert_doc_runs(doc, font_name):
     def process_para(para):
         if has_drawing(para):
             return
+        # Also update paragraph-level font so it doesn't override run-level KrutiDev
+        set_para_font(para, font_name)
         for run in para.runs:
             if not run_has_drawing(run):
+                # Clear non-KrutiDev font attrs so they don't override our setting
+                r = run._element
+                rPr = r.find(qn('w:rPr'))
+                if rPr is not None:
+                    rFonts = rPr.find(qn('w:rFonts'))
+                    if rFonts is not None:
+                        current_ascii = rFonts.get(qn('w:ascii'), '')
+                        if not is_krutidev(current_ascii):
+                            for attr in list(rFonts.attrib.keys()):
+                                del rFonts.attrib[attr]
                 convert_run_to_krutidev(run)
-                # Force KrutiDev font on every run after conversion
                 set_font_properly(run, font_name)
 
     for para in doc.paragraphs:
@@ -848,15 +891,3 @@ def convert_doc_runs(doc, font_name):
             for cell in row.cells:
                 for para in cell.paragraphs:
                     process_para(para)
-
-
-
-
-
-
-
-
-
-
-
-

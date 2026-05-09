@@ -7,7 +7,7 @@ from docx.oxml import OxmlElement
 from utils import (
     has_drawing, run_has_drawing, is_all_bold, is_bullet_para,
     apply_para_formatting, set_font_properly, format_table_cells,
-    is_krutidev, CHAPTER_HEADING_RE
+    is_krutidev, CHAPTER_HEADING_RE, CHAPTER_HEADING_LOOSE_RE
 )
 
 
@@ -155,9 +155,13 @@ def detect_thesis_structure(para, index, doc):
     if CHAPTER_HEADING_RE.match(text) and wc <= 20:
         return 'chapter_heading'
 
+    # 'षष्ठम अध्याय: ...' style — ordinal word before अध्याय/chapter
+    if CHAPTER_HEADING_LOOSE_RE.match(text) and wc <= 20:
+        return 'chapter_heading'
+
     if index > 0:
         prev_text = doc.paragraphs[index - 1].text.strip()
-        if CHAPTER_HEADING_RE.match(prev_text) and wc <= 15:
+        if (CHAPTER_HEADING_RE.match(prev_text) or CHAPTER_HEADING_LOOSE_RE.match(prev_text)) and wc <= 15:
             return 'chapter_heading'
 
     special_sections = {
@@ -177,6 +181,10 @@ def detect_thesis_structure(para, index, doc):
         return 'section_heading'
 
     if re.match(r'^\d+\.?\s+\S', text) and is_bold:
+        return 'section_heading'
+
+    # Devanagari numeral heading (१. heading, २. heading)
+    if re.match(r'^[१-९][०-९]*\.?\s+\S', text) and is_bold:
         return 'section_heading'
 
     if re.match(r'^[A-Z]\.\s', text) and is_bold:
