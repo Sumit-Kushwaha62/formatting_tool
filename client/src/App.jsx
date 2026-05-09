@@ -2041,7 +2041,10 @@ const handleGoogleLogin = async () => {
               <div className="status-title">Document Formatted</div>
               <div className="status-sub">Your document is ready to download.</div>
               <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-                <a href={downloadUrl} download="formatted_document.docx" className="btn-download">⬇ Download File</a>
+                {/* <a href={downloadUrl} download="formatted_document.docx" className="btn-download">⬇ Download File</a> */}
+
+<a href={downloadUrl} download={file?.name || 'formatted_document.docx'} className="btn-download">⬇ Download File</a>
+
                 <button className="btn-secondary" onClick={handleReset}>Format Another</button>
               </div>
             </div>
