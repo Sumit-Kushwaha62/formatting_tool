@@ -840,3 +840,16 @@ def convert_doc_runs(doc, font_name):
             for cell in row.cells:
                 for para in cell.paragraphs:
                     process_para(para)
+
+
+
+
+
+
+
+
+
+
+
+
+                    
