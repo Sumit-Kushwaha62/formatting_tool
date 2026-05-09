@@ -819,12 +819,6 @@ def convert_run_to_krutidev(run):
 
 
 
-# import sys
-# print("utils.py version: NEW_WITH_FONT_FIX", file=sys.stderr)
-
-
-
-
 
 
 
