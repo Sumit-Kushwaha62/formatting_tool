@@ -829,6 +829,8 @@ def convert_doc_runs(doc, font_name):
         for run in para.runs:
             if not run_has_drawing(run):
                 convert_run_to_krutidev(run)
+                # Force KrutiDev font on every run after conversion
+                set_font_properly(run, font_name)
 
     for para in doc.paragraphs:
         process_para(para)
