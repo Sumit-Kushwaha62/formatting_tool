@@ -576,6 +576,16 @@ const handleLogout = async () => {
   setPage('home');
 };
 
+const handleGoogleLogin = async () => {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin
+    }
+  });
+  if (error) setAuthError(error.message);
+};
+
 
 
   const currentType = DOC_TYPES.find(t => t.id === selectedType);
@@ -1374,6 +1384,44 @@ const handleLogout = async () => {
         .modal-error { font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--red); margin-bottom: 10px; }
         .modal-submit { width: 100%; padding: 12px; background: var(--navy); color: var(--bg); border: none; border-radius: var(--r-sm); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: all .15s; margin-top: 4px; }
         .modal-submit:hover { background: var(--navy3); }
+
+
+.modal-google-btn {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border2);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--navy);
+  transition: all .15s;
+  margin-top: 4px;
+}
+.modal-google-btn:hover {
+  border-color: var(--navy);
+  background: var(--bg2);
+}
+.modal-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 14px 0;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px; color: var(--text3);
+}
+.modal-divider::before,
+.modal-divider::after {
+  content: ''; flex: 1;
+  height: 1px; background: var(--border);
+}
+
+
+
         .modal-switch { margin-top: 14px; font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--text3); text-align: center; }
         .modal-switch button { background: none; border: none; color: var(--navy); font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; }
         .licence-section-title { font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--gold); margin: 18px 0 8px; }
@@ -2054,7 +2102,7 @@ const handleLogout = async () => {
       </footer>}
 
       {/* ══════════ MODALS ══════════ */}
-      {modal === 'login' && (
+      {/* {modal === 'login' && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
           <div className="modal-card">
             <button className="modal-close" onClick={closeModal}>✕</button>
@@ -2073,8 +2121,66 @@ const handleLogout = async () => {
             <div className="modal-switch">No account? <button onClick={() => openModal('signup')}>Create one</button></div>
           </div>
         </div>
+      )} */}
+
+
+{/* ══════════ MODALS ══════════ */}
+      {/* {modal === 'login' && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
+          <div className="modal-card">
+            <button className="modal-close" onClick={closeModal}>✕</button>
+            <div className="modal-title">Welcome back</div>
+            <div className="modal-sub">Sign in to your Format Studio account</div>
+            <div className="modal-field">
+              <label className="modal-label">Email Address</label>
+              <input className="modal-input" type="email" placeholder="you@example.com" value={authForm.email} onChange={e => setAuthForm(p => ({ ...p, email: e.target.value }))} />
+            </div>
+            <div className="modal-field">
+              <label className="modal-label">Password</label>
+              <input className="modal-input" type="password" placeholder="••••••••" value={authForm.password} onChange={e => setAuthForm(p => ({ ...p, password: e.target.value }))} />
+            </div>
+            {authError && <div className="modal-error">{authError}</div>}
+            <button className="modal-submit" onClick={handleLogin}>Sign In →</button>
+            <div style={{ textAlign: 'center', margin: '12px 0', color: '#999', fontSize: '13px' }}>or</div>
+            <button onClick={handleGoogleLogin} style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '6px', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', fontWeight: '500' }}>
+              <img src="https://www.google.com/favicon.ico" width="18" height="18" />
+              Continue with Google
+            </button>
+            <div className="modal-switch">No account? <button onClick={() => openModal('signup')}>Create one</button></div>
+          </div>
+        </div>
+      )} */}
+
+
+{/* ══════════ MODALS ══════════ */}
+      {modal === 'login' && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
+          <div className="modal-card">
+            <button className="modal-close" onClick={closeModal}>✕</button>
+            <div className="modal-title">Welcome back</div>
+            <div className="modal-sub">Sign in to your Format Studio account</div>
+            <div className="modal-field">
+              <label className="modal-label">Email Address</label>
+              <input className="modal-input" type="email" placeholder="you@example.com" value={authForm.email} onChange={e => setAuthForm(p => ({ ...p, email: e.target.value }))} />
+            </div>
+            <div className="modal-field">
+              <label className="modal-label">Password</label>
+              <input className="modal-input" type="password" placeholder="••••••••" value={authForm.password} onChange={e => setAuthForm(p => ({ ...p, password: e.target.value }))} />
+            </div>
+            {authError && <div className="modal-error">{authError}</div>}
+            <button className="modal-submit" onClick={handleLogin}>Sign In →</button>
+            <div className="modal-divider">or</div>
+            <button onClick={handleGoogleLogin} className="modal-google-btn">
+              <img src="https://www.google.com/favicon.ico" width="18" height="18" />
+              Continue with Google
+            </button>
+            <div className="modal-switch">No account? <button onClick={() => openModal('signup')}>Create one</button></div>
+          </div>
+        </div>
       )}
 
+
+{/* 
       {modal === 'signup' && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
           <div className="modal-card">
@@ -2098,7 +2204,48 @@ const handleLogout = async () => {
             <div className="modal-switch">Already have one? <button onClick={() => openModal('login')}>Sign in</button></div>
           </div>
         </div>
+      )} */}
+
+
+
+{modal === 'signup' && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
+          <div className="modal-card">
+            <button className="modal-close" onClick={closeModal}>✕</button>
+            <div className="modal-title">Create account</div>
+            <div className="modal-sub">Join Format Studio — free to start</div>
+            <div className="modal-field">
+              <label className="modal-label">Full Name</label>
+              <input className="modal-input" type="text" placeholder="Your name" value={authForm.name} onChange={e => setAuthForm(p => ({ ...p, name: e.target.value }))} />
+            </div>
+            <div className="modal-field">
+              <label className="modal-label">Email Address</label>
+              <input className="modal-input" type="email" placeholder="you@example.com" value={authForm.email} onChange={e => setAuthForm(p => ({ ...p, email: e.target.value }))} />
+            </div>
+            <div className="modal-field">
+              <label className="modal-label">Password</label>
+              <input className="modal-input" type="password" placeholder="Min. 8 characters" value={authForm.password} onChange={e => setAuthForm(p => ({ ...p, password: e.target.value }))} />
+            </div>
+            {authError && <div className="modal-error">{authError}</div>}
+            <button className="modal-submit" onClick={handleSignup}>Create Account →</button>
+            <div className="modal-divider">or</div>
+            <button onClick={handleGoogleLogin} className="modal-google-btn">
+              <img src="https://www.google.com/favicon.ico" width="18" height="18" />
+              Continue with Google
+            </button>
+            <div className="modal-switch">Already have one? <button onClick={() => openModal('login')}>Sign in</button></div>
+          </div>
+        </div>
       )}
+
+
+
+
+
+
+
+
+
 
       {modal === 'licence' && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
