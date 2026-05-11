@@ -295,14 +295,21 @@ def unicode_to_krutidev(text):
             res += 'f'
         res += s
         if has_reph:
-            # Reph 'Z' goes after matras but before Anusvara
-            if any(c in res for c in 'ंःँ'):
+            # Reph 'Z' goes after matras but before Anusvara/chandrabindu/visarga
+            # At this point text has been partially converted: check ASCII equivalents
+            reph_triggers = ('a', '%')  # anusvara='a', visarga='%'
+            has_nasal = any(res.endswith(t) or t in res for t in reph_triggers)
+            if has_nasal:
+                # Find the first nasal/visarga ASCII char position
                 idx = -1
-                for i, char in enumerate(res):
-                    if char in 'ंःँ':
-                        idx = i
+                for _i, _c in enumerate(res):
+                    if res[_i:].startswith('a~') or res[_i] in ('a', '%'):
+                        idx = _i
                         break
-                res = res[:idx] + 'Z' + res[idx:]
+                if idx >= 0:
+                    res = res[:idx] + 'Z' + res[idx:]
+                else:
+                    res += 'Z'
             else:
                 res += 'Z'
         return res
@@ -319,7 +326,7 @@ def unicode_to_krutidev(text):
         'ऑ': 'vkW',
         'ा': 'k',  'ि': 'f',  'ी': 'h',  'ु': 'q',
         'ू': 'w',  'ृ': '`',  'े': 's',  'ै': 'S',
-        'ो': 'ks', 'ौ': 'kS', 'ं': 'a',  'ः': '%',  'ँ': 'i',
+        'ो': 'ks', 'ौ': 'kS', 'ं': 'a',  'ः': '%',  'ँ': 'a~',
         'ॉ': 'W',  'ॊ': 'ks',
         'क': 'd',  'ख': '[k', 'ग': 'x',  'घ': '?k', 'ङ': 'M~',
         'च': 'p',  'छ': 'N',  'ज': 't',  'झ': '>k', 'ञ': '¥',
@@ -571,13 +578,30 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
     clear_pPr_sz(para)
     set_pPr_sz(para, int(font_size_pt * 2))
 
+    # Set paragraph-level bold in pPr>rPr so all runs inherit it
+    pPr_b = para._p.get_or_add_pPr()
+    rPr_b = pPr_b.find(qn('w:rPr'))
+    if rPr_b is None:
+        rPr_b = OxmlElement('w:rPr')
+        pPr_b.append(rPr_b)
+    # Set/clear w:b at paragraph level
+    b_ppr = rPr_b.find(qn('w:b'))
+    if bold:
+        if b_ppr is None:
+            b_ppr = OxmlElement('w:b')
+            rPr_b.insert(0, b_ppr)
+        b_ppr.attrib.pop(qn('w:val'), None)
+    else:
+        if b_ppr is not None:
+            rPr_b.remove(b_ppr)
+    # Always remove bCs at paragraph level — overrides run bold=False otherwise
+    bcs_ppr = rPr_b.find(qn('w:bCs'))
+    if bcs_ppr is not None:
+        rPr_b.remove(bcs_ppr)
+
     para.paragraph_format.space_before = Pt(space_before_pt)
     para.paragraph_format.space_after  = Pt(space_after_pt)
     
-    # Force space after for better layout matching
-    if etype == 'body':
-        para.paragraph_format.space_after = Pt(2) # Tighter than 5pt
-
     pPr = para._p.get_or_add_pPr()
     spacing = pPr.find(qn('w:spacing'))
     if spacing is None:
@@ -625,7 +649,7 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
         WD_ALIGN_PARAGRAPH.LEFT:    'left',
         WD_ALIGN_PARAGRAPH.RIGHT:   'right',
     }
-    jc_new.set(qn('w:val'), align_val_map.get(align, 'both'))
+    jc_new.set(qn('w:val'), align_val_map.get(align, 'left'))
     pPr2.append(jc_new)
 
     for run in para.runs:
@@ -636,6 +660,20 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
         run.underline = False
         r = run._element
         rPr = r.get_or_add_rPr()
+        # Force bold XML — remove bCs always to prevent bold bleed from original doc
+        b_el = rPr.find(qn('w:b'))
+        if bold:
+            if b_el is None:
+                b_el = OxmlElement('w:b')
+                rPr.insert(0, b_el)
+            b_el.attrib.pop(qn('w:val'), None)  # clear val=false if present
+        else:
+            if b_el is not None:
+                rPr.remove(b_el)
+        # Always remove bCs — it independently forces bold for complex scripts
+        bcs_el = rPr.find(qn('w:bCs'))
+        if bcs_el is not None:
+            rPr.remove(bcs_el)
         for tag in ['w:strike', 'w:dstrike', 'w:highlight', 'w:shd',
                     'w:em', 'w:outline', 'w:shadow', 'w:emboss', 'w:imprint']:
             el = rPr.find(qn(tag))
@@ -728,19 +766,47 @@ def _fix_english_special(text):
 
 
 def convert_run_to_krutidev(run):
+    """Convert a run to KrutiDev encoding.
+    
+    Hindi text → KrutiDev ASCII encoding with KrutiDev font.
+    English/non-Hindi segments → kept as-is with Times New Roman font
+    (so punctuation and English words render correctly in Word).
+    If the run has mixed Hindi+English, it is split into multiple sibling runs.
+    """
     text = run.text
     if not text:
         return
     if not has_unicode_hindi(text):
-        fixed = _fix_english_special(text)
-        if fixed != text:
-            run.text = fixed
+        # Pure English/numeric run — keep text as-is, switch font to Times New Roman
+        run.font.name = 'Times New Roman'
+        r = run._element
+        rPr = r.get_or_add_rPr()
+        rFonts = rPr.get_or_add_rFonts()
+        for attr in list(rFonts.attrib.keys()):
+            del rFonts.attrib[attr]
+        for a in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
+            rFonts.set(qn(f'w:{a}'), 'Times New Roman')
         return
+
+    # Segment into Hindi and non-Hindi parts.
+    # Neutral characters (spaces, common punctuation, digits, dashes) are
+    # treated as belonging to the CURRENT segment so they don't cause spurious
+    # splits in otherwise-pure Hindi sentences.
+    NEUTRAL = set(' \t\n\r.,;:!?–—-()[]{}"\'\u200b\u200c\u200d\u00a0'
+                  '0123456789')
+
     segments = []
     current_hindi = None
     current_chunk = []
     for ch in text:
-        ch_is_hindi = '\u0900' <= ch <= '\u097F'
+        if '\u0900' <= ch <= '\u097F':
+            ch_is_hindi = True
+        elif ch in NEUTRAL:
+            # Neutral — keep with the current segment type
+            ch_is_hindi = current_hindi if current_hindi is not None else False
+        else:
+            ch_is_hindi = False
+
         if current_hindi is None:
             current_hindi = ch_is_hindi
         if ch_is_hindi == current_hindi:
@@ -752,10 +818,99 @@ def convert_run_to_krutidev(run):
     if current_chunk:
         segments.append((current_hindi, ''.join(current_chunk)))
 
-    run.text = ''.join(
-        unicode_to_krutidev(seg) if is_h else _fix_english_special(seg)
-        for is_h, seg in segments
-    )
+    # Merge consecutive same-type segments (can happen after neutral merging)
+    merged = []
+    for is_h, seg in segments:
+        if merged and merged[-1][0] == is_h:
+            merged[-1] = (is_h, merged[-1][1] + seg)
+        else:
+            merged.append([is_h, seg])
+    segments = [(is_h, seg) for is_h, seg in merged]
+
+    if len(segments) == 1 and segments[0][0]:
+        # Pure Hindi run — convert and keep KrutiDev font
+        run.text = unicode_to_krutidev(segments[0][1])
+        return
+
+    if not any(is_h for is_h, _ in segments):
+        # Pure non-Hindi run — keep as-is with Times New Roman
+        run.font.name = 'Times New Roman'
+        r = run._element
+        rPr = r.get_or_add_rPr()
+        rFonts = rPr.get_or_add_rFonts()
+        for attr in list(rFonts.attrib.keys()):
+            del rFonts.attrib[attr]
+        for a in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
+            rFonts.set(qn(f'w:{a}'), 'Times New Roman')
+        return
+
+    # Mixed run — split into sibling runs
+    # First run reuses the existing run element
+    para = run._r.getparent()  # w:p element
+    r_elem = run._r
+    r_idx = list(para).index(r_elem)
+
+    # Build list of (text, is_hindi) for new runs
+    new_runs = []
+    for is_h, seg in segments:
+        if is_h:
+            new_runs.append((unicode_to_krutidev(seg), True))
+        else:
+            new_runs.append((seg, False))
+
+    # Modify existing run to be the first segment
+    first_text, first_hindi = new_runs[0]
+    run.text = first_text
+    if not first_hindi:
+        # Switch font to Times New Roman for non-Hindi first segment
+        r = run._element
+        rPr = r.get_or_add_rPr()
+        rFonts = rPr.get_or_add_rFonts()
+        for attr in list(rFonts.attrib.keys()):
+            del rFonts.attrib[attr]
+        for a in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
+            rFonts.set(qn(f'w:{a}'), 'Times New Roman')
+
+    # Insert remaining runs after the first
+    import copy
+    for i, (seg_text, seg_hindi) in enumerate(new_runs[1:], start=1):
+        new_r = copy.deepcopy(r_elem)
+        # Set text
+        t_els = new_r.findall(qn('w:t'))
+        if t_els:
+            t_els[0].text = seg_text
+            if seg_text and (seg_text[0] == ' ' or seg_text[-1] == ' '):
+                t_els[0].set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
+        else:
+            from docx.oxml import OxmlElement as _OE
+            t_el = _OE('w:t')
+            t_el.text = seg_text
+            if seg_text and (seg_text[0] == ' ' or seg_text[-1] == ' '):
+                t_el.set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
+            new_r.append(t_el)
+
+        rPr_new = new_r.find(qn('w:rPr'))
+        if rPr_new is None:
+            rPr_new = OxmlElement('w:rPr')
+            new_r.insert(0, rPr_new)
+
+        rFonts_new = rPr_new.find(qn('w:rFonts'))
+        if rFonts_new is None:
+            rFonts_new = OxmlElement('w:rFonts')
+            rPr_new.insert(0, rFonts_new)
+        # Clear existing font attrs
+        for attr in list(rFonts_new.attrib.keys()):
+            del rFonts_new.attrib[attr]
+
+        if seg_hindi:
+            kd_name = run.font.name or 'Kruti Dev 010'
+            for a in ['ascii', 'hAnsi', 'eastAsia']:
+                rFonts_new.set(qn(f'w:{a}'), kd_name)
+        else:
+            for a in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
+                rFonts_new.set(qn(f'w:{a}'), 'Times New Roman')
+
+        para.insert(r_idx + i, new_r)
 
 
 def convert_doc_runs(doc, font_name):

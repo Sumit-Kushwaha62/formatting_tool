@@ -2297,31 +2297,6 @@ const handleGoogleLogin = async () => {
 
 /* 
 
-yaha mai ek document formatting tool designe kr rha hu jisme ek
-hindi to kruti dev 010 converter model use kiya hai jo abhi thoda sahi se kaam nhi kr rha hai aur ab mujhe 
-issme corrections karne hai to batao ki vo kiss file me hoga i think utill.py me maine shared logic rakhe hai 
-aur baaki section ke alag-alag logics alag files me vo bhi share kr rha hu , yaha pr conversion logic me kya issue
-hai isse fix kro aur model aur accurate and optimize kr do taaki vo sahi conversion sake 
-
-
-
-now ab mujhe yaha pr ke book.py, thesis.py etc. ke jaise hi ek aur file ready karni hai jo ki research paper ke liye
-hoga mai yaha pr ek exprected output wali file de rha hu ussi uss ke dekh ke ek pattern bana lo aur usse algorithm me impliment
-kr do , aur ye bhi batao ki iss file ko server directery me rakhe jaha baki ke files like book.py hai to ye work karega 
-ya kuch aur duskri file me changes karne padege isse connect karne ke liye agar han to usski details de dena aur ab ke research.py 
-ready kr do - yaha pr kuch patter jo maine detect kiye hai to bata deta hu -
-
-1. entire page ka font timew new roman me hi hai
-2. ek hi heading me agar multiple paragraph aati hai
-to ek 0.25 ka tab space aata hai 
-3. "keywords:" naam ke koi word aaye file mai to 
-uske befor and after 4px ka spacing hai
-4. introduction word se lekar aage ke jitne bhi word aye
-unme numbering hogi
-5. entire page black color me hi hoga
-6. headings hamesha bold hi hongi
-7. last page hamesha references: ka hota hai jisme
-numbering hogi
 
 
 
@@ -2329,87 +2304,21 @@ numbering hogi
 
 
 
-yaha pr reseach wali file me kuch issue hai like-
+now i'm facing few issue related to my krutidev model aur 
+vo  input aur output wali done file de rha hu dekho ye kaise mistacks kr rha hai isse fix kro 
+aur issme eglish ke word bhi ajib se likhe hue aate hai english ke word hai unne english me as it is rahane do usse
+convert mat kro aur , , :, ( ) , " ",  d = . , iss tarah ki sabhi chize problem kr rhi hai 
 
-1. sabhi side heading bold hona hai abhi nahi hai 
-2. sabh kuch left margine se start hoga ek ki point se (ek hi paragraph me agar paragraph change hoga to 0.25 ka tab space lega)
-3. page ka pahale heading usually uss paper ka title hota hai jo always center aayega
-4. aur qustion wala section kuch bullet point style me hai jisko tumne paragraph me rakh diya hai, refference text dekho
+pattern which i found: 
 
-Questionnaire
-Section A: General Information
-1. What is your age group?
-2. How long have you been diagnosed with osteoporosis?
-3. Do you regularly take Vitamin D supplements?
-4. How frequently are you exposed to sunlight?
-5. Do you consume calcium-rich foods regularly?
-
-Section B: Treatment Outcomes
-6. Have you experienced reduced bone pain after supplementation?
-7. Has your physical mobility improved?
-8. Have you experienced fewer falls or fractures?
-9. Are you satisfied with your osteoporosis treatment plan?
-10. Would you recommend Vitamin D supplementation to other elderly patients?
+p = chadra bindi 
+. = - 
+ye = , 
+! = 1
+adn = .
+ru = : 
 
 
-
-
-
-file me ham side headings ki numbering kr rhe hai lekin yaha pr numbering kabhi bhi "Abstract" word pr nhi hogi numbering
-hamesha "Introduction" word se start hogi , abstract word without number ka hoga aur abstract word ke pahle jo bhi text ayega vo sab center me hoga aur 
-iske below pura content justify hoga 
-
-
-
-
-ye dono file dekho yaha yaha maine ek fomatting tool mai hindi to kruti dev 010 converstion ka login likha hai lekin iska output
-sahi nhi aa rha hai maine screenshort share kiya hai may ye util.py sectio me hi fix hoga
-
-
-
-
-
-
-
-auth - supabase auth
-database - supabaseDB
-payments razorpay
-analytics - posthog
-
-now to ab batao ki kya kru step by step ? 
-
-
-
-
-
-
-
-inn sabhi files ko dekho yaha pr maine ek document formatting tool designe kr rha hu
-aur isme krutidev 010 model achhe se kaam nhi kr rha hai ye model sabhi section like book, thesis sabhi
-pr apply hona hai maine kuch tumhare test ke liye docx file diye hai jisse formate krna hai aur dusri chiz 
-ki ek screen short bhi jo abhi as output receive ho rha hai mujhe
-
-
-
-<<WORK REPORT:
-
-<<SUMIT KUSHWAHA 
-<<DATE: - 09-05-2026
-<<TASKS:- 
-          >> 1. Fix Hindi to Kruti Dev 010 conversion logic for accurate output
-          >> 2. Login with google feature added
-          >> 3. Google Cloud Console keys setup
-          >> 4. Testing instructions shared with formatting team
-         
-
-
-
-
-
-now yaha pr maine kuch docx files ko root folder me rakhe hai yeha pr maine any language to krutidev 010 me convert karne ka model
-impliment karna chahata hu sabhi .py files pr jo formatting perform kr rhe hai but the issue is ki vo sahi output nhi de rha hai 
-usske output ki screenshort bhi root folder me rha hai aur 3 doc file jisse formate krna hai to root problem kya hai isse fix kro 
-kyu ho rha hai ye batao
 
 
 

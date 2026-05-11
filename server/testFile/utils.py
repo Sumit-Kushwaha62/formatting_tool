@@ -197,7 +197,7 @@ def preprocess_document(doc):
 # ═══════════════════════════
 
 KRUTIDEV_FONTS = {'Kruti Dev 010', 'Kruti Dev 011', 'Krutidev010', 'Krutidev011',
-                  'KrutiDev010', 'KrutiDev011', 'Kruti Dev010', 'Kruti Dev011'}
+                  'KrutiDev010', 'KrutiDev011', 'Kruti Dev 010', 'Kruti Dev 011'}
 
 # ═══════════════════════════
 # SHARED DETECTION CONSTANTS
@@ -207,6 +207,14 @@ KRUTIDEV_FONTS = {'Kruti Dev 010', 'Kruti Dev 011', 'Krutidev010', 'Krutidev011'
 CHAPTER_HEADING_RE = re.compile(
     r'^(chapter|unit|part|lesson|अध्याय|इकाई|भाग|पाठ)'
     r'\s*[-–—]?\s*(\d+|[ivxlcdmIVXLCDM]+|[०-९]+)\b',
+    re.IGNORECASE
+)
+
+# Matches headings where chapter word appears ANYWHERE in first 3 words
+# e.g. 'षष्ठम अध्याय: ...' or 'तृतीय अध्याय: ...'
+CHAPTER_HEADING_LOOSE_RE = re.compile(
+    r'^[\w\u0900-\u097F]+\s+(अध्याय|chapter|unit|part|lesson|इकाई|भाग|पाठ)'
+    r'\s*[-:–—]',
     re.IGNORECASE
 )
 
@@ -222,7 +230,8 @@ def inject_heading_number(para, sec, sub=None, krutidev_mode=False):
     if krutidev_mode:
         return
     text = para.text.strip()
-    if re.match(r'^\d+', text):
+    # Skip if already starts with ASCII or Devanagari digit
+    if re.match(r'^[\d०-९]', text):
         return
     prefix = f"{sec}. " if sub is None else f"{sec}.{sub} "
     if para.runs:
@@ -246,171 +255,140 @@ FONT_NAME_MAP = {
 # ═══════════════════════════
 
 def unicode_to_krutidev(text):
-    """Convert Unicode Devanagari text to Kruti Dev 010 ASCII encoding."""
+    """
+    Convert Unicode Devanagari text to Kruti Dev 010 ASCII encoding.
+    Uses a robust syllable-based reordering algorithm.
+    """
     if not text:
         return ""
     if not re.search(r'[\u0900-\u097F]', text):
         return text
 
     import unicodedata
-    # NFC normalize: combine decomposed nukta forms (क + ़ -> क़), etc.
+    # NFC normalize
     text = unicodedata.normalize('NFC', text)
 
-    HALANT = '\u094D'
+    halant = '\u094D'
+    reph = '\u0930' + halant
+    
+    # Syllable regex:
+    # (Consonant + Halant)* + Consonant + (Matra | Halant)? + (Anusvara|Chandrabindu|Visarga)?
+    syll_pattern = r'((?:[\u0905-\u0939\u0958-\u0961]\u094D)*[\u0905-\u0939\u0958-\u0961][\u093E-\u094D\u0901-\u0903\u094E-\u094F\u0955-\u0957]*)'
+    
+    def process_syllable(m):
+        s = m.group(0)
+        # 1. Handle Reph (र + ् at the beginning of a syllable)
+        has_reph = False
+        if s.startswith(reph) and len(s) > 2:
+            has_reph = True
+            s = s[2:]
+        
+        # 2. Handle short 'i' (ि) - move to front of syllable
+        has_short_i = False
+        if 'ि' in s:
+            has_short_i = True
+            s = s.replace('ि', '')
+        
+        # Reconstruct syllable in KrutiDev order
+        res = ""
+        if has_short_i:
+            res += 'f'
+        res += s
+        if has_reph:
+            # Reph 'Z' goes after matras but before Anusvara/chandrabindu/visarga
+            # At this point text has been partially converted: check ASCII equivalents
+            reph_triggers = ('a', '%')  # anusvara='a', visarga='%'
+            has_nasal = any(res.endswith(t) or t in res for t in reph_triggers)
+            if has_nasal:
+                # Find the first nasal/visarga ASCII char position
+                idx = -1
+                for _i, _c in enumerate(res):
+                    if res[_i:].startswith('a~') or res[_i] in ('a', '%'):
+                        idx = _i
+                        break
+                if idx >= 0:
+                    res = res[:idx] + 'Z' + res[idx:]
+                else:
+                    res += 'Z'
+            else:
+                res += 'Z'
+        return res
 
-    CONJUNCTS = [
-        ('\u0915\u094D\u0937', '{k'),
-        ('\u0924\u094D\u0930', '\u00d8'),
-        ('\u091C\u094D\u091E', 'K'),
-        ('\u0936\u094D\u0930', "'J"),
-        ('\u092A\u094D\u0930', 'iz'),
-        ('\u0917\u094D\u0930', 'xz'),
-        ('\u0915\u094D\u0930', 'dz'),
-        ('\u092C\u094D\u0930', 'cz'),
-        ('\u092E\u094D\u0930', 'ez'),
-        ('\u091F\u094D\u0930', 'Vz'),
-        ('\u0921\u094D\u0930', 'Mz'),
-        ('\u0927\u094D\u0930', '/z'),
-        ('\u0939\u094D\u0930', 'gz'),
-        ('\u092D\u094D\u0930', 'Hkz'),
-        ('\u0926\u094D\u092F', '|'),
-        ('\u0926\u094D\u0927', '/~/k'),
-        ('\u0926\u094D\u0935', 'n~o'),
-        ('\u0924\u094D\u0924', '\u00d9k'),
-        ('\u0924\u094D\u0915', 'Rd'),
-        ('\u0924\u094D\u092A', 'Ri'),
-        ('\u0924\u094D\u0938', 'Rl'),
-        ('\u0938\u094D\u0924', 'Lr'),
-        ('\u0938\u094D\u0925', 'LFk'),
-        ('\u0938\u094D\u0928', 'Lu'),
-        ('\u0928\u094D\u0924', 'Ur'),
-        ('\u0928\u094D\u0926', 'Un'),
-        ('\u0928\u094D\u0928', 'Uu'),
-        ('\u0937\u094D\u091F', '"V'),
-        ('\u0937\u094D\u0920', '"B'),
-        ('\u0936\u094D\u0935', "'o"),
-        ('\u0936\u094D\u0928', "'u"),
-        ('\u0932\u094D\u0932', 'Yy'),
-    ]
-    for uni, kd in CONJUNCTS:
-        text = text.replace(uni, kd)
+    # Apply reordering to all syllables
+    text = re.sub(syll_pattern, process_syllable, text)
 
+    # Mapping for direct character replacement
     C = {
         'अ': 'v',  'आ': 'vk', 'इ': 'b',  'ई': 'bZ',
-        'उ': 'm',  'ऊ': 'Å',  'ए': ',',  'ऐ': ',s',
+        'उ': 'm',  'ऊ': 'Å',
+        'ए': ',',  'ऐ': ',s',
         'ओ': 'vks','औ': 'vkS','ऋ': '_',  'ॠ': '__',
         'ऑ': 'vkW',
         'ा': 'k',  'ि': 'f',  'ी': 'h',  'ु': 'q',
         'ू': 'w',  'ृ': '`',  'े': 's',  'ै': 'S',
-        'ो': 'ks', 'ौ': 'kS', 'ं': 'a',  'ः': '%',  'ँ': '\u00a1',
+        'ो': 'ks', 'ौ': 'kS', 'ं': 'a',  'ः': '%',  'ँ': 'p',
         'ॉ': 'W',  'ॊ': 'ks',
         'क': 'd',  'ख': '[k', 'ग': 'x',  'घ': '?k', 'ङ': 'M~',
-        'च': 'p',  'छ': 'N',  'ज': 't',  'झ': '>k', 'ञ': '\u00a5',
+        'च': 'p',  'छ': 'N',  'ज': 't',  'झ': '>k', 'ञ': '¥',
         'ट': 'V',  'ठ': 'B',  'ड': 'M',  'ढ': '<',  'ण': '.k',
         'त': 'r',  'थ': 'Fk', 'द': 'n',  'ध': '/k', 'न': 'u',
         'प': 'i',  'फ': 'Q',  'ब': 'c',  'भ': 'Hk', 'म': 'e',
         'य': ';',  'र': 'j',  'ल': 'y',  'व': 'o',
         'श': "'k", 'ष': '"k', 'स': 'l',  'ह': 'g',
         'ॐ': 'ks',
-        '़': '',   # nukta — absorbed into combined form via NFC; bare nukta → drop
         'ऽ': '\'', # avagraha
         '।': 'A',  '॥': 'AA',
-        '०': ')',  '१': '!',  '२': '@',  '३': '#',  '४': '$',
-        '५': '%',  '६': '^',  '७': '&',  '८': '*',  '९': '(',
+        '०': '0',  '१': '1',  '२': '2',  '३': '3',  '४': '4',
+        '५': '5',  '६': '6',  '७': '7',  '८': '8',  '९': '9',
     }
-
-    # Nukta-combined consonants (NFC precomposed or decomposed both handled)
-    NUKTA_MAP = {
-        'क\u093C': 'd+', 'ख\u093C': '[k+', 'ग\u093C': 'x+', 'ज\u093C': 't+',
-        'ड\u093C': 'M+', 'ढ\u093C': '<+', 'फ\u093C': 'Q+', 'य\u093C': ';+',
-        'र\u093C': 'j+',
-    }
-    # Apply nukta combinations before char loop
-    for uni_pair, kd_val in NUKTA_MAP.items():
-        text = text.replace(uni_pair, kd_val)
-    # Also handle precomposed nukta forms from C dict (legacy path)
-    for uni_ch, kd_val in [('क़','d+'),('ख़','[k+'),('ग़','x+'),('ज़','t+'),
-                             ('ड़','M+'),('ढ़','<+'),('फ़','Q+')]:
-        text = text.replace(uni_ch, kd_val)
 
     HALF = {
         'क': 'D',  'ख': '[',  'ग': 'X',  'घ': '?',
         'च': 'P',  'ज': 'T',  'झ': '>',
-        'ट': 'V~', 'ड': 'M~', 'ण': '.k~',
+        'ट': 'V~', 'ठ': 'B~', 'ड': 'M~', 'ढ': '<~', 'ण': '.k~',
         'त': 'R',  'थ': 'F',  'द': 'n~', 'ध': '/',
         'न': 'U',  'प': 'I',  'ब': 'C',  'भ': 'H',
         'म': 'E',  'य': 'Y',  'र': 'z',
         'ल': 'y~', 'व': 'O',
         'श': "'",  'ष': '"',  'स': 'L',  'ह': 'g~',
-        'ञ': '\u00a5~',
     }
 
-    VOWELS = set('अआइईउऊएऐओऔऋॠऑ')
-    MATRAS = set('ािीुूृेैोौंःँॉॊ')
+    CONJUNCTS = [
+        ('\u0915\u094D\u0937', '{k'), # क्ष
+        ('\u0924\u094D\u0930', '='),   # त्र
+        ('\u091C\u094D\u091E', 'K'),   # ज्ञ
+        ('\u0936\u094D\u0930', "'J"),  # श्र
+        ('\u092A\u094D\u0930', 'iz'),  # प्र
+        ('\u0917\u094D\u0930', 'xz'),  # ग्र
+        ('\u0915\u094D\u0930', 'dz'),  # क्र
+        ('\u092C\u094D\u0930', 'cz'),  # ब्र
+        ('\u092E\u094D\u0930', 'ez'),  # म्र
+        ('\u0926\u094D\u0930', 'nz'),  # द्र
+        ('\u0927\u094D\u0930', '/z'),  # ध्र
+        ('\u092D\u094D\u0930', 'Hkz'), # भ्र
+        ('\u0939\u094D\u0930', 'gz'),  # ह्र
+        ('\u0938\u094D\u0924\u094D\u0930', 'L='), # स्त्र
+        ('\u0926\u094D\u092F', '|'),    # द्य
+        ('\u0926\u094D\u0927', '/~/k'), # द्ध
+        ('\u0926\u094D\u0935', 'n~o'),  # द्व
+        ('\u0924\u094D\u0924', 'Ùk'),   # त्त
+        ('\u091F\u094D\u0930', 'Vz'),   # ट्र
+        ('\u0921\u094D\u0930', 'Mz'),   # ड्र
+        ('रू', 'tw'),                  # रू
+        ('रु', 'rq'),                  # रु
+    ]
 
-    result = []
-    chars  = list(text)
-    n      = len(chars)
-    i      = 0
+    for uni, kd in CONJUNCTS:
+        text = text.replace(uni, kd)
 
-    while i < n:
-        c = chars[i]
+    for uni, kd in HALF.items():
+        text = text.replace(uni + halant, kd)
 
-        if ord(c) < 0x900 or ord(c) > 0x97F:
-            result.append(c)
-            i += 1
-            continue
-
-        if c == 'र' and i + 1 < n and chars[i + 1] == HALANT:
-            if i + 2 < n and chars[i + 2] in C and chars[i + 2] not in VOWELS:
-                i += 2
-                syl = []
-                nc  = chars[i]
-                if i + 1 < n and chars[i + 1] == HALANT and nc in HALF:
-                    syl.append(HALF[nc])
-                    i += 2
-                elif i + 1 < n and chars[i + 1] == 'ि':
-                    syl.append('f')
-                    syl.append(C.get(nc, nc))
-                    i += 2
-                    # consume any additional matras after ि
-                    while i < n and chars[i] in MATRAS and chars[i] != 'ि':
-                        syl.append(C.get(chars[i], chars[i]))
-                        i += 1
-                else:
-                    syl.append(C.get(nc, nc))
-                    i += 1
-                    while i < n and chars[i] in MATRAS:
-                        syl.append(C.get(chars[i], chars[i]))
-                        i += 1
-                syl.append('Z')
-                result.extend(syl)
-                continue
-
-        if c in HALF and i + 1 < n and chars[i + 1] == HALANT:
-            # Check if after halant there's a consonant with ि matra
-            if i + 2 < n and chars[i + 2] in C and chars[i + 2] not in VOWELS:
-                if i + 3 < n and chars[i + 3] == 'ि':
-                    result.append('f')
-                    result.append(HALF[c])
-                    result.append(C.get(chars[i + 2], chars[i + 2]))
-                    i += 4
-                    continue
-            result.append(HALF[c])
-            i += 2
-            continue
-
-        if c in C and c not in VOWELS and c not in MATRAS:
-            if i + 1 < n and chars[i + 1] == 'ि':
-                result.append('f')
-                result.append(C.get(c, c))
-                i += 2
-                continue
-
-        result.append(C.get(c, c))
-        i += 1
-
-    return ''.join(result)
+    res_final = []
+    for char in text:
+        res_final.append(C.get(char, char))
+    
+    return "".join(res_final)
 
 
 def is_krutidev(font_name):
@@ -431,31 +409,45 @@ def set_font_properly(run, font_name, size_pt=None):
 
     if is_krutidev(formal_name):
         rFonts.set(qn('w:hint'), 'default')
-        # Kruti Dev is ASCII-encoded; do NOT set cs font to Kruti Dev
-        # (Word uses cs font for non-ASCII glyphs like \u00a5, causing ¥ to render
-        #  via system font instead of Kruti Dev glyph)
         for attr in ['ascii', 'hAnsi', 'eastAsia']:
             rFonts.set(qn(f'w:{attr}'), formal_name)
-        # Remove cs override so Word falls back to ascii font for rendering
+        # Remove cs and theme fonts thoroughly
         cs_attr = qn('w:cs')
         if rFonts.get(cs_attr):
             del rFonts.attrib[cs_attr]
+        for theme_attr in ['w:asciiTheme', 'w:hAnsiTheme', 'w:eastAsiaTheme', 'w:cstheme']:
+            ta = qn(theme_attr)
+            if rFonts.get(ta):
+                del rFonts.attrib[ta]
+        # Remove rtl/cs/bidi markers
+        for cs_tag in ['w:rtl', 'w:cs', 'w:bidi']:
+            el = rPr.find(qn(cs_tag))
+            if el is not None:
+                rPr.remove(el)
+        
+        # Force language to en-US manually
+        lang = rPr.find(qn('w:lang'))
+        if lang is None:
+            lang = OxmlElement('w:lang')
+            rPr.append(lang)
+        lang.set(qn('w:val'),   'en-US')
+        lang.set(qn('w:ascii'), 'en-US')
+        lang.set(qn('w:hAnsi'), 'en-US')
+        
+        # Add NoProofing attribute
+        no_proof = rPr.find(qn('w:noProof'))
+        if no_proof is None:
+            no_proof = OxmlElement('w:noProof')
+            rPr.append(no_proof)
     else:
         rFonts.set(qn('w:hint'), 'complex')
         for attr in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
             rFonts.set(qn(f'w:{attr}'), formal_name)
-
-    lang = rPr.find(qn('w:lang'))
-    if lang is None:
-        lang = OxmlElement('w:lang')
-        rPr.append(lang)
-
-    if is_krutidev(formal_name):
-        lang.set(qn('w:val'),   'en-US')
-        lang.set(qn('w:ascii'), 'en-US')
-        lang.set(qn('w:hAnsi'), 'en-US')
-        lang.set(qn('w:bidi'),  'hi-IN')
-    else:
+            
+        lang = rPr.find(qn('w:lang'))
+        if lang is None:
+            lang = OxmlElement('w:lang')
+            rPr.append(lang)
         lang.set(qn('w:val'), 'hi-IN')
         lang.set(qn('w:cs'),  'hi-IN')
 
@@ -473,7 +465,9 @@ def set_para_font(para, font_name):
     """Set font at paragraph-level rPr."""
     formal_name = FONT_NAME_MAP.get(font_name, font_name)
     pPr  = para._p.get_or_add_pPr()
-    rPr  = pPr.find(qn('w:rPr'))
+    
+    # CT_PPr does not have get_or_add_rPr, use manual creation
+    rPr = pPr.find(qn('w:rPr'))
     if rPr is None:
         rPr = OxmlElement('w:rPr')
         pPr.append(rPr)
@@ -487,10 +481,17 @@ def set_para_font(para, font_name):
         rFonts.set(qn('w:hint'), 'default')
         for attr in ['ascii', 'hAnsi', 'eastAsia']:
             rFonts.set(qn(f'w:{attr}'), formal_name)
-        # Remove cs so Word uses ascii font for all glyphs
         cs_attr = qn('w:cs')
         if rFonts.get(cs_attr):
             del rFonts.attrib[cs_attr]
+        for theme_attr in ['w:asciiTheme', 'w:hAnsiTheme', 'w:eastAsiaTheme', 'w:cstheme']:
+            ta = qn(theme_attr)
+            if rFonts.get(ta):
+                del rFonts.attrib[ta]
+        for cs_tag in ['w:rtl', 'w:cs', 'w:bidi']:
+            el = rPr.find(qn(cs_tag))
+            if el is not None:
+                rPr.remove(el)
     else:
         for attr in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
             rFonts.set(qn(f'w:{attr}'), formal_name)
@@ -499,6 +500,7 @@ def set_para_font(para, font_name):
     if lang is None:
         lang = OxmlElement('w:lang')
         rPr.append(lang)
+        
     if is_krutidev(formal_name):
         lang.set(qn('w:val'), 'en-US')
     else:
@@ -572,14 +574,34 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
                            space_before_pt, space_after_pt,
                            first_indent=None, left_indent=None,
                            line_spacing=1.15):
-    is_chapter_type = etype in ('chapter_heading', 'chapter_title', 'book_title')
-
     set_para_font(para, font_name)
     clear_pPr_sz(para)
     set_pPr_sz(para, int(font_size_pt * 2))
 
+    # Set paragraph-level bold in pPr>rPr so all runs inherit it
+    pPr_b = para._p.get_or_add_pPr()
+    rPr_b = pPr_b.find(qn('w:rPr'))
+    if rPr_b is None:
+        rPr_b = OxmlElement('w:rPr')
+        pPr_b.append(rPr_b)
+    # Set/clear w:b at paragraph level
+    b_ppr = rPr_b.find(qn('w:b'))
+    if bold:
+        if b_ppr is None:
+            b_ppr = OxmlElement('w:b')
+            rPr_b.insert(0, b_ppr)
+        b_ppr.attrib.pop(qn('w:val'), None)
+    else:
+        if b_ppr is not None:
+            rPr_b.remove(b_ppr)
+    # Always remove bCs at paragraph level — overrides run bold=False otherwise
+    bcs_ppr = rPr_b.find(qn('w:bCs'))
+    if bcs_ppr is not None:
+        rPr_b.remove(bcs_ppr)
+
     para.paragraph_format.space_before = Pt(space_before_pt)
     para.paragraph_format.space_after  = Pt(space_after_pt)
+    
     pPr = para._p.get_or_add_pPr()
     spacing = pPr.find(qn('w:spacing'))
     if spacing is None:
@@ -615,9 +637,6 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
             twips = int(first_indent * 1440) if isinstance(first_indent, float) else int(first_indent.inches * 1440)
             ind.set(qn('w:firstLine'), str(twips))
         pPr.append(ind)
-    else:
-        para.paragraph_format.first_line_indent = None
-        para.paragraph_format.left_indent       = None
 
     para.alignment = align
     pPr2 = para._p.get_or_add_pPr()
@@ -630,13 +649,36 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
         WD_ALIGN_PARAGRAPH.LEFT:    'left',
         WD_ALIGN_PARAGRAPH.RIGHT:   'right',
     }
-    jc_new.set(qn('w:val'), align_val_map.get(align, 'both'))
+    jc_new.set(qn('w:val'), align_val_map.get(align, 'left'))
     pPr2.append(jc_new)
 
     for run in para.runs:
         if run_has_drawing(run):
             continue
         run.bold = bold
+        run.italic = False
+        run.underline = False
+        r = run._element
+        rPr = r.get_or_add_rPr()
+        # Force bold XML — remove bCs always to prevent bold bleed from original doc
+        b_el = rPr.find(qn('w:b'))
+        if bold:
+            if b_el is None:
+                b_el = OxmlElement('w:b')
+                rPr.insert(0, b_el)
+            b_el.attrib.pop(qn('w:val'), None)  # clear val=false if present
+        else:
+            if b_el is not None:
+                rPr.remove(b_el)
+        # Always remove bCs — it independently forces bold for complex scripts
+        bcs_el = rPr.find(qn('w:bCs'))
+        if bcs_el is not None:
+            rPr.remove(bcs_el)
+        for tag in ['w:strike', 'w:dstrike', 'w:highlight', 'w:shd',
+                    'w:em', 'w:outline', 'w:shadow', 'w:emboss', 'w:imprint']:
+            el = rPr.find(qn(tag))
+            if el is not None:
+                rPr.remove(el)
         set_font_properly(run, font_name, font_size_pt)
         run.font.color.rgb = color
 
@@ -646,36 +688,11 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
 # ═══════════════════════════
 
 def format_table_cells(doc, font_name, base_size, line_spacing, black):
-    """Apply font/size to all table cell content + 5pt spacing after each table."""
     for table in doc.tables:
-        tbl = table._tbl
-        tblPr = tbl.find(qn('w:tblPr'))
-        if tblPr is None:
-            tblPr = OxmlElement('w:tblPr')
-            tbl.insert(0, tblPr)
-        tbl_parent = tbl.getparent()
-        tbl_siblings = list(tbl_parent)
-        tbl_idx = tbl_siblings.index(tbl)
-        if tbl_idx + 1 < len(tbl_siblings):
-            next_el = tbl_siblings[tbl_idx + 1]
-            if next_el.tag == qn('w:p'):
-                nPr = next_el.get_or_add_pPr() if hasattr(next_el, 'get_or_add_pPr') else next_el.find(qn('w:pPr'))
-                if nPr is None:
-                    nPr = OxmlElement('w:pPr')
-                    next_el.insert(0, nPr)
-                sp = nPr.find(qn('w:spacing'))
-                if sp is None:
-                    sp = OxmlElement('w:spacing')
-                    nPr.append(sp)
-                sp.set(qn('w:before'), '100')
-                sp.set(qn('w:beforeAutospacing'), '0')
-
         for row in table.rows:
             for cell in row.cells:
                 for para in cell.paragraphs:
                     if not para.text.strip() and not has_drawing(para):
-                        continue
-                    if has_drawing(para):
                         continue
                     set_para_font(para, font_name)
                     clear_pPr_sz(para)
@@ -684,10 +701,8 @@ def format_table_cells(doc, font_name, base_size, line_spacing, black):
                         if run_has_drawing(run):
                             continue
                         was_bold   = run.bold
-                        was_italic = run.italic
                         set_font_properly(run, font_name, base_size)
                         run.bold   = was_bold
-                        run.italic = was_italic
                         run.font.color.rgb = black
 
 
@@ -706,7 +721,6 @@ def center_all_tables(doc):
 
 
 def set_para_text_formatted(para, new_text, font_size_pt, bold, color, font_name=None):
-    """Set paragraph text while preserving run-level formatting."""
     p = para._p
     for r in p.findall(qn('w:r')):
         p.remove(r)
@@ -719,7 +733,6 @@ def set_para_text_formatted(para, new_text, font_size_pt, bold, color, font_name
 
 
 def strip_list_numbering(para):
-    """Remove w:numPr from paragraph so Word doesn't render list number prefix."""
     pPr = para._p.find(qn('w:pPr'))
     if pPr is None:
         return
@@ -740,12 +753,42 @@ def apply_caps_upper(para, krutidev_mode=False):
 # FULL-DOCUMENT KRUTI DEV CONVERSION
 # ═══════════════════════════
 
+ENGLISH_SPECIAL_CHARS = [
+    ('\u201c', '"'), ('\u201d', '"'), ('\u2018', "'"), ('\u2019', "'"),
+    ('\u2013', '-'), ('\u2014', '--'), ('\u2026', '...'), ('\u00a0', ' '),
+    ('\u2022', '*'), ('\u00b7', '*'),
+]
+
+def _fix_english_special(text):
+    for uni, repl in ENGLISH_SPECIAL_CHARS:
+        text = text.replace(uni, repl)
+    return text
+
+
 def convert_run_to_krutidev(run):
-    """Convert a single run's text from Unicode Devanagari to Kruti Dev encoding."""
+    """Convert a run to KrutiDev encoding.
+    
+    Hindi text → KrutiDev ASCII encoding with KrutiDev font.
+    English/non-Hindi segments → kept as-is with Times New Roman font
+    (so punctuation and English words render correctly in Word).
+    If the run has mixed Hindi+English, it is split into multiple sibling runs.
+    """
     text = run.text
-    if not text or not has_unicode_hindi(text):
+    if not text:
         return
-    # Process mixed runs (Hindi + non-Hindi segments)
+    if not has_unicode_hindi(text):
+        # Pure English/numeric run — keep text as-is, switch font to Times New Roman
+        run.font.name = 'Times New Roman'
+        r = run._element
+        rPr = r.get_or_add_rPr()
+        rFonts = rPr.get_or_add_rFonts()
+        for attr in list(rFonts.attrib.keys()):
+            del rFonts.attrib[attr]
+        for a in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
+            rFonts.set(qn(f'w:{a}'), 'Times New Roman')
+        return
+
+    # Segment into Hindi and non-Hindi parts
     segments = []
     current_hindi = None
     current_chunk = []
@@ -762,34 +805,126 @@ def convert_run_to_krutidev(run):
     if current_chunk:
         segments.append((current_hindi, ''.join(current_chunk)))
 
-    run.text = ''.join(
-        unicode_to_krutidev(seg) if is_h else seg
-        for is_h, seg in segments
-    )
+    if len(segments) == 1 and segments[0][0]:
+        # Pure Hindi run — convert and keep KrutiDev font
+        run.text = unicode_to_krutidev(segments[0][1])
+        return
+
+    # Mixed run — split into sibling runs
+    # First run reuses the existing run element
+    para = run._r.getparent()  # w:p element
+    r_elem = run._r
+    r_idx = list(para).index(r_elem)
+
+    # Build list of (text, is_hindi) for new runs
+    new_runs = []
+    for is_h, seg in segments:
+        if is_h:
+            new_runs.append((unicode_to_krutidev(seg), True))
+        else:
+            new_runs.append((seg, False))
+
+    # Modify existing run to be the first segment
+    first_text, first_hindi = new_runs[0]
+    run.text = first_text
+    # Explicitly set font for the first run segment
+    if first_hindi:
+        set_font_properly(run, run.font.name or 'Kruti Dev 010')
+    else:
+        # English segment — switch font to Times New Roman
+        run.font.name = 'Times New Roman'
+        r = run._element
+        rPr = r.get_or_add_rPr()
+        rFonts = rPr.get_or_add_rFonts()
+        for attr in list(rFonts.attrib.keys()):
+            del rFonts.attrib[attr]
+        for a in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
+            rFonts.set(qn(f'w:{a}'), 'Times New Roman')
+        # Remove any language/bidi overrides that might force KrutiDev
+        for tag in ['w:lang', 'w:rtl', 'w:cs']:
+            el = rPr.find(qn(tag))
+            if el is not None:
+                rPr.remove(el)
+
+    # Insert remaining runs after the first
+    import copy
+    for i, (seg_text, seg_hindi) in enumerate(new_runs[1:], start=1):
+        new_r = copy.deepcopy(r_elem)
+        # Set text
+        t_els = new_r.findall(qn('w:t'))
+        if t_els:
+            t_els[0].text = seg_text
+            if seg_text and (seg_text[0] == ' ' or seg_text[-1] == ' '):
+                t_els[0].set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
+        else:
+            from docx.oxml import OxmlElement as _OE
+            t_el = _OE('w:t')
+            t_el.text = seg_text
+            if seg_text and (seg_text[0] == ' ' or seg_text[-1] == ' '):
+                t_el.set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
+            new_r.append(t_el)
+
+        # Re-wrap in python-docx Run object to use set_font_properly
+        from docx.text.run import Run
+        new_run_obj = Run(new_r, run._parent)
+
+        if seg_hindi:
+            set_font_properly(new_run_obj, run.font.name or 'Kruti Dev 010')
+        else:
+            # English segment
+            new_run_obj.font.name = 'Times New Roman'
+            r_new = new_run_obj._element
+            rPr_new = r_new.get_or_add_rPr()
+            rFonts_new = rPr_new.get_or_add_rFonts()
+            for attr in list(rFonts_new.attrib.keys()):
+                del rFonts_new.attrib[attr]
+            for a in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
+                rFonts_new.set(qn(f'w:{a}'), 'Times New Roman')
+
+        para.insert(r_idx + i, new_r)
 
 
 def convert_doc_runs(doc, font_name):
-    """
-    Convert all Unicode Devanagari text in the document to Kruti Dev encoding.
-    This must be called AFTER all title pages and body formatting are complete,
-    so that runs added by formatters are also converted.
-    """
     if not is_krutidev(font_name):
         return
 
     def process_para(para):
         if has_drawing(para):
             return
-        for run in para.runs:
+        set_para_font(para, font_name)
+        # Use index-based loop because convert_run_to_krutidev inserts sibling runs
+        j = 0
+        while j < len(para.runs):
+            run = para.runs[j]
             if not run_has_drawing(run):
+                # We must NOT call set_font_properly(run, font_name) here because 
+                # convert_run_to_krutidev already handles font setting for each segment.
+                # If we do, we'll overwrite English TNR segments with KrutiDev.
+                orig_run_count = len(para.runs)
                 convert_run_to_krutidev(run)
+                # Skip any newly inserted runs so we don't process them twice
+                new_run_count = len(para.runs)
+                j += (new_run_count - orig_run_count)
+            j += 1
 
+    # 1. Main paragraphs
     for para in doc.paragraphs:
         process_para(para)
 
+    # 2. Tables
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
                 for para in cell.paragraphs:
                     process_para(para)
-                    
+
+    # 3. Headers & Footers (Fix for missing title/header conversion)
+    for section in doc.sections:
+        for header in [section.header, section.first_page_header, section.even_page_header]:
+            if header:
+                for para in header.paragraphs:
+                    process_para(para)
+        for footer in [section.footer, section.first_page_footer, section.even_page_footer]:
+            if footer:
+                for para in footer.paragraphs:
+                    process_para(para)
