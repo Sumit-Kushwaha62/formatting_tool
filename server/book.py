@@ -187,7 +187,7 @@ def format_book_body(doc, opts, font_name):
     black         = RGBColor(0, 0, 0)
     krutidev_mode = is_krutidev(font_name)
     base_size     = float(opts.get('font_size', 14 if krutidev_mode else 12))
-    line_spacing  = float(opts.get('line_spacing', 1.15))
+    line_spacing  = float(opts.get('line_spacing', 1.5))
 
     heading_font = 'Kruti Dev 010' if krutidev_mode else 'Times New Roman'
     heading_counters = [0, 0]
@@ -220,7 +220,7 @@ def format_book_body(doc, opts, font_name):
             i += 1
             continue
 
-        space_after  = 2.0
+        space_after  = 5.0
         space_before = 0.0
 
         if etype == 'book_title':
@@ -334,10 +334,13 @@ def format_book_body(doc, opts, font_name):
                 align=WD_ALIGN_PARAGRAPH.CENTER,
                 space_before_pt=6, space_after_pt=4,
                 line_spacing=1.0)
+            for run in para.runs:
+                if not run_has_drawing(run):
+                    run.italic = True
 
         elif etype == 'figure_caption':
             apply_para_formatting(para, etype, font_name,
-                font_size_pt=12, bold=False, color=black,
+                font_size_pt=12, bold=True, color=black,
                 align=WD_ALIGN_PARAGRAPH.CENTER,
                 space_before_pt=4, space_after_pt=6,
                 line_spacing=1.0)

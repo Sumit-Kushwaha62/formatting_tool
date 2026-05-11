@@ -295,21 +295,14 @@ def unicode_to_krutidev(text):
             res += 'f'
         res += s
         if has_reph:
-            # Reph 'Z' goes after matras but before Anusvara/chandrabindu/visarga
-            # At this point text has been partially converted: check ASCII equivalents
-            reph_triggers = ('a', '%')  # anusvara='a', visarga='%'
-            has_nasal = any(res.endswith(t) or t in res for t in reph_triggers)
-            if has_nasal:
-                # Find the first nasal/visarga ASCII char position
+            # Reph 'Z' goes after matras but before Anusvara
+            if any(c in res for c in 'ंःँ'):
                 idx = -1
-                for _i, _c in enumerate(res):
-                    if res[_i:].startswith('a~') or res[_i] in ('a', '%'):
-                        idx = _i
+                for i, char in enumerate(res):
+                    if char in 'ंःँ':
+                        idx = i
                         break
-                if idx >= 0:
-                    res = res[:idx] + 'Z' + res[idx:]
-                else:
-                    res += 'Z'
+                res = res[:idx] + 'Z' + res[idx:]
             else:
                 res += 'Z'
         return res
@@ -326,7 +319,7 @@ def unicode_to_krutidev(text):
         'ऑ': 'vkW',
         'ा': 'k',  'ि': 'f',  'ी': 'h',  'ु': 'q',
         'ू': 'w',  'ृ': '`',  'े': 's',  'ै': 'S',
-        'ो': 'ks', 'ौ': 'kS', 'ं': 'a',  'ः': '%',  'ँ': 'a~',
+        'ो': 'ks', 'ौ': 'kS', 'ं': 'a',  'ः': '%',  'ँ': 'i',
         'ॉ': 'W',  'ॊ': 'ks',
         'क': 'd',  'ख': '[k', 'ग': 'x',  'घ': '?k', 'ङ': 'M~',
         'च': 'p',  'छ': 'N',  'ज': 't',  'झ': '>k', 'ञ': '¥',
@@ -766,47 +759,19 @@ def _fix_english_special(text):
 
 
 def convert_run_to_krutidev(run):
-    """Convert a run to KrutiDev encoding.
-    
-    Hindi text → KrutiDev ASCII encoding with KrutiDev font.
-    English/non-Hindi segments → kept as-is with Times New Roman font
-    (so punctuation and English words render correctly in Word).
-    If the run has mixed Hindi+English, it is split into multiple sibling runs.
-    """
     text = run.text
     if not text:
         return
     if not has_unicode_hindi(text):
-        # Pure English/numeric run — keep text as-is, switch font to Times New Roman
-        run.font.name = 'Times New Roman'
-        r = run._element
-        rPr = r.get_or_add_rPr()
-        rFonts = rPr.get_or_add_rFonts()
-        for attr in list(rFonts.attrib.keys()):
-            del rFonts.attrib[attr]
-        for a in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
-            rFonts.set(qn(f'w:{a}'), 'Times New Roman')
+        fixed = _fix_english_special(text)
+        if fixed != text:
+            run.text = fixed
         return
-
-    # Segment into Hindi and non-Hindi parts.
-    # Neutral characters (spaces, common punctuation, digits, dashes) are
-    # treated as belonging to the CURRENT segment so they don't cause spurious
-    # splits in otherwise-pure Hindi sentences.
-    NEUTRAL = set(' \t\n\r.,;:!?–—-()[]{}"\'\u200b\u200c\u200d\u00a0'
-                  '0123456789')
-
     segments = []
     current_hindi = None
     current_chunk = []
     for ch in text:
-        if '\u0900' <= ch <= '\u097F':
-            ch_is_hindi = True
-        elif ch in NEUTRAL:
-            # Neutral — keep with the current segment type
-            ch_is_hindi = current_hindi if current_hindi is not None else False
-        else:
-            ch_is_hindi = False
-
+        ch_is_hindi = '\u0900' <= ch <= '\u097F'
         if current_hindi is None:
             current_hindi = ch_is_hindi
         if ch_is_hindi == current_hindi:
@@ -818,99 +783,10 @@ def convert_run_to_krutidev(run):
     if current_chunk:
         segments.append((current_hindi, ''.join(current_chunk)))
 
-    # Merge consecutive same-type segments (can happen after neutral merging)
-    merged = []
-    for is_h, seg in segments:
-        if merged and merged[-1][0] == is_h:
-            merged[-1] = (is_h, merged[-1][1] + seg)
-        else:
-            merged.append([is_h, seg])
-    segments = [(is_h, seg) for is_h, seg in merged]
-
-    if len(segments) == 1 and segments[0][0]:
-        # Pure Hindi run — convert and keep KrutiDev font
-        run.text = unicode_to_krutidev(segments[0][1])
-        return
-
-    if not any(is_h for is_h, _ in segments):
-        # Pure non-Hindi run — keep as-is with Times New Roman
-        run.font.name = 'Times New Roman'
-        r = run._element
-        rPr = r.get_or_add_rPr()
-        rFonts = rPr.get_or_add_rFonts()
-        for attr in list(rFonts.attrib.keys()):
-            del rFonts.attrib[attr]
-        for a in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
-            rFonts.set(qn(f'w:{a}'), 'Times New Roman')
-        return
-
-    # Mixed run — split into sibling runs
-    # First run reuses the existing run element
-    para = run._r.getparent()  # w:p element
-    r_elem = run._r
-    r_idx = list(para).index(r_elem)
-
-    # Build list of (text, is_hindi) for new runs
-    new_runs = []
-    for is_h, seg in segments:
-        if is_h:
-            new_runs.append((unicode_to_krutidev(seg), True))
-        else:
-            new_runs.append((seg, False))
-
-    # Modify existing run to be the first segment
-    first_text, first_hindi = new_runs[0]
-    run.text = first_text
-    if not first_hindi:
-        # Switch font to Times New Roman for non-Hindi first segment
-        r = run._element
-        rPr = r.get_or_add_rPr()
-        rFonts = rPr.get_or_add_rFonts()
-        for attr in list(rFonts.attrib.keys()):
-            del rFonts.attrib[attr]
-        for a in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
-            rFonts.set(qn(f'w:{a}'), 'Times New Roman')
-
-    # Insert remaining runs after the first
-    import copy
-    for i, (seg_text, seg_hindi) in enumerate(new_runs[1:], start=1):
-        new_r = copy.deepcopy(r_elem)
-        # Set text
-        t_els = new_r.findall(qn('w:t'))
-        if t_els:
-            t_els[0].text = seg_text
-            if seg_text and (seg_text[0] == ' ' or seg_text[-1] == ' '):
-                t_els[0].set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
-        else:
-            from docx.oxml import OxmlElement as _OE
-            t_el = _OE('w:t')
-            t_el.text = seg_text
-            if seg_text and (seg_text[0] == ' ' or seg_text[-1] == ' '):
-                t_el.set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
-            new_r.append(t_el)
-
-        rPr_new = new_r.find(qn('w:rPr'))
-        if rPr_new is None:
-            rPr_new = OxmlElement('w:rPr')
-            new_r.insert(0, rPr_new)
-
-        rFonts_new = rPr_new.find(qn('w:rFonts'))
-        if rFonts_new is None:
-            rFonts_new = OxmlElement('w:rFonts')
-            rPr_new.insert(0, rFonts_new)
-        # Clear existing font attrs
-        for attr in list(rFonts_new.attrib.keys()):
-            del rFonts_new.attrib[attr]
-
-        if seg_hindi:
-            kd_name = run.font.name or 'Kruti Dev 010'
-            for a in ['ascii', 'hAnsi', 'eastAsia']:
-                rFonts_new.set(qn(f'w:{a}'), kd_name)
-        else:
-            for a in ['ascii', 'hAnsi', 'eastAsia', 'cs']:
-                rFonts_new.set(qn(f'w:{a}'), 'Times New Roman')
-
-        para.insert(r_idx + i, new_r)
+    run.text = ''.join(
+        unicode_to_krutidev(seg) if is_h else _fix_english_special(seg)
+        for is_h, seg in segments
+    )
 
 
 def convert_doc_runs(doc, font_name):

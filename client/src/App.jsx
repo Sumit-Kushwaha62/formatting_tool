@@ -2323,6 +2323,28 @@ ru = :
 
 
 
+iss doc file ko dekho yaha pr utils.py and book.py ke
+logics ka use kr ke isse formate kiya gya hai jisme kuch corrections
+karna hai -
+
+-- yaha pr sabhi contents chipke huye se hai to paragraph end hone
+ke baad 5pt ka spacing rakho 
+
+-- headings ko justify rakho left to right pura space rakhna chahiye
+-- tables, images ya kisi bhi type ke visual data ke title
+ko bold, italic rakho 
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
