@@ -186,8 +186,8 @@ def detect_structure(para, index, doc=None):
 def format_book_body(doc, opts, font_name):
     black         = RGBColor(0, 0, 0)
     krutidev_mode = is_krutidev(font_name)
-    base_size     = float(opts.get('font_size', 12))
-    line_spacing  = float(opts.get('line_spacing', 1.5))
+    base_size     = float(opts.get('font_size', 14 if krutidev_mode else 12))
+    line_spacing  = float(opts.get('line_spacing', 1.15))
 
     heading_font = 'Kruti Dev 010' if krutidev_mode else 'Times New Roman'
     heading_counters = [0, 0]
@@ -220,7 +220,7 @@ def format_book_body(doc, opts, font_name):
             i += 1
             continue
 
-        space_after  = 5.0
+        space_after  = 2.0
         space_before = 0.0
 
         if etype == 'book_title':

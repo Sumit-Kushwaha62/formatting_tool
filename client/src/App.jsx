@@ -2391,6 +2391,30 @@ ki ek screen short bhi jo abhi as output receive ho rha hai mujhe
 
 
 
+<<WORK REPORT:
+
+<<SUMIT KUSHWAHA 
+<<DATE: - 09-05-2026
+<<TASKS:- 
+          >> 1. Fix Hindi to Kruti Dev 010 conversion logic for accurate output
+          >> 2. Login with google feature added
+          >> 3. Google Cloud Console keys setup
+          >> 4. Testing instructions shared with formatting team
+         
+
+
+
+
+
+now yaha pr maine kuch docx files ko root folder me rakhe hai yeha pr maine any language to krutidev 010 me convert karne ka model
+impliment karna chahata hu sabhi .py files pr jo formatting perform kr rhe hai but the issue is ki vo sahi output nhi de rha hai 
+usske output ki screenshort bhi root folder me rha hai aur 3 doc file jisse formate krna hai to root problem kya hai isse fix kro 
+kyu ho rha hai ye batao
+
+
+
+
+
 
 
 

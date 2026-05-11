@@ -214,11 +214,11 @@ def format_thesis_body(doc, opts, font_name):
     krutidev_mode = is_krutidev(font_name)
 
     if krutidev_mode:
-        base_size        = 15.0
+        base_size        = 14.0
         ch_heading_size  = 18.0
         ch_title_size    = 18.0
-        sec_heading_size = 17.0
-        sub_heading_size = 15.0
+        sec_heading_size = 16.0
+        sub_heading_size = 14.0
     else:
         base_size        = 12.0
         ch_heading_size  = 16.0
@@ -226,15 +226,12 @@ def format_thesis_body(doc, opts, font_name):
         sec_heading_size = 14.0
         sub_heading_size = 12.0
 
-    line_spacing = 1.5
+    line_spacing = float(opts.get('line_spacing', 1.15))
 
     if opts.get('font_size'):
         base_size = float(opts['font_size'])
 
-    if krutidev_mode:
-        heading_font = 'Kruti Dev 010'
-    else:
-        heading_font = 'Times New Roman'
+    heading_font = font_name if krutidev_mode else 'Times New Roman'
 
     def apply_caps_upper(para):
         if krutidev_mode:
