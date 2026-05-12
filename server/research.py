@@ -379,6 +379,9 @@ def _handle_keywords_and_refs_prepass(doc, font_name):
     # === STEP 0: Split merged numbered items ===
     _split_merged_numbered_items(doc)
 
+    # === STEP 0b: Convert tabular text to actual tables ===
+    _convert_tabular_text_to_tables(doc)
+
     paragraphs = list(doc.paragraphs)
 
     heading1_elements = set()
@@ -480,6 +483,106 @@ def _handle_keywords_and_refs_prepass(doc, font_name):
 
     return title_para_element, table_heading_elements, heading1_elements, abstract_para_element, intro_para_element
 
+
+
+# ADD this new function anywhere above format_research_body (e.g. after _insert_split_items):
+
+def _convert_tabular_text_to_tables(doc):
+    """
+    Detect paragraphs that look like tabular data (tab-separated or pipe-separated)
+    and convert them into actual Word tables.
+    """
+    paragraphs = list(doc.paragraphs)
+    i = 0
+
+    while i < len(paragraphs):
+        para = paragraphs[i]
+        text = para.text.strip()
+
+        if not text or has_drawing(para):
+            i += 1
+            continue
+
+        # Detect separator: tab or pipe
+        has_tab  = '\t' in text
+        has_pipe = '|' in text and text.count('|') >= 2
+
+        if not has_tab and not has_pipe:
+            i += 1
+            continue
+
+        sep = '\t' if has_tab else '|'
+
+        # Collect consecutive tabular lines
+        group = []
+        j = i
+        while j < len(paragraphs):
+            t = paragraphs[j].text.strip()
+            if not t:
+                j += 1
+                break
+            if sep == '\t' and '\t' not in t:
+                break
+            if sep == '|' and '|' not in t:
+                break
+            group.append((paragraphs[j], t))
+            j += 1
+
+        # Need at least 2 rows to make a table
+        if len(group) < 2:
+            i += 1
+            continue
+
+        # Parse rows and determine column count
+        rows_data = []
+        for _, row_text in group:
+            if sep == '|':
+                cells = [c.strip() for c in row_text.strip('|').split('|')]
+            else:
+                cells = [c.strip() for c in row_text.split('\t')]
+            rows_data.append(cells)
+
+        col_count = max(len(r) for r in rows_data)
+        if col_count < 2:
+            i += 1
+            continue
+
+        # Pad rows to same column count
+        for row in rows_data:
+            while len(row) < col_count:
+                row.append('')
+
+        # Insert table before first paragraph of group
+        ref_para = group[0][0]
+        parent = ref_para._p.getparent()
+        ref_idx = list(parent).index(ref_para._p)
+
+        table = doc.add_table(rows=len(rows_data), cols=col_count)
+        table.style = 'Table Grid'
+
+        for r_idx, row_cells in enumerate(rows_data):
+            for c_idx, cell_text in enumerate(row_cells):
+                cell = table.cell(r_idx, c_idx)
+                cell.text = cell_text
+                # Bold first row (header)
+                if r_idx == 0:
+                    for run in cell.paragraphs[0].runs:
+                        run.bold = True
+
+        # Insert table XML before first group paragraph
+        parent.insert(ref_idx, table._tbl)
+
+        # Remove original paragraphs
+        for orig_para, _ in group:
+            orig_para._p.getparent().remove(orig_para._p)
+
+        # Refresh paragraph list
+        paragraphs = list(doc.paragraphs)
+        i = 0  # restart scan — indices shifted
+
+
+# END of _convert_tabular_text_to_tables
+
 # ═══════════════════════════════════════════════
 # MAIN FORMATTER
 # ═══════════════════════════════════════════════
@@ -535,6 +638,8 @@ def format_research_body(doc, opts, font_name):
                     for p in paragraphs:
                         if p._p == child:
                             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                            p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+                            p.paragraph_format.line_spacing = 1.0
                             for r in p.runs:
                                 set_font_properly(r, font)
                                 r.font.size = Pt(base_size)
@@ -545,6 +650,8 @@ def format_research_body(doc, opts, font_name):
     if first_p:
         first_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         _clear_all_indents(first_p)
+        first_p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+        first_p.paragraph_format.line_spacing = 1.0
         for r in first_p.runs:
             set_font_properly(r, font)
             r.bold = True
@@ -623,8 +730,8 @@ def format_research_body(doc, opts, font_name):
             _clear_all_indents(para)
             para.alignment = WD_ALIGN_PARAGRAPH.LEFT
             para.paragraph_format.space_before = Pt(10)
-            para.paragraph_format.space_after = Pt(4)
-            para.paragraph_format.line_spacing = 1.5
+            para.paragraph_format.space_after = Pt(0)
+            para.paragraph_format.line_spacing = 1.15
             for r in para.runs:
                 set_font_properly(r, font)
                 r.bold = True
@@ -638,8 +745,8 @@ def format_research_body(doc, opts, font_name):
             q_counter += 1
             _set_hanging_indent(para, 0.35)
             para.alignment = WD_ALIGN_PARAGRAPH.LEFT
-            para.paragraph_format.line_spacing = 1.5
-            para.paragraph_format.space_after = Pt(3)
+            para.paragraph_format.line_spacing = 1.15
+            para.paragraph_format.space_after = Pt(0)
             para.paragraph_format.space_before = Pt(0)
 
             for r in para.runs:
@@ -687,11 +794,25 @@ def format_research_body(doc, opts, font_name):
                     if existing is not None:
                         sub_counter = existing
 
+            # _clear_all_indents(para)
+            # para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            # para.paragraph_format.space_before = Pt(12)
+            # para.paragraph_format.space_after = Pt(6)
+            # para.paragraph_format.line_spacing = 1.5
+            # for r in para.runs:
+            #     set_font_properly(r, font)
+            #     r.bold = True
+            #     r.font.size = Pt(base_size)
+            #     r.font.color.rgb = BLACK
+            # prev_body_para = None
+            # continue
+
+
             _clear_all_indents(para)
             para.alignment = WD_ALIGN_PARAGRAPH.LEFT
             para.paragraph_format.space_before = Pt(12)
-            para.paragraph_format.space_after = Pt(6)
-            para.paragraph_format.line_spacing = 1.5
+            para.paragraph_format.space_after = Pt(0)
+            para.paragraph_format.line_spacing = 1.0
             for r in para.runs:
                 set_font_properly(r, font)
                 r.bold = True
@@ -700,13 +821,15 @@ def format_research_body(doc, opts, font_name):
             prev_body_para = None
             continue
 
+
+
         # --- KEYWORDS ---
         if etype == 'keywords_line':
             _clear_all_indents(para)
             para.alignment = WD_ALIGN_PARAGRAPH.LEFT
-            para.paragraph_format.space_before = Pt(4)
-            para.paragraph_format.space_after = Pt(4)
-            para.paragraph_format.line_spacing = 1.5
+            para.paragraph_format.space_before = Pt(0)
+            para.paragraph_format.space_after = Pt(0)
+            para.paragraph_format.line_spacing = 1.15
             full_txt = para.text
             para.clear()
             m = re.match(r'^(keywords?\s*:)(.*)', full_txt, re.IGNORECASE)
@@ -725,8 +848,8 @@ def format_research_body(doc, opts, font_name):
         if etype == 'numbered_list_item' or is_bullet_para(para):
             _set_hanging_indent(para, 0.25)
             para.alignment = WD_ALIGN_PARAGRAPH.LEFT
-            para.paragraph_format.space_after = Pt(2)
-            para.paragraph_format.line_spacing = 1.5
+            para.paragraph_format.space_after = Pt(0)
+            para.paragraph_format.line_spacing = 1.15
             for r in para.runs:
                 set_font_properly(r, font)
                 r.font.size = Pt(base_size)
@@ -740,7 +863,7 @@ def format_research_body(doc, opts, font_name):
             _set_hanging_indent(para, 0.3)
             para.alignment = WD_ALIGN_PARAGRAPH.LEFT
             para.paragraph_format.line_spacing = 1.15
-            para.paragraph_format.space_after = Pt(2)
+            para.paragraph_format.space_after = Pt(0)
 
             current_text = para.text.strip()
             current_text = re.sub(r'^[•\-\*]\s*', '', current_text)
@@ -780,19 +903,43 @@ def format_research_body(doc, opts, font_name):
                 prev_body = prev_para
             break
 
-        if prev_body is not None:
-            _set_first_line_indent(para, 0.25)
-            prev_body_para = para
-        else:
-            prev_body_para = para
+        # if prev_body is not None:
+        #     _set_first_line_indent(para, 0.25)
+        #     prev_body_para = para
+        # else:
+        #     prev_body_para = para
+
+        # para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        # para.paragraph_format.line_spacing = 1.5
+        # para.paragraph_format.space_after = Pt(0)
+        # for r in para.runs:
+        #     set_font_properly(r, font)
+        #     r.bold = False
+        #     r.font.size = Pt(base_size)
+        #     r.font.color.rgb = BLACK
+
+
+# FIX 2: Every body paragraph gets 1 tab (0.5 inch) first-line indent
+        _set_first_line_indent(para, 0.5)
+        prev_body_para = para
 
         para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-        para.paragraph_format.line_spacing = 1.5
+        para.paragraph_format.line_spacing = 1.15
         para.paragraph_format.space_after = Pt(0)
+       # para.paragraph_format.space_before = Pt(0)
+        para.paragraph_format.space_before = Pt(0)
         for r in para.runs:
             set_font_properly(r, font)
             r.bold = False
             r.font.size = Pt(base_size)
             r.font.color.rgb = BLACK
 
-    format_table_cells(doc, font, base_size, 1.5, BLACK)
+
+
+
+
+
+
+
+
+    format_table_cells(doc, font, base_size, 1.0, BLACK)

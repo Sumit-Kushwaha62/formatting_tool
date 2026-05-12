@@ -744,8 +744,60 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
 # ═══════════════════════════
 
 
+def _apply_table_borders(table):
+    """Apply Table Grid borders (all sides, black, 1pt) to a table."""
+    tbl = table._tbl
+    tblPr = tbl.find(qn('w:tblPr'))
+    if tblPr is None:
+        tblPr = OxmlElement('w:tblPr')
+        tbl.insert(0, tblPr)
+
+    # Remove tblCellSpacing (causes gaps between cells)
+    cell_spacing = tblPr.find(qn('w:tblCellSpacing'))
+    if cell_spacing is not None:
+        tblPr.remove(cell_spacing)
+
+    # Set tblW to 100% auto
+    tblW = tblPr.find(qn('w:tblW'))
+    if tblW is None:
+        tblW = OxmlElement('w:tblW')
+        tblPr.insert(0, tblW)
+    tblW.set(qn('w:w'), '5000')
+    tblW.set(qn('w:type'), 'pct')
+
+    # Remove old borders if any, then add fresh ones
+    old_borders = tblPr.find(qn('w:tblBorders'))
+    if old_borders is not None:
+        tblPr.remove(old_borders)
+
+    tblBorders = OxmlElement('w:tblBorders')
+    for border_name in ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']:
+        border = OxmlElement(f'w:{border_name}')
+        border.set(qn('w:val'), 'single')
+        border.set(qn('w:sz'), '4')       # 0.5pt
+        border.set(qn('w:space'), '0')
+        border.set(qn('w:color'), '000000')
+        tblBorders.append(border)
+    tblPr.append(tblBorders)
+
+    # Also set cell margins tight
+    tblCellMar = tblPr.find(qn('w:tblCellMar'))
+    if tblCellMar is not None:
+        tblPr.remove(tblCellMar)
+    tblCellMar = OxmlElement('w:tblCellMar')
+    for side in ['top', 'left', 'bottom', 'right']:
+        m = OxmlElement(f'w:{side}')
+        m.set(qn('w:w'), '80')
+        m.set(qn('w:type'), 'dxa')
+        tblCellMar.append(m)
+    tblPr.append(tblCellMar)
+
+
 def format_table_cells(doc, font_name, base_size, line_spacing, black):
     for table in doc.tables:
+        # Apply borders to every table
+        _apply_table_borders(table)
+
         for row in table.rows:
             for cell in row.cells:
                 for para in cell.paragraphs:

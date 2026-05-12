@@ -230,8 +230,10 @@ def inject_heading_number(para, sec, sub=None, krutidev_mode=False):
     if krutidev_mode:
         return
     text = para.text.strip()
-    # Skip if already starts with ASCII or Devanagari digit
-    if re.match(r'^[\d०-९]', text):
+    # Skip if already starts with ASCII digit, Devanagari digit,
+    # OR KrutiDev-encoded digit chars (! @ # $ % ^ & * ( for १-९)
+    KRUTIDEV_DIGIT_CHARS = '!@#$%^&*('
+    if re.match(r'^[\d०-९]', text) or (text and text[0] in KRUTIDEV_DIGIT_CHARS):
         return
     prefix = f"{sec}. " if sub is None else f"{sec}.{sub} "
     if para.runs:
@@ -405,8 +407,8 @@ def unicode_to_krutidev(text):
         ('\u0924\u094d\u0928', 'Ru'),     # त्न  *** NEW ***
         ('\u0938\u094d\u0928', 'Lu'),     # स्न  *** NEW ***
         ('\u0938\u094d\u092e', 'Le'),     # स्म  *** NEW ***
-        ('\u0930\u0942', 'tw'),
-        ('\u0930\u0941', 'rq'),
+        # ('\u0930\u0942', 'tw'),
+        # ('\u0930\u0941', 'rq'),
     ]
 
     for uni, kd in CONJUNCTS:
@@ -741,6 +743,7 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
 # TABLE HELPERS
 # ═══════════════════════════
 
+
 def format_table_cells(doc, font_name, base_size, line_spacing, black):
     for table in doc.tables:
         for row in table.rows:
@@ -751,13 +754,53 @@ def format_table_cells(doc, font_name, base_size, line_spacing, black):
                     set_para_font(para, font_name)
                     clear_pPr_sz(para)
                     set_pPr_sz(para, int(base_size * 2))
+
+                    # Apply line spacing
+                    pPr = para._p.get_or_add_pPr()
+                    spacing = pPr.find(qn('w:spacing'))
+                    if spacing is None:
+                        spacing = OxmlElement('w:spacing')
+                        pPr.append(spacing)
+                    try:
+                        ls = float(line_spacing)
+                    except Exception:
+                        ls = 1.5
+                    if ls == 1.0:
+                        spacing.set(qn('w:lineRule'), 'auto')
+                        spacing.set(qn('w:line'), '240')
+                    elif ls == 2.0:
+                        spacing.set(qn('w:lineRule'), 'auto')
+                        spacing.set(qn('w:line'), '480')
+                    else:
+                        spacing.set(qn('w:lineRule'), 'auto')
+                        spacing.set(qn('w:line'), str(int(ls * 240)))
+
                     for run in para.runs:
                         if run_has_drawing(run):
                             continue
-                        was_bold   = run.bold
+                        was_bold = run.bold
                         set_font_properly(run, font_name, base_size)
-                        run.bold   = was_bold
+                        run.bold = was_bold
                         run.font.color.rgb = black
+
+
+# def format_table_cells(doc, font_name, base_size, line_spacing, black):
+#     for table in doc.tables:
+#         for row in table.rows:
+#             for cell in row.cells:
+#                 for para in cell.paragraphs:
+#                     if not para.text.strip() and not has_drawing(para):
+#                         continue
+#                     set_para_font(para, font_name)
+#                     clear_pPr_sz(para)
+#                     set_pPr_sz(para, int(base_size * 2))
+#                     for run in para.runs:
+#                         if run_has_drawing(run):
+#                             continue
+#                         was_bold   = run.bold
+#                         set_font_properly(run, font_name, base_size)
+#                         run.bold   = was_bold
+#                         run.font.color.rgb = black
 
 
 def center_all_tables(doc):
@@ -933,6 +976,17 @@ def _split_and_convert_run(run, font_name, pre_font=None):
                 effective_font = run.font.name or ''
             except Exception:
                 effective_font = ''
+        # if is_krutidev(effective_font):
+        #     return None  # caller will set_font_properly with KrutiDev
+        # else:
+        #     # Check for KrutiDev-encoded digit/special chars
+        #     KRUTIDEV_ENCODED = set('!@#$%^&*(')
+        #     if any(c in KRUTIDEV_ENCODED for c in text):
+        #         return None  # treat as KrutiDev — caller sets KrutiDev font
+        #     _set_run_font_fallback(run._element, font_name)
+        #     return None
+
+
         if is_krutidev(effective_font):
             # Already KrutiDev-encoded run — keep KrutiDev font
             return None  # caller will set_font_properly with KrutiDev
@@ -993,10 +1047,35 @@ def _split_and_convert_run(run, font_name, pre_font=None):
             lang.set(_qn2('w:hAnsi'), 'x-none')
             bidi = _qn2('w:bidi')
             if lang.get(bidi): del lang.attrib[bidi]
+
+        # else:
+        #     t.text = _fix_english_special(seg)
+        #     new_r.append(t)
+        #     # KrutiDev digit/encoded chars must stay in KrutiDev font
+        #     KRUTIDEV_ENCODED = set('!@#$%^&*(')
+        #     if any(c in KRUTIDEV_ENCODED for c in seg):
+        #         from docx.oxml import OxmlElement as _OE2
+        #         rPr2 = new_r.get_or_add_rPr()
+        #         rFonts2 = rPr2.find(_qn('w:rFonts'))
+        #         if rFonts2 is None:
+        #             rFonts2 = _OE2('w:rFonts')
+        #             rPr2.insert(0, rFonts2)
+        #         for attr in list(rFonts2.attrib.keys()):
+        #             del rFonts2.attrib[attr]
+        #         formal = FONT_NAME_MAP.get(font_name, font_name)
+        #         rFonts2.set(_qn('w:ascii'), formal)
+        #         rFonts2.set(_qn('w:hAnsi'), formal)
+        #     else:
+        #         _set_run_font_fallback(new_r, font_name)
+
         else:
             t.text = _fix_english_special(seg)
             new_r.append(t)
             _set_run_font_fallback(new_r, font_name)
+
+
+
+
 
         new_runs.append(new_r)
 

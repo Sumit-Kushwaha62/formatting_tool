@@ -2029,7 +2029,7 @@ const handleGoogleLogin = async () => {
                 </div> */}
 
                 {/* Doc fields */}
-                <div className="form-section">
+                {/* <div className="form-section">
                   <div className="form-section-title">◈ Document Details</div>
                   <div className="form-grid-fields">
                     {currentType.fields.filter(f => f.key !== 'header' && f.key !== 'footer').map(field => (
@@ -2040,7 +2040,7 @@ const handleGoogleLogin = async () => {
                       </div>
                     ))}
                   </div>
-                </div>
+                </div> */}
 
                 <div className="divider" />
                 <div className="btn-row">
@@ -2376,6 +2376,31 @@ agar ye changes minor ho to mai code blocks replace krunga aur agar major ho to 
 2> 1.5 ki line spacing tables ke undar ke content me bhi chahiye
 3> kahi-kahi pr subheadings ki numbering nhi ho rhi hai may be vo sub heading ki tarah se detect nhi ho rha hai
 4> main headings should be 16pt and subheadings should be 14pt  
+
+
+
+mujhe ye research paper wale file me kuch changes karne hai to batao ki code mai kaha aur kya changes honge?
+
+1. kisi bhi side heading ke niche (after space ) nhi chahiye jo ki abhi aa rhi hai 
+2. sabhi paragraphs me 1 tab ka space ho ga vo starting se start nhi hoga
+3. agar data table ke form me hai but table nhi bana hai to auto table ban jana chahiye ye feature impliment karna 
+  kai bar, online data uthane pr content table form  me likha hota hai but table nhi bani hoti hai to usse fix krna hai 
+
+code me kaha changes karne hai batao to mai code blocks replace kr dunga 
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
