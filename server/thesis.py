@@ -238,14 +238,14 @@ def format_thesis_body(doc, opts, font_name):
         base_size        = 14.0
         ch_heading_size  = 18.0
         ch_title_size    = 18.0
-        sec_heading_size = 17.0  # spec: Section Heading 17pt (Hindi)
-        sub_heading_size = 15.0  # spec: Subsection Heading 15pt (Hindi)
+        sec_heading_size = 17.0
+        sub_heading_size = 15.0
     else:
         base_size        = 12.0
         ch_heading_size  = 16.0
         ch_title_size    = 16.0
-        sec_heading_size = 14.0  # spec: Section Heading 14pt (English)
-        sub_heading_size = 12.0  # spec: Subsection Heading 12pt (English)
+        sec_heading_size = 14.0
+        sub_heading_size = 12.0
 
     line_spacing = float(opts.get('line_spacing', 1.15))
 
@@ -258,7 +258,7 @@ def format_thesis_body(doc, opts, font_name):
         if krutidev_mode:
             return
         for run in para.runs:
-            if run.text:
+            if run.text and run.text.strip():
                 run.text = run.text.upper()
 
     def set_widow_orphan(para):
@@ -277,7 +277,7 @@ def format_thesis_body(doc, opts, font_name):
             pPr.append(kn)
         kn.set(qn('w:val'), '1')
 
-    i         = 0
+    i          = 0
     prev_etype = None
 
     while i < len(doc.paragraphs):
@@ -285,16 +285,13 @@ def format_thesis_body(doc, opts, font_name):
         text = para.text.strip()
 
         if has_drawing(para):
-            # Center drawing and ensure surrounding content wraps correctly
             para.alignment = WD_ALIGN_PARAGRAPH.CENTER
             pPr_d = para._p.get_or_add_pPr()
-            # Set center alignment in XML
             for jc_el in pPr_d.findall(qn('w:jc')):
                 pPr_d.remove(jc_el)
             jc_draw = OxmlElement('w:jc')
             jc_draw.set(qn('w:val'), 'center')
             pPr_d.append(jc_draw)
-            # Spacing around drawing
             sp_d = pPr_d.find(qn('w:spacing'))
             if sp_d is None:
                 sp_d = OxmlElement('w:spacing')
@@ -307,7 +304,6 @@ def format_thesis_body(doc, opts, font_name):
             continue
 
         if not text:
-            # Collapse empty paragraphs — remove all spacing so they don't create gaps
             pPr_e = para._p.get_or_add_pPr()
             sp_e  = pPr_e.find(qn('w:spacing'))
             if sp_e is None:
@@ -330,7 +326,7 @@ def format_thesis_body(doc, opts, font_name):
 
         if etype == 'figure_caption':
             apply_para_formatting(para, etype, font_name,
-                font_size_pt=12.0,  # spec: visual data titles always 12pt
+                font_size_pt=12.0,
                 bold=True, color=black,
                 align=WD_ALIGN_PARAGRAPH.CENTER,
                 space_before_pt=4, space_after_pt=4,
@@ -341,8 +337,8 @@ def format_thesis_body(doc, opts, font_name):
             continue
 
         # --- Spacing defaults ---
-        space_after  = 5.0   # standard gap after any block
-        space_before = 10.0  # default before headings (non-consecutive)
+        space_after  = 5.0
+        space_before = 10.0
 
         next_etype = None
         if i < len(doc.paragraphs) - 1:
@@ -350,20 +346,20 @@ def format_thesis_body(doc, opts, font_name):
             if next_para.text.strip() and not has_drawing(next_para):
                 next_etype = detect_thesis_structure(next_para, i + 1, doc)
 
-        # Heading after heading → tight 5pt gap (spec requirement)
+        # Heading after heading → tight 5pt gap
         if etype in ['section_heading', 'subheading', 'subheading_colon']:
             if prev_etype in ['chapter_heading', 'chapter_title', 'section_heading', 'subheading', 'subheading_colon']:
                 space_before = 5.0
             else:
-                space_before = 10.0  # heading after body text
-            space_after = 3.0  # tight gap between heading and its body
+                space_before = 10.0
+            space_after = 3.0
 
         # Body/bullet after body/bullet → no extra gap
         if etype in ['body', 'bullet']:
             space_before = 0.0
             space_after  = 5.0
 
-        # Body before a heading → small gap (heading's space_before handles it)
+        # Body before a heading → small gap
         if etype in ['body', 'bullet'] and next_etype in ['section_heading', 'subheading', 'subheading_colon', 'chapter_heading']:
             space_after = 2.0
 
@@ -374,7 +370,6 @@ def format_thesis_body(doc, opts, font_name):
                 chapter_title = parts[1].strip()
 
                 label_text = chapter_label.upper() if not krutidev_mode else chapter_label
-                # Clear and re-add as a run so font/conversion applies properly
                 for r in list(para.runs):
                     r._r.getparent().remove(r._r)
                 r_new = para.add_run(label_text)
@@ -392,7 +387,6 @@ def format_thesis_body(doc, opts, font_name):
                 title_run = title_para.add_run(chapter_title.upper() if not krutidev_mode else chapter_title)
                 title_run.bold = True
                 set_font_properly(title_run, heading_font)
-
                 apply_para_formatting(title_para, 'chapter_title', heading_font,
                     font_size_pt=ch_title_size, bold=True, color=black,
                     align=WD_ALIGN_PARAGRAPH.CENTER,
@@ -424,10 +418,9 @@ def format_thesis_body(doc, opts, font_name):
 
                 if next_is_title and i + 1 < len(doc.paragraphs):
                     title_para = doc.paragraphs[i + 1]
-                    title_text = title_para.text.strip()
                     if not krutidev_mode:
                         for run in title_para.runs:
-                            if run.text:
+                            if run.text and run.text.strip():
                                 run.text = run.text.upper()
                     apply_para_formatting(title_para, 'chapter_title', heading_font,
                         font_size_pt=ch_title_size, bold=True, color=black,
@@ -444,7 +437,7 @@ def format_thesis_body(doc, opts, font_name):
                 apply_caps_upper(para)
             apply_para_formatting(para, etype, heading_font,
                 font_size_pt=sec_heading_size,
-                bold=True,  # all section headings bold
+                bold=True,
                 color=black,
                 align=WD_ALIGN_PARAGRAPH.JUSTIFY,
                 space_before_pt=space_before, space_after_pt=3.0,
@@ -458,7 +451,7 @@ def format_thesis_body(doc, opts, font_name):
                 apply_caps_upper(para)
             apply_para_formatting(para, etype, heading_font,
                 font_size_pt=sub_heading_size,
-                bold=True,  # all subheadings bold
+                bold=True,
                 color=black,
                 align=WD_ALIGN_PARAGRAPH.JUSTIFY,
                 space_before_pt=space_before, space_after_pt=3.0,
@@ -468,6 +461,8 @@ def format_thesis_body(doc, opts, font_name):
             set_keep_next(para)
 
         elif etype == 'subheading_colon':
+            if not krutidev_mode:
+                apply_caps_upper(para)
             apply_para_formatting(para, 'subheading', heading_font,
                 font_size_pt=sub_heading_size,
                 bold=True,
@@ -489,10 +484,8 @@ def format_thesis_body(doc, opts, font_name):
             set_widow_orphan(para)
 
         else:  # body
-            # Apply justification only to long paragraphs
             words_in_para = text.split()
             should_justify = len(words_in_para) >= 12 and len(text) >= 100 and not text.endswith(('?', ':', '!', ';'))
-            
             final_align = WD_ALIGN_PARAGRAPH.JUSTIFY if should_justify else WD_ALIGN_PARAGRAPH.LEFT
 
             apply_para_formatting(para, etype, font_name,
@@ -501,9 +494,8 @@ def format_thesis_body(doc, opts, font_name):
                 space_before_pt=0, space_after_pt=5.0,
                 left_indent=0.0, first_indent=0.0,
                 line_spacing=line_spacing)
-            
+
             if should_justify:
-                # Ensure XML level justification for "content justify"
                 pPr = para._p.get_or_add_pPr()
                 for jc in pPr.findall(qn('w:jc')):
                     pPr.remove(jc)
@@ -520,7 +512,6 @@ def format_thesis_body(doc, opts, font_name):
     # Add 5pt space after every table so next paragraph isn't cramped
     for table in doc.tables:
         tbl = table._tbl
-        # The paragraph immediately after a table carries the post-table spacing
         next_sib = tbl.getnext()
         if next_sib is not None and next_sib.tag == qn('w:p'):
             from docx.oxml import OxmlElement as _OE
@@ -532,8 +523,7 @@ def format_thesis_body(doc, opts, font_name):
             if sp is None:
                 sp = _OE('w:spacing')
                 pPr.append(sp)
-            # Only set space_before if not already explicitly set larger
             existing_before = sp.get(qn('w:before'))
             if existing_before is None or int(existing_before) < 100:
-                sp.set(qn('w:before'), '100')  # 5pt = 100 twips
+                sp.set(qn('w:before'), '100')
                 sp.set(qn('w:beforeAutospacing'), '0')

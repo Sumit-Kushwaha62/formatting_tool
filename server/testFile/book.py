@@ -173,12 +173,6 @@ def detect_structure(para, index, doc=None):
     if re.match(r'^[१-९][०-९]*\.?\s+\S', text) and is_bold and wc <= 20:
         return 'main_heading'
 
-    # FIX 3: Partially bold lines — any run bold + short = sub_heading
-    # Catches cases where is_all_bold() returns False due to mixed runs
-    any_bold = any(r.bold for r in para.runs if r.text.strip())
-    if any_bold and wc <= 15:
-        return 'sub_heading'
-
     if is_bold and wc <= 15:
         return 'sub_heading'
 
@@ -306,20 +300,18 @@ def format_book_body(doc, opts, font_name):
                 continue
 
         elif etype == 'main_heading':
-            # FIX 4: main_heading → 16pt (was 14pt)
             strip_list_numbering(para)
             heading_counters[0] += 1
             heading_counters[1]  = 0
             inject_heading_number(para, heading_counters[0], krutidev_mode=krutidev_mode)
             apply_para_formatting(para, etype, font_name,
-                font_size_pt=16, bold=True, color=black,
+                font_size_pt=14, bold=True, color=black,
                 align=WD_ALIGN_PARAGRAPH.JUSTIFY,
                 space_before_pt=4, space_after_pt=4,
                 left_indent=0.0, first_indent=0.0,
                 line_spacing=line_spacing)
 
         elif etype == 'sub_heading':
-            # FIX 4: sub_heading → 14pt (unchanged, already correct)
             strip_list_numbering(para)
             heading_counters[1] += 1
             m = re.match(r'^(\d+)\.(\d+)\.?\s+', text)
@@ -357,11 +349,10 @@ def format_book_body(doc, opts, font_name):
                     run.italic = True
 
         elif etype == 'bullet':
-            # FIX 1: bullet → JUSTIFY (was LEFT)
             is_bold_para = is_all_bold(para)
             apply_para_formatting(para, etype, font_name,
                 font_size_pt=base_size, bold=is_bold_para, color=black,
-                align=WD_ALIGN_PARAGRAPH.JUSTIFY,
+                align=WD_ALIGN_PARAGRAPH.LEFT,
                 space_before_pt=0, space_after_pt=space_after,
                 left_indent=0.25, first_indent=-0.25,
                 line_spacing=line_spacing)

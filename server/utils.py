@@ -743,6 +743,7 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
 # TABLE HELPERS
 # ═══════════════════════════
 
+
 def format_table_cells(doc, font_name, base_size, line_spacing, black):
     for table in doc.tables:
         for row in table.rows:
@@ -753,13 +754,53 @@ def format_table_cells(doc, font_name, base_size, line_spacing, black):
                     set_para_font(para, font_name)
                     clear_pPr_sz(para)
                     set_pPr_sz(para, int(base_size * 2))
+
+                    # Apply line spacing
+                    pPr = para._p.get_or_add_pPr()
+                    spacing = pPr.find(qn('w:spacing'))
+                    if spacing is None:
+                        spacing = OxmlElement('w:spacing')
+                        pPr.append(spacing)
+                    try:
+                        ls = float(line_spacing)
+                    except Exception:
+                        ls = 1.5
+                    if ls == 1.0:
+                        spacing.set(qn('w:lineRule'), 'auto')
+                        spacing.set(qn('w:line'), '240')
+                    elif ls == 2.0:
+                        spacing.set(qn('w:lineRule'), 'auto')
+                        spacing.set(qn('w:line'), '480')
+                    else:
+                        spacing.set(qn('w:lineRule'), 'auto')
+                        spacing.set(qn('w:line'), str(int(ls * 240)))
+
                     for run in para.runs:
                         if run_has_drawing(run):
                             continue
-                        was_bold   = run.bold
+                        was_bold = run.bold
                         set_font_properly(run, font_name, base_size)
-                        run.bold   = was_bold
+                        run.bold = was_bold
                         run.font.color.rgb = black
+
+
+# def format_table_cells(doc, font_name, base_size, line_spacing, black):
+#     for table in doc.tables:
+#         for row in table.rows:
+#             for cell in row.cells:
+#                 for para in cell.paragraphs:
+#                     if not para.text.strip() and not has_drawing(para):
+#                         continue
+#                     set_para_font(para, font_name)
+#                     clear_pPr_sz(para)
+#                     set_pPr_sz(para, int(base_size * 2))
+#                     for run in para.runs:
+#                         if run_has_drawing(run):
+#                             continue
+#                         was_bold   = run.bold
+#                         set_font_properly(run, font_name, base_size)
+#                         run.bold   = was_bold
+#                         run.font.color.rgb = black
 
 
 def center_all_tables(doc):

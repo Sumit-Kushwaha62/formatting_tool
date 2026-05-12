@@ -2367,7 +2367,15 @@ const handleGoogleLogin = async () => {
 /* 
 
 
+let see this files yaha pr book.py ke liye kuch chize set karni hai jo abhi sahi se work nhi kr rhi hai mujhe batao code
+me kaha aur kya changes karna hai mai code block replace kr dunga, dhyan rahe isse fix karte time kuch aur exing chize kharab na ho 
+agar ye changes minor ho to mai code blocks replace krunga aur agar major ho to puri updated file hi de dena:
 
+
+1> kahi-kahi pr buttel points ka content bahut bada hai aur vo justify nhi display ho rha hai isse fix krna hai
+2> 1.5 ki line spacing tables ke undar ke content me bhi chahiye
+3> kahi-kahi pr subheadings ki numbering nhi ho rhi hai may be vo sub heading ki tarah se detect nhi ho rha hai
+4> main headings should be 16pt and subheadings should be 14pt  
 
 
 
