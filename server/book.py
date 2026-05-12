@@ -221,7 +221,7 @@ def format_book_body(doc, opts, font_name):
             continue
 
         space_after  = 5.0
-        space_before = 0.0
+        space_before = 5.0
 
         if etype == 'book_title':
             apply_para_formatting(para, etype, heading_font,
@@ -229,7 +229,7 @@ def format_book_body(doc, opts, font_name):
                 align=WD_ALIGN_PARAGRAPH.CENTER,
                 space_before_pt=15, space_after_pt=10,
                 line_spacing=line_spacing)
-            set_para_text_formatted(para, text.upper(), 24, True, black, heading_font)
+            set_para_text_formatted(para, text.upper(), 20, True, black, heading_font)
 
         elif etype == 'chapter_heading':
             heading_counters[0] = 0
@@ -305,7 +305,7 @@ def format_book_body(doc, opts, font_name):
             heading_counters[1]  = 0
             inject_heading_number(para, heading_counters[0], krutidev_mode=krutidev_mode)
             apply_para_formatting(para, etype, font_name,
-                font_size_pt=16, bold=True, color=black,
+                font_size_pt=14, bold=True, color=black,
                 align=WD_ALIGN_PARAGRAPH.JUSTIFY,
                 space_before_pt=4, space_after_pt=4,
                 left_indent=0.0, first_indent=0.0,

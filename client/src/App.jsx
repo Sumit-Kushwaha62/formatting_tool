@@ -1921,6 +1921,7 @@ const handleGoogleLogin = async () => {
                   </div>
                 </div>
 
+
                 {/* Page numbers */}
                 <div className="form-section">
                   <div className="form-section-title">◈ Page Numbers & Header/Footer</div>
@@ -1945,6 +1946,17 @@ const handleGoogleLogin = async () => {
                           </div>
                         ))}
                       </div>
+                      <div style={{ marginTop: 12, maxWidth: 200 }}>
+                        <div className="field-label" style={{ marginBottom: 8 }}>Starting Page Number</div>
+                        <input
+                          className="field-input"
+                          type="number"
+                          min="1"
+                          placeholder="e.g. 1"
+                          value={formData.start_page_number || ''}
+                          onChange={e => handleFieldChange('start_page_number', e.target.value)}
+                        />
+                      </div>
                     </div>
                   )}
                   <div className="form-grid-2" style={{ marginTop: 12 }}>
@@ -1958,6 +1970,63 @@ const handleGoogleLogin = async () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Page numbers */}
+                {/* <div className="form-section">
+                  <div className="form-section-title">◈ Page Numbers & Header/Footer</div>
+                  <div className="toggle-row">
+                    <div>
+                      <div className="toggle-label">Auto Page Numbers</div>
+                      <div className="toggle-sub">Add page X of Y automatically</div>
+                    </div>
+                    <label className="toggle">
+                      <input type="checkbox" checked={!!formData.page_numbers} onChange={() => handleToggle('page_numbers')} />
+                      <span className="toggle-slider" />
+                    </label>
+                  </div>
+                  {formData.page_numbers && (
+                    <div style={{ marginBottom: 16 }}>
+                      <div className="field-label" style={{ marginBottom: 8 }}>Position</div>
+                      <div className="form-grid-3">
+                        {PAGE_NUM_POSITIONS.map(p => (
+                          <div key={p.value} className={`sel-card ${formData.page_number_position === p.value ? 'selected' : ''}`}
+                            onClick={() => handleFieldChange('page_number_position', p.value)}>
+                            <div className="sel-card-label">{p.label}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  
+
+                    {formData.page_numbers && (
+                    <div style={{ marginTop: 12, maxWidth: 200 }}>
+                      <div className="field-label" style={{ marginBottom: 8 }}>Starting Page Number</div>
+                      <input
+                        className="field-input"
+                        type="number"
+                        min="1"
+                        placeholder="e.g. 1"
+                        value={formData.start_page_number || ''}
+                        onChange={e => handleFieldChange('start_page_number', e.target.value)}
+                      />
+                    </div>
+                  )}
+
+
+
+
+                  )}
+                  <div className="form-grid-2" style={{ marginTop: 12 }}>
+                    <div className="field-group">
+                      <label className="field-label">Header Text <span className="field-opt">Optional</span></label>
+                      <input className="field-input" type="text" placeholder="e.g. Chapter title" value={formData.header || ''} onChange={e => handleFieldChange('header', e.target.value)} />
+                    </div>
+                    <div className="field-group">
+                      <label className="field-label">Footer Text <span className="field-opt">Optional</span></label>
+                      <input className="field-input" type="text" placeholder="e.g. © 2024 Publisher" value={formData.footer || ''} onChange={e => handleFieldChange('footer', e.target.value)} />
+                    </div>
+                  </div>
+                </div> */}
 
                 {/* Doc fields */}
                 <div className="form-section">
@@ -2296,57 +2365,6 @@ const handleGoogleLogin = async () => {
 
 
 /* 
-
-
-
-
-
-
-
-
-now i'm facing few issue related to my krutidev model aur 
-vo  input aur output wali done file de rha hu dekho ye kaise mistacks kr rha hai isse fix kro 
-aur issme eglish ke word bhi ajib se likhe hue aate hai english ke word hai unne english me as it is rahane do usse
-convert mat kro aur , , :, ( ) , " ",  d = . , iss tarah ki sabhi chize problem kr rhi hai 
-
-pattern which i found: 
-
-p = chadra bindi 
-. = - 
-ye = , 
-! = 1
-adn = .
-ru = : 
-
-
-
-
-
-
-iss doc file ko dekho yaha pr utils.py and book.py ke
-logics ka use kr ke isse formate kiya gya hai jisme kuch corrections
-karna hai -
-
--- yaha pr sabhi contents chipke huye se hai to paragraph end hone
-ke baad 5pt ka spacing rakho 
-
--- headings ko justify rakho left to right pura space rakhna chahiye
--- tables, images ya kisi bhi type ke visual data ke title
-ko bold, italic rakho 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
