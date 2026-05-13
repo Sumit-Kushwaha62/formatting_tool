@@ -2389,6 +2389,62 @@ mujhe ye research paper wale file me kuch changes karne hai to batao ki code mai
 code me kaha changes karne hai batao to mai code blocks replace kr dunga 
 
  
+yaha meri research wali file ko dekho isme kuch corrections karne hai-- 
+
+-- entire page ka font size 14pt kr do 
+-- abhi jo by defauld boder impliment ho rha hai tables pr vo single line wala hona chahiye simple wala
+ye sahi nhi lag rha official document wala border chahiye 
+-- heading ke baad spacing nhi rakhna hai abhi aa rhi hai docx file dekho abstract, introduction jaise word ke
+baad spacing hai vo nhi chahiye
+-- jo tab spacing aaply ho rhi hai staring me paragraphs pr vo remove kr do 
+
+
+## Task Report:
+>> Sumit Kushwaha 
+>> Date: 12-05-2026
+
+1. Research paper corrections implimented today
+2. hindi to non-unicode convertion model optimized
+3. project directory structure optimized for better server rendering
+4. few optimizations are pending related to research papers
+
+
+RESEARCH PAPER PROMPT:
+
+let see these files yaha mai ek research.py aur ek shared logic wala utils.py ke saath ek docx file share kr rha hu 
+problem ye hai ki yaha docx file me jo bhi heading aaye to heading ke before and after spacing nhi chahiye lekin
+abhi file ko dekhoge to "abstract" word ko chod kr sabhi spacing de rhe hai isse fix karna hai aur body text ka line 
+spacing 1.0 zero karna hai 
+
+to batao ko code ke kis block me kya changes karna hai tum problem ko find kr ke solutions ke liye guide kro 
+mai code me manually changes kr deta hu 
+
+
+
+Now ye letter.py dekho yaha pr mujhe implimentaions karne hai vo done kr do code me, mai ek row
+docx file bhi de rha hu for testing aur source code file bhi
+
+mujhe ye sabhi implimentations code me karna hai:
+-- headings:- 14pt, bold
+-- body text size:- 14pt, line spacing 1.15pt
+-- letter titile:- center alignment
+-- ref. number:- top left 
+-- Data:- top right
+
+
+
+isse dekho yaha maine ek error ki screensort add kri hai aur hosting india ke support team ki conversation bhi 
+yaha pr meri hostingindia.com pr hosted websites chal nhi rhi hai aur error aa rha hai jo maine tumhe share kiya hai
+aur support team ke instruction ko bhi follow kiya to terminal me ping show hone ki jagah terminal auto exit ho ja rha hai 
+ye mera apne personal laptop hai jis pr maine isse login kiya hai abhi problem solve karne ke liye 
+nhi to ye dusre system pr chal rha hai tha aur abhi bhi run ho rha hai batao kya problem ho skti hai aur 
+kaise fix hoga ? 
+
+
+
+
+
+
 
 
 

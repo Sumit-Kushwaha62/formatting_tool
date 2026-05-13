@@ -231,62 +231,6 @@ def detect_research_structure(para, in_numbered_zone, in_reference_zone, in_ques
 # HELPERS
 # ═══════════════════════════════════════════════
 
-# Namespaces for separator detection
-_VML_NS = 'urn:schemas-microsoft-com:vml'
-_OO_NS  = 'urn:schemas-microsoft-com:office:office'
-_WP_NS  = 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing'
-_MC_NS  = 'http://schemas.openxmlformats.org/markup-compatibility/2006'
-
-def _is_gpt_hr_paragraph(para):
-    """
-    Returns True if paragraph is a GPT-inserted horizontal rule (safe to delete).
-
-    Detection:
-      - Contains a VML <v:rect o:hr="t"> element  (the actual line)
-      AND
-      - Does NOT contain any real visual content:
-          * <wp:inline> / <wp:anchor>  → inline/floating image
-          * <mc:AlternateContent>      → chart, SmartArt, equation
-          * <v:imagedata>              → embedded VML image
-
-    This means a paragraph that is BOTH a HR AND has a real image is kept.
-    In practice GPT never mixes these, but the check makes deletion bulletproof.
-    """
-    p = para._p
-    # Must have VML horizontal rule
-    has_vml_hr = any(
-        rect.get(f'{{{_OO_NS}}}hr') == 't'
-        for rect in p.findall(f'.//{{{_VML_NS}}}rect')
-    )
-    if not has_vml_hr:
-        return False
-    # Must NOT have real visual content
-    has_real_content = (
-        p.find(f'.//{{{_WP_NS}}}inline')          is not None or
-        p.find(f'.//{{{_WP_NS}}}anchor')          is not None or
-        p.find(f'.//{{{_MC_NS}}}AlternateContent') is not None or
-        p.find(f'.//{{{_VML_NS}}}imagedata')       is not None
-    )
-    return not has_real_content
-
-
-def remove_gpt_hr_lines(doc):
-    """
-    Remove all GPT-inserted horizontal rule paragraphs from document.
-    Safe: never removes paragraphs containing real images, charts, or SmartArt.
-    Returns count of removed paragraphs.
-    """
-    to_remove = [
-        para._p for para in doc.paragraphs
-        if _is_gpt_hr_paragraph(para)
-    ]
-    for p_elem in to_remove:
-        parent = p_elem.getparent()
-        if parent is not None:
-            parent.remove(p_elem)
-    return len(to_remove)
-
-
 def _clear_all_indents(para):
     pPr = para._p.get_or_add_pPr()
     ind = pPr.find(qn('w:ind'))
@@ -664,9 +608,6 @@ def format_research_body(doc, opts, font_name):
     base_size = float(opts.get('font_size', BASE_SIZE))
     line_spacing = float(opts.get('line_spacing', 1.0))
     krutidev_mode = is_krutidev(font)
-
-    # === STEP 0: Remove GPT horizontal rule separators ===
-    remove_gpt_hr_lines(doc)
 
     # === PRE-PASS ===
     title_elem, table_heading_elems, heading1_elems, abstract_elem, intro_elem = _handle_keywords_and_refs_prepass(doc, font)
@@ -1069,7 +1010,7 @@ def format_research_body(doc, opts, font_name):
 
         para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         para.paragraph_format.space_before = Pt(0)
-        para.paragraph_format.space_after = Pt(6)
+        para.paragraph_format.space_after = Pt(0)
         para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
         para.paragraph_format.line_spacing = line_spacing
         # Force spacing via XML to override Word's Normal style defaults
@@ -1080,7 +1021,7 @@ def format_research_body(doc, opts, font_name):
             _sp = _OE('w:spacing')
             _pPr.append(_sp)
         _sp.set(qn('w:before'), '0')
-        _sp.set(qn('w:after'), '120')
+        _sp.set(qn('w:after'), '0')
         _sp.set(qn('w:line'), str(int(line_spacing * 240)))
         _sp.set(qn('w:lineRule'), 'auto')
         for attr in [qn('w:beforeAutospacing'), qn('w:afterAutospacing')]:

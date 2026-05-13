@@ -18,8 +18,8 @@ from utils import (
 
 def insert_letter_header(doc, opts, font_name):
     black = RGBColor(0, 0, 0)
-    gray  = RGBColor(80, 80, 80)
-    dark  = RGBColor(20, 20, 80)
+    gray  = RGBColor(0, 0, 0)   # forced black
+    dark  = RGBColor(0, 0, 0)   # forced black
 
     org_name = opts.get('org_name', '').strip()
     ref_no   = opts.get('ref_no',   '').strip()
@@ -70,17 +70,25 @@ def insert_letter_header(doc, opts, font_name):
         p.paragraph_format.space_before = Pt(4)
         p.paragraph_format.space_after  = Pt(4)
         p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+        # Add a right-aligned tab stop at 9026 DXA (A4 content width) for date
+        pPr = p._p.get_or_add_pPr()
+        tabs_elem = OxmlElement('w:tabs')
+        tab_elem  = OxmlElement('w:tab')
+        tab_elem.set(qn('w:val'), 'right')
+        tab_elem.set(qn('w:pos'), '9026')  # right edge of A4 content (1" margins)
+        tabs_elem.append(tab_elem)
+        pPr.append(tabs_elem)
         if ref_no:
             r1 = p.add_run(f'Ref.: {ref_no}')
             r1.bold = True
             set_font_properly(r1, font_name)
             r1.font.size = Pt(11)
             r1.font.color.rgb = black
-        if ref_no and date:
-            tab_r = p.add_run('\t\t\t\t\t\t')
+        if date:
+            # Tab pushes date to the right edge
+            tab_r = p.add_run('\t')
             set_font_properly(tab_r, font_name)
             tab_r.font.size = Pt(11)
-        if date:
             r2 = p.add_run(f'Date: {date}')
             r2.bold = True
             set_font_properly(r2, font_name)
@@ -150,6 +158,10 @@ def detect_letter_structure(para, index):
     if any(text.lower().startswith(w) for w in closing_words) and wc <= 5:
         return 'closing'
 
+    # All-caps bold short line = letter title (e.g. "RESPONSIBILITY LETTER")
+    if is_bold and wc <= 6 and text == text.upper() and text.replace(' ', '').isalpha():
+        return 'title'
+
     if is_bold and wc <= 8 and index > 5:
         return 'signature'
 
@@ -197,7 +209,7 @@ def restore_para_indent(para, saved_ind):
 
 def format_letter_body(doc, opts, font_name):
     black         = RGBColor(0, 0, 0)
-    dark          = RGBColor(20, 20, 80)
+    dark          = RGBColor(0, 0, 0)   # forced black
     krutidev_mode = is_krutidev(font_name)
 
     for i, para in enumerate(doc.paragraphs):
@@ -221,27 +233,35 @@ def format_letter_body(doc, opts, font_name):
         if etype == 'empty':
             continue
 
-        if etype == 'salutation':
+        if etype == 'title':
+            # Letter title: 14pt bold center black
             apply_para_formatting(para, etype, font_name,
-                font_size_pt=12, bold=True, color=black,
+                font_size_pt=14, bold=True, color=black,
+                align=WD_ALIGN_PARAGRAPH.CENTER,
+                space_before_pt=8, space_after_pt=8)
+
+        elif etype == 'salutation':
+            apply_para_formatting(para, etype, font_name,
+                font_size_pt=14, bold=True, color=black,
                 align=WD_ALIGN_PARAGRAPH.LEFT,
                 space_before_pt=8, space_after_pt=8)
 
         elif etype == 'closing':
             apply_para_formatting(para, etype, font_name,
-                font_size_pt=12, bold=False, color=black,
+                font_size_pt=14, bold=False, color=black,
                 align=WD_ALIGN_PARAGRAPH.LEFT,
                 space_before_pt=16, space_after_pt=4)
 
         elif etype == 'signature':
             apply_para_formatting(para, etype, font_name,
-                font_size_pt=12, bold=True, color=dark,
+                font_size_pt=14, bold=True, color=black,
                 align=WD_ALIGN_PARAGRAPH.LEFT,
                 space_before_pt=2, space_after_pt=2)
 
         elif etype == 'label':
+            # Headings: 14pt bold black
             apply_para_formatting(para, etype, font_name,
-                font_size_pt=12, bold=True, color=black,
+                font_size_pt=14, bold=True, color=black,
                 align=WD_ALIGN_PARAGRAPH.LEFT,
                 space_before_pt=12, space_after_pt=4)
             if not krutidev_mode and ': ' in para.text:
@@ -250,21 +270,24 @@ def format_letter_body(doc, opts, font_name):
         elif etype == 'bullet':
             is_bold_para = is_all_bold(para)
             apply_para_formatting(para, etype, font_name,
-                font_size_pt=12, bold=is_bold_para, color=black,
+                font_size_pt=14, bold=is_bold_para, color=black,
                 align=WD_ALIGN_PARAGRAPH.LEFT,
                 space_before_pt=0, space_after_pt=4)
             if not krutidev_mode and ': ' in para.text and not is_bold_para:
                 apply_bold_before_colon(para, font_name, krutidev_mode)
 
-        else:  # body
+        else:  # body - 14pt, 1.15 line spacing, black
             if krutidev_mode:
                 apply_para_formatting(para, etype, font_name,
-                    font_size_pt=12, bold=False, color=black,
+                    font_size_pt=14, bold=False, color=black,
                     align=WD_ALIGN_PARAGRAPH.LEFT,
                     space_before_pt=0, space_after_pt=4)
             else:
                 apply_clean_justify(para)
                 apply_para_formatting(para, etype, font_name,
-                    font_size_pt=12, bold=False, color=black,
+                    font_size_pt=14, bold=False, color=black,
                     align=para.alignment,
                     space_before_pt=0, space_after_pt=6)
+            # Apply 1.15 line spacing to body paragraphs
+            para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
+            para.paragraph_format.line_spacing = 1.15
