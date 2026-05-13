@@ -180,7 +180,8 @@ def has_existing_letter_header(doc):
 
 
 def is_ref_date_line(para):
-    return bool(re.match(r'^ref\.?\s*:', para.text.strip(), re.IGNORECASE))
+    # Matches 'Ref:', 'Ref.:', 'Ref No.:', 'Ref. No.:' etc.
+    return bool(re.match(r'^ref\.?(?:\s*no\.?)?\s*:', para.text.strip(), re.IGNORECASE))
 
 
 def preserve_para_indent(para):
@@ -220,13 +221,61 @@ def format_letter_body(doc, opts, font_name):
             continue
 
         if is_ref_date_line(para):
-            saved_ind = preserve_para_indent(para)
-            if not krutidev_mode:
-                set_para_font(para, font_name)
-                for run in para.runs:
-                    set_font_properly(run, font_name)
-                    run.font.size = Pt(11)
-            restore_para_indent(para, saved_ind)
+            # Parse ref and date values from the paragraph text
+            import re as _re
+            full_text = para.text
+            ref_match  = _re.search(r'Ref\.?\s*(?:No\.?)?\s*:\s*([^\s].*?)(?:\s{3,}|\t|$)', full_text, _re.IGNORECASE)
+            date_match = _re.search(r'Date\s*:\s*(\S+)', full_text, _re.IGNORECASE)
+
+            p_elem = para._p
+            # Remove all existing runs
+            for child in list(p_elem):
+                tag = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+                if tag in ('r', 'bookmarkStart', 'bookmarkEnd', 'proofErr'):
+                    p_elem.remove(child)
+
+            # Set up pPr with right-aligned tab stop
+            pPr = p_elem.get_or_add_pPr()
+            for old_tabs in pPr.findall(qn('w:tabs')):
+                pPr.remove(old_tabs)
+            tabs_elem = OxmlElement('w:tabs')
+            tab_elem  = OxmlElement('w:tab')
+            tab_elem.set(qn('w:val'), 'right')
+            tab_elem.set(qn('w:pos'), '9026')
+            tabs_elem.append(tab_elem)
+            pPr.append(tabs_elem)
+            # Clear spacing/line overrides — keep it single line
+            sp = pPr.find(qn('w:spacing'))
+            if sp is not None:
+                pPr.remove(sp)
+            sp_new = OxmlElement('w:spacing')
+            sp_new.set(qn('w:before'), '80')
+            sp_new.set(qn('w:after'), '80')
+            sp_new.set(qn('w:line'), '240')
+            sp_new.set(qn('w:lineRule'), 'auto')
+            pPr.append(sp_new)
+
+            ref_val  = ref_match.group(1).strip()  if ref_match  else ''
+            date_val = date_match.group(1).strip() if date_match else ''
+
+            if ref_val:
+                r_ref = para.add_run(f'Ref. No.: {ref_val}')
+                r_ref.bold = True
+                if not krutidev_mode:
+                    set_font_properly(r_ref, font_name)
+                    r_ref.font.size = Pt(11)
+                    r_ref.font.color.rgb = RGBColor(0, 0, 0)
+            if date_val:
+                r_tab = para.add_run('\t')
+                if not krutidev_mode:
+                    set_font_properly(r_tab, font_name)
+                    r_tab.font.size = Pt(11)
+                r_date = para.add_run(f'Date: {date_val}')
+                r_date.bold = True
+                if not krutidev_mode:
+                    set_font_properly(r_date, font_name)
+                    r_date.font.size = Pt(11)
+                    r_date.font.color.rgb = RGBColor(0, 0, 0)
             continue
 
         etype = detect_letter_structure(para, i)
