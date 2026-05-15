@@ -51,15 +51,29 @@ def format_document(input_file, output_file, opts, doc_type='book'):
                 from docx.oxml import OxmlElement as _OE
                 rFonts = _OE('w:rFonts')
                 rPr.insert(0, rFonts)
-            for attr in ['ascii', 'hAnsi', 'eastAsia']:
-                rFonts.set(_qn(f'w:{attr}'), formal_name)
+            # No hint, no eastAsia, no cs - same logic as set_font_properly
+            hint_a = _qn('w:hint')
+            if rFonts.get(hint_a): del rFonts.attrib[hint_a]
+            rFonts.set(_qn('w:ascii'), formal_name)
+            rFonts.set(_qn('w:hAnsi'), formal_name)
+            ea_a = _qn('w:eastAsia')
+            if rFonts.get(ea_a): del rFonts.attrib[ea_a]
             cs_attr = _qn('w:cs')
-            if rFonts.get(cs_attr):
-                del rFonts.attrib[cs_attr]
+            if rFonts.get(cs_attr): del rFonts.attrib[cs_attr]
             for ta in ['w:asciiTheme', 'w:hAnsiTheme', 'w:eastAsiaTheme', 'w:cstheme']:
                 t = _qn(ta)
-                if rFonts.get(t):
-                    del rFonts.attrib[t]
+                if rFonts.get(t): del rFonts.attrib[t]
+            # Set lang x-none to prevent font substitution
+            lang = rPr.find(_qn('w:lang'))
+            if lang is None:
+                from docx.oxml import OxmlElement as _OE2
+                lang = _OE2('w:lang')
+                rPr.append(lang)
+            lang.set(_qn('w:val'), 'x-none')
+            lang.set(_qn('w:ascii'), 'x-none')
+            lang.set(_qn('w:hAnsi'), 'x-none')
+            bidi_l = _qn('w:bidi')
+            if lang.get(bidi_l): del lang.attrib[bidi_l]
         except Exception:
             pass
 
@@ -85,15 +99,28 @@ def format_document(input_file, output_file, opts, doc_type='book'):
                     if rFonts is None:
                         rFonts = _OE('w:rFonts')
                         rPr.insert(0, rFonts)
-                    for attr in ['ascii', 'hAnsi', 'eastAsia']:
-                        rFonts.set(_qn(f'w:{attr}'), formal_name)
+                    # No hint, no eastAsia, no cs
+                    hint_a = _qn('w:hint')
+                    if rFonts.get(hint_a): del rFonts.attrib[hint_a]
+                    rFonts.set(_qn('w:ascii'), formal_name)
+                    rFonts.set(_qn('w:hAnsi'), formal_name)
+                    ea_a = _qn('w:eastAsia')
+                    if rFonts.get(ea_a): del rFonts.attrib[ea_a]
                     cs_attr = _qn('w:cs')
-                    if rFonts.get(cs_attr):
-                        del rFonts.attrib[cs_attr]
+                    if rFonts.get(cs_attr): del rFonts.attrib[cs_attr]
                     for ta in ['w:asciiTheme', 'w:hAnsiTheme', 'w:eastAsiaTheme', 'w:cstheme']:
                         t = _qn(ta)
-                        if rFonts.get(t):
-                            del rFonts.attrib[t]
+                        if rFonts.get(t): del rFonts.attrib[t]
+                    # lang x-none
+                    lang = rPr.find(_qn('w:lang'))
+                    if lang is None:
+                        lang = _OE('w:lang')
+                        rPr.append(lang)
+                    lang.set(_qn('w:val'), 'x-none')
+                    lang.set(_qn('w:ascii'), 'x-none')
+                    lang.set(_qn('w:hAnsi'), 'x-none')
+                    bidi_l = _qn('w:bidi')
+                    if lang.get(bidi_l): del lang.attrib[bidi_l]
         except Exception:
             pass
 
@@ -265,6 +292,3 @@ if __name__ == '__main__':
 
     format_document(in_p, out_p, options, doc_type=type_d)
     print(f'Success: {out_p}')
-
-
-    

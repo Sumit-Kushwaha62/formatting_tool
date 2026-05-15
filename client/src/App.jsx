@@ -2367,80 +2367,16 @@ const handleGoogleLogin = async () => {
 /* 
 
 
-let see this files yaha pr book.py ke liye kuch chize set karni hai jo abhi sahi se work nhi kr rhi hai mujhe batao code
-me kaha aur kya changes karna hai mai code block replace kr dunga, dhyan rahe isse fix karte time kuch aur exing chize kharab na ho 
-agar ye changes minor ho to mai code blocks replace krunga aur agar major ho to puri updated file hi de dena:
+here i'm sharing with you a pdf file , utils.py and letter.py python files yaha pr letter.py me kuch corrections
+impliment karne hai - abhi jo pdf share kr rha hu vo aspect output wala file hai ussi ke jaise impliment karna hai 
 
+1. Sabhi side headings bold hona chahiye 
+2. entire page ke content ka size 12pt hoga aspect letter title (14pt)
+3. ref. no always top left 
+4. data always top right
+5. ref and date ke niche center me letter ka titile hoga 
 
-1> kahi-kahi pr buttel points ka content bahut bada hai aur vo justify nhi display ho rha hai isse fix krna hai
-2> 1.5 ki line spacing tables ke undar ke content me bhi chahiye
-3> kahi-kahi pr subheadings ki numbering nhi ho rhi hai may be vo sub heading ki tarah se detect nhi ho rha hai
-4> main headings should be 16pt and subheadings should be 14pt  
-
-
-
-mujhe ye research paper wale file me kuch changes karne hai to batao ki code mai kaha aur kya changes honge?
-
-1. kisi bhi side heading ke niche (after space ) nhi chahiye jo ki abhi aa rhi hai 
-2. sabhi paragraphs me 1 tab ka space ho ga vo starting se start nhi hoga
-3. agar data table ke form me hai but table nhi bana hai to auto table ban jana chahiye ye feature impliment karna 
-  kai bar, online data uthane pr content table form  me likha hota hai but table nhi bani hoti hai to usse fix krna hai 
-
-code me kaha changes karne hai batao to mai code blocks replace kr dunga 
-
- 
-yaha meri research wali file ko dekho isme kuch corrections karne hai-- 
-
--- entire page ka font size 14pt kr do 
--- abhi jo by defauld boder impliment ho rha hai tables pr vo single line wala hona chahiye simple wala
-ye sahi nhi lag rha official document wala border chahiye 
--- heading ke baad spacing nhi rakhna hai abhi aa rhi hai docx file dekho abstract, introduction jaise word ke
-baad spacing hai vo nhi chahiye
--- jo tab spacing aaply ho rhi hai staring me paragraphs pr vo remove kr do 
-
-
-## Task Report:
->> Sumit Kushwaha 
->> Date: 12-05-2026
-
-1. Research paper corrections implimented today
-2. hindi to non-unicode convertion model optimized
-3. project directory structure optimized for better server rendering
-4. few optimizations are pending related to research papers
-
-
-RESEARCH PAPER PROMPT:
-
-let see these files yaha mai ek research.py aur ek shared logic wala utils.py ke saath ek docx file share kr rha hu 
-problem ye hai ki yaha docx file me jo bhi heading aaye to heading ke before and after spacing nhi chahiye lekin
-abhi file ko dekhoge to "abstract" word ko chod kr sabhi spacing de rhe hai isse fix karna hai aur body text ka line 
-spacing 1.0 zero karna hai 
-
-to batao ko code ke kis block me kya changes karna hai tum problem ko find kr ke solutions ke liye guide kro 
-mai code me manually changes kr deta hu 
-
-
-
-Now ye letter.py dekho yaha pr mujhe implimentaions karne hai vo done kr do code me, mai ek row
-docx file bhi de rha hu for testing aur source code file bhi
-
-mujhe ye sabhi implimentations code me karna hai:
--- headings:- 14pt, bold
--- body text size:- 14pt, line spacing 1.15pt
--- letter titile:- center alignment
--- ref. number:- top left 
--- Data:- top right
-
-
-
-isse dekho yaha maine ek error ki screensort add kri hai aur hosting india ke support team ki conversation bhi 
-yaha pr meri hostingindia.com pr hosted websites chal nhi rhi hai aur error aa rha hai jo maine tumhe share kiya hai
-aur support team ke instruction ko bhi follow kiya to terminal me ping show hone ki jagah terminal auto exit ho ja rha hai 
-ye mera apne personal laptop hai jis pr maine isse login kiya hai abhi problem solve karne ke liye 
-nhi to ye dusre system pr chal rha hai tha aur abhi bhi run ho rha hai batao kya problem ho skti hai aur 
-kaise fix hoga ? 
-
-
+ye sabhi chize impliment karni hai in letter.py file me 
 
 
 

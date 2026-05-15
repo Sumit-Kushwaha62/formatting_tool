@@ -744,8 +744,88 @@ def apply_para_formatting(para, etype, font_name, font_size_pt, bold, color, ali
 # ═══════════════════════════
 
 
+def _apply_table_borders(table):
+    """Apply clean single-line grid borders like Word Table Grid. Removes all
+    cell-level border overrides to prevent the 'box inside box' effect."""
+    tbl = table._tbl
+
+    # ── Table-level properties ──────────────────────────────────────
+    tblPr = tbl.find(qn('w:tblPr'))
+    if tblPr is None:
+        tblPr = OxmlElement('w:tblPr')
+        tbl.insert(0, tblPr)
+
+    # Remove cell spacing (causes gap / double-border effect)
+    cs = tblPr.find(qn('w:tblCellSpacing'))
+    if cs is not None:
+        tblPr.remove(cs)
+
+    # Table width: 100% of page
+    tblW = tblPr.find(qn('w:tblW'))
+    if tblW is None:
+        tblW = OxmlElement('w:tblW')
+        tblPr.append(tblW)
+    tblW.set(qn('w:w'), '5000')
+    tblW.set(qn('w:type'), 'pct')
+
+    # Disable conditional table formatting (first-row banding etc.)
+    # This stops Word adding extra borders from the table style
+    tblLook = tblPr.find(qn('w:tblLook'))
+    if tblLook is None:
+        tblLook = OxmlElement('w:tblLook')
+        tblPr.append(tblLook)
+    for attr, val in [('w:val', '0000'), ('w:firstRow', '0'), ('w:lastRow', '0'),
+                      ('w:firstColumn', '0'), ('w:lastColumn', '0'),
+                      ('w:noHBand', '0'), ('w:noVBand', '0')]:
+        tblLook.set(qn(attr), val)
+
+    # Clean single-line borders (sz=4 = 0.5pt, matches Word Table Grid)
+    old_b = tblPr.find(qn('w:tblBorders'))
+    if old_b is not None:
+        tblPr.remove(old_b)
+    tblBorders = OxmlElement('w:tblBorders')
+    for bname in ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']:
+        b = OxmlElement(f'w:{bname}')
+        b.set(qn('w:val'), 'single')
+        b.set(qn('w:sz'), '4')
+        b.set(qn('w:space'), '0')
+        b.set(qn('w:color'), '000000')
+        tblBorders.append(b)
+    tblPr.append(tblBorders)
+
+    # Cell margins
+    old_cm = tblPr.find(qn('w:tblCellMar'))
+    if old_cm is not None:
+        tblPr.remove(old_cm)
+    tblCellMar = OxmlElement('w:tblCellMar')
+    for side, val in [('top', '80'), ('left', '108'), ('bottom', '80'), ('right', '108')]:
+        m = OxmlElement(f'w:{side}')
+        m.set(qn('w:w'), val)
+        m.set(qn('w:type'), 'dxa')
+        tblCellMar.append(m)
+    tblPr.append(tblCellMar)
+
+    # ── Remove ALL cell-level border overrides ──────────────────────
+    # Cell tcBorders override tblBorders → causes "box inside box" look
+    for row in tbl.findall(qn('w:tr')):
+        trPr = row.find(qn('w:trPr'))
+        if trPr is not None:
+            rcs = trPr.find(qn('w:tblCellSpacing'))
+            if rcs is not None:
+                trPr.remove(rcs)
+        for tc in row.findall(qn('w:tc')):
+            tcPr = tc.find(qn('w:tcPr'))
+            if tcPr is not None:
+                tcB = tcPr.find(qn('w:tcBorders'))
+                if tcB is not None:
+                    tcPr.remove(tcB)
+
+
 def format_table_cells(doc, font_name, base_size, line_spacing, black):
     for table in doc.tables:
+        # Apply borders to every table
+        _apply_table_borders(table)
+
         for row in table.rows:
             for cell in row.cells:
                 for para in cell.paragraphs:

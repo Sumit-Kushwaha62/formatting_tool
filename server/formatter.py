@@ -175,6 +175,11 @@ def format_document(input_file, output_file, opts, doc_type='book'):
                 section.bottom_margin = Inches(0.8)
                 section.left_margin   = Inches(1.2)
                 section.right_margin  = Inches(1.0)
+            else:
+                section.top_margin    = Inches(1.0)
+                section.bottom_margin = Inches(1.0)
+                section.left_margin   = Inches(1.0)
+                section.right_margin  = Inches(1.0)
         else:
             section.top_margin    = Inches(1.0)
             section.bottom_margin = Inches(1.0)
