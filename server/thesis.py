@@ -195,11 +195,19 @@ def detect_thesis_structure(para, index, doc):
     if text.lower().strip('.').strip() in special_sections and wc <= 3:
         return 'section_heading'
 
-    if re.match(r'^\d+\.\d+\.\d+', text) and (is_bold or text == text.upper()):
+    # if re.match(r'^\d+\.\d+\.\d+', text) and (is_bold or text == text.upper()):
+    #     return 'subheading'
+
+    # if re.match(r'^\d+\.\d+\.?\s', text) and (is_bold or text == text.upper()):
+    #     return 'section_heading'
+
+
+    if re.match(r'^\d+\.\d+\.\d+', text) and (is_bold or wc <= 20):
         return 'subheading'
 
-    if re.match(r'^\d+\.\d+\.?\s', text) and (is_bold or text == text.upper()):
+    if re.match(r'^\d+\.\d+\.?\s', text) and (is_bold or wc <= 20):
         return 'section_heading'
+
 
     if re.match(r'^\d+\.?\s+\S', text) and is_bold:
         return 'section_heading'
@@ -347,12 +355,25 @@ def format_thesis_body(doc, opts, font_name):
                 next_etype = detect_thesis_structure(next_para, i + 1, doc)
 
         # Heading after heading → tight 5pt gap
+        # if etype in ['section_heading', 'subheading', 'subheading_colon']:
+        #     if prev_etype in ['chapter_heading', 'chapter_title', 'section_heading', 'subheading', 'subheading_colon']:
+        #         space_before = 5.0
+        #     else:
+        #         space_before = 10.0
+        #     space_after = 3.0
+
+
+        # Heading after heading → 10pt gap, tight only after chapter heading
         if etype in ['section_heading', 'subheading', 'subheading_colon']:
-            if prev_etype in ['chapter_heading', 'chapter_title', 'section_heading', 'subheading', 'subheading_colon']:
+            if prev_etype in ['chapter_heading', 'chapter_title']:
                 space_before = 5.0
+            elif prev_etype in ['section_heading', 'subheading', 'subheading_colon']:
+                space_before = 10.0
             else:
                 space_before = 10.0
             space_after = 3.0
+
+
 
         # Body/bullet after body/bullet → no extra gap
         if etype in ['body', 'bullet']:
