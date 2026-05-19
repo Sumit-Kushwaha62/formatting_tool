@@ -1027,6 +1027,51 @@ def _set_run_font_fallback(run_elem, font_name):
         lang.set(_qn(f'w:{a}'), 'en-US')
 
 
+def _set_run_font_krutidev_elem(run_elem, font_name):
+    """Set KrutiDev as the actual ASCII/hAnsi font on a raw <w:r>.
+
+    This is used after Unicode Hindi has been converted into legacy KrutiDev
+    ASCII bytes.  The important detail is that converted Hindi is no longer a
+    complex-script/Devanagari run, so leaving w:cs/eastAsia or theme attrs in
+    place lets Word select Mangal/Arial Unicode instead of KrutiDev.
+    """
+    from docx.oxml.ns import qn as _qn
+    from docx.oxml import OxmlElement
+
+    formal = FONT_NAME_MAP.get(font_name, font_name)
+    rPr = run_elem.get_or_add_rPr()
+    rFonts = rPr.find(_qn('w:rFonts'))
+    if rFonts is None:
+        rFonts = OxmlElement('w:rFonts')
+        rPr.insert(0, rFonts)
+
+    for attr in list(rFonts.attrib.keys()):
+        del rFonts.attrib[attr]
+    rFonts.set(_qn('w:ascii'), formal)
+    rFonts.set(_qn('w:hAnsi'), formal)
+
+    for tag in ['w:rtl', 'w:cs', 'w:bidi']:
+        el = rPr.find(_qn(tag))
+        if el is not None:
+            rPr.remove(el)
+
+    lang = rPr.find(_qn('w:lang'))
+    if lang is None:
+        lang = OxmlElement('w:lang')
+        rPr.append(lang)
+    lang.set(_qn('w:val'), 'x-none')
+    lang.set(_qn('w:ascii'), 'x-none')
+    lang.set(_qn('w:hAnsi'), 'x-none')
+    bidi = _qn('w:bidi')
+    if lang.get(bidi):
+        del lang.attrib[bidi]
+
+    no_proof = rPr.find(_qn('w:noProof'))
+    if no_proof is None:
+        no_proof = OxmlElement('w:noProof')
+        rPr.append(no_proof)
+
+
 def _split_and_convert_run(run, font_name, pre_font=None):
     """
     Split a mixed Hindi+English run into multiple runs:
@@ -1098,35 +1143,7 @@ def _split_and_convert_run(run, font_name, pre_font=None):
         if is_hindi:
             t.text = unicode_to_krutidev(seg)
             new_r.append(t)
-            # Build a temporary run object to call set_font_properly
-            from docx.text.run import Run
-            from docx.oxml.ns import qn as _qn2
-            rPr = new_r.get_or_add_rPr()
-            rFonts = rPr.find(_qn2('w:rFonts'))
-            if rFonts is None:
-                rFonts = OxmlElement('w:rFonts')
-                rPr.insert(0, rFonts)
-            for attr in list(rFonts.attrib.keys()):
-                del rFonts.attrib[attr]
-            formal = FONT_NAME_MAP.get(font_name, font_name)
-            rFonts.set(_qn2('w:ascii'), formal)
-            rFonts.set(_qn2('w:hAnsi'), formal)
-            ea = _qn2('w:eastAsia')
-            if rFonts.get(ea): del rFonts.attrib[ea]
-            cs = _qn2('w:cs')
-            if rFonts.get(cs): del rFonts.attrib[cs]
-            for ta in ['w:asciiTheme','w:hAnsiTheme','w:eastAsiaTheme','w:cstheme']:
-                ta2 = _qn2(ta)
-                if rFonts.get(ta2): del rFonts.attrib[ta2]
-            lang = rPr.find(_qn2('w:lang'))
-            if lang is None:
-                lang = OxmlElement('w:lang')
-                rPr.append(lang)
-            lang.set(_qn2('w:val'), 'x-none')
-            lang.set(_qn2('w:ascii'), 'x-none')
-            lang.set(_qn2('w:hAnsi'), 'x-none')
-            bidi = _qn2('w:bidi')
-            if lang.get(bidi): del lang.attrib[bidi]
+            _set_run_font_krutidev_elem(new_r, font_name)
 
         # else:
         #     t.text = _fix_english_special(seg)
@@ -1176,11 +1193,16 @@ def convert_doc_runs(doc, font_name):
 
         for run in runs_to_process:
             r_elem = run._element
-            # Capture effective font BEFORE clearing (for inheritance-aware detection)
+            original_text = run.text or ''
+            had_unicode_hindi = has_unicode_hindi(original_text)
+            # Capture explicit font BEFORE clearing (for inheritance-aware detection).
+            # Do not default this to font_name: a run with no explicit font should
+            # still be treated as KrutiDev when it actually contained Unicode Hindi,
+            # because conversion makes it ASCII and the font must be forced after.
             try:
-                run_effective_font = run.font.name or font_name
+                run_effective_font = run.font.name or ''
             except Exception:
-                run_effective_font = font_name
+                run_effective_font = ''
             # Clear existing font attrs
             from docx.oxml.ns import qn as _qn
             rPr = r_elem.get_or_add_rPr()
@@ -1202,12 +1224,12 @@ def convert_doc_runs(doc, font_name):
                 for i, nr in enumerate(new_runs):
                     parent.insert(idx + i, nr)
             else:
-                # Pure run (single language) — set appropriate font
-                if run.text and has_unicode_hindi(run.text):
-                    # Devanagari text -> KrutiDev
-                    set_font_properly(run, font_name)
-                elif is_krutidev(run_effective_font):
-                    # Already-converted KrutiDev ASCII -> keep KrutiDev
+                # Pure run (single language).  If the run originally contained
+                # Unicode Hindi, _split_and_convert_run() has already converted
+                # it to legacy ASCII; force KrutiDev now.  Checking run.text
+                # *after* conversion is the old bug: it no longer contains
+                # Devanagari, so the code incorrectly assigned fallback fonts.
+                if had_unicode_hindi or is_krutidev(run_effective_font):
                     set_font_properly(run, font_name)
                 else:
                     # Genuine English/punctuation -> fallback font

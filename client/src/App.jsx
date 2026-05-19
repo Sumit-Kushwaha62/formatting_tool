@@ -2366,33 +2366,9 @@ const handleGoogleLogin = async () => {
 
 /* 
 
-
-here i'm sharing with you a pdf file , utils.py and letter.py python files yaha pr letter.py me kuch corrections
-impliment karne hai - abhi jo pdf share kr rha hu vo aspect output wala file hai ussi ke jaise impliment karna hai 
-
-1. Sabhi side headings bold hona chahiye 
-2. entire page ke content ka size 12pt hoga aspect letter title (14pt)
-3. ref. no always top left 
-4. data always top right
-5. ref and date ke niche center me letter ka titile hoga 
-
-ye sabhi chize impliment karni hai in letter.py file me 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+mai last 1 month se hindi to krutidev converstion model pr work kr rha hu and conversion ho bhi rha hai h 
+maine koi pre-build model nhi use kiya hu maine apna hi algorithm banaya tha but iss me font setup ka issue aa rha
+hai find but the issue is and what solution we have i want to fix it without investing more time on it 
 
 
 
