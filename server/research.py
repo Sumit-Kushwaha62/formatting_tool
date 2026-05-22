@@ -18,7 +18,7 @@ RESEARCH_FONT     = 'Times New Roman'
 BLACK             = RGBColor(0, 0, 0)
 BASE_SIZE         = 14.0
 TITLE_SIZE        = 14.0
-LINE_SPACING      = 1.5
+LINE_SPACING      = 1.15
 
 INTRO_TRIGGER_WORDS = {'introduction', 'background', 'overview', 'motivation'}
 PRE_INTRO_SECTIONS  = {'abstract', 'keywords', 'keyword', 'key words'}
@@ -661,8 +661,8 @@ def _convert_tabular_text_to_tables(doc):
 
 def format_research_body(doc, opts, font_name):
     font = font_name if font_name else RESEARCH_FONT
-    base_size = float(opts.get('font_size', BASE_SIZE))
-    line_spacing = float(opts.get('line_spacing', 1.0))
+    base_size = 12.0  # Body/heading font size always 12pt (title uses TITLE_SIZE=14pt)
+    line_spacing = float(opts.get('line_spacing', LINE_SPACING))
     krutidev_mode = is_krutidev(font)
 
     # === STEP 0: Remove GPT horizontal rule separators ===
@@ -909,7 +909,7 @@ def format_research_body(doc, opts, font_name):
             para.paragraph_format.space_before = Pt(0)
             para.paragraph_format.space_after = Pt(0)
             para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
-            para.paragraph_format.line_spacing = 1.0
+            para.paragraph_format.line_spacing = line_spacing
             # Remove Word's auto-spacing via XML directly
             pPr = para._p.get_or_add_pPr()
             from docx.oxml import OxmlElement as _OE
@@ -919,10 +919,10 @@ def format_research_body(doc, opts, font_name):
                 spacing_el = _OE('w:spacing')
                 pPr.append(spacing_el)
             spacing_el.set(_qn('w:before'), '0')
-            spacing_el.set(_qn('w:after'), '0')
+            spacing_el.set(_qn('w:after'), '240')   # one line gap after heading
             spacing_el.set(_qn('w:beforeLines'), '0')
             spacing_el.set(_qn('w:afterLines'), '0')
-            spacing_el.set(_qn('w:line'), '240')
+            spacing_el.set(_qn('w:line'), str(int(line_spacing * 240)))
             spacing_el.set(_qn('w:lineRule'), 'auto')
             # Remove autospacing attributes if present
             for attr in [_qn('w:beforeAutospacing'), _qn('w:afterAutospacing')]:
@@ -969,11 +969,14 @@ def format_research_body(doc, opts, font_name):
             if m:
                 r1 = para.add_run(m.group(1))
                 r1.bold = True
+                r1.italic = True
                 set_font_properly(r1, font)
-                r1.font.size = Pt(base_size)
+                r1.font.size = Pt(11)
                 r2 = para.add_run(m.group(2))
+                r2.italic = True
+                r2.bold = False
                 set_font_properly(r2, font)
-                r2.font.size = Pt(base_size)
+                r2.font.size = Pt(11)
             # Force XML
             from docx.oxml import OxmlElement as _OE
             from docx.oxml.ns import qn as _qn
@@ -993,9 +996,22 @@ def format_research_body(doc, opts, font_name):
         if etype == 'numbered_list_item' or is_bullet_para(para):
             _set_hanging_indent(para, 0.25)
             para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            para.paragraph_format.space_before = Pt(0)
             para.paragraph_format.space_after = Pt(0)
             para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
             para.paragraph_format.line_spacing = line_spacing
+            # Force via XML
+            from docx.oxml import OxmlElement as _OE
+            from docx.oxml.ns import qn as _qn
+            _bPr = para._p.get_or_add_pPr()
+            _bSp = _bPr.find(_qn('w:spacing'))
+            if _bSp is None:
+                _bSp = _OE('w:spacing')
+                _bPr.append(_bSp)
+            _bSp.set(_qn('w:before'), '0')
+            _bSp.set(_qn('w:after'), '0')
+            _bSp.set(_qn('w:line'), str(int(line_spacing * 240)))
+            _bSp.set(_qn('w:lineRule'), 'auto')
             for r in para.runs:
                 set_font_properly(r, font)
                 r.font.size = Pt(base_size)
@@ -1069,7 +1085,7 @@ def format_research_body(doc, opts, font_name):
 
         para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         para.paragraph_format.space_before = Pt(0)
-        para.paragraph_format.space_after = Pt(6)
+        para.paragraph_format.space_after = Pt(12)
         para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
         para.paragraph_format.line_spacing = line_spacing
         # Force spacing via XML to override Word's Normal style defaults
@@ -1080,7 +1096,7 @@ def format_research_body(doc, opts, font_name):
             _sp = _OE('w:spacing')
             _pPr.append(_sp)
         _sp.set(qn('w:before'), '0')
-        _sp.set(qn('w:after'), '120')
+        _sp.set(qn('w:after'), '240')   # one line gap between paragraphs
         _sp.set(qn('w:line'), str(int(line_spacing * 240)))
         _sp.set(qn('w:lineRule'), 'auto')
         for attr in [qn('w:beforeAutospacing'), qn('w:afterAutospacing')]:
@@ -1094,11 +1110,4 @@ def format_research_body(doc, opts, font_name):
         prev_was_heading = False
 
 
-
-
-
-
-
-
-
-    format_table_cells(doc, font, base_size, 1.0, BLACK)
+    format_table_cells(doc, font, base_size, line_spacing, BLACK)

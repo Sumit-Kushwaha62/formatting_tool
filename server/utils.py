@@ -342,7 +342,7 @@ def unicode_to_krutidev(text):
         '\u093e': 'k',   '\u093f': 'f',   '\u0940': 'h',   '\u0941': 'q',
         '\u0942': 'w',   '\u0943': '`',   '\u0947': 's',   '\u0948': 'S',
         '\u094b': 'ks',  '\u094c': 'kS',  '\u094e': 'W',   '\u094f': 'V',  '\u0949': 'W',
-        '\u0902': 'a',   '\u0903': '%',   '\u0901': 'i',
+        '\u0902': 'a',   '\u0903': '%',   '\u0901': 'W',  # chandrabindu = W, not 'i' (was colliding with short-i prefix)
         '\u0915': 'd',   '\u0916': '[k',  '\u0917': 'x',   '\u0918': '?k',  '\u0919': 'M~',
         '\u091a': 'p',   '\u091b': 'N',   '\u091c': 't',   '\u091d': '>k',  '\u091e': '\xa5',
         '\u091f': 'V',   '\u0920': 'B',   '\u0921': 'M',   '\u0922': '<',   '\u0923': '.k',
@@ -448,21 +448,22 @@ def set_font_properly(run, font_name, size_pt=None):
             del rFonts.attrib[hint_attr]
         rFonts.set(qn('w:ascii'), formal_name)
         rFonts.set(qn('w:hAnsi'), formal_name)
-        # Remove eastAsia — causes fallback to system Devanagari font
+        # MUST set w:cs to KrutiDev — Word uses cs font for runs that
+        # previously contained Devanagari Unicode (complex-script path).
+        # Without this, Word falls back to its default complex-script font
+        # (Mangal/Nirmala) and the font box shows empty in the UI.
+        rFonts.set(qn('w:cs'), formal_name)
+        # Remove eastAsia — causes fallback to CJK font
         ea_attr = qn('w:eastAsia')
         if rFonts.get(ea_attr):
             del rFonts.attrib[ea_attr]
-        # Remove cs — KrutiDev has no complex-script glyphs
-        cs_attr = qn('w:cs')
-        if rFonts.get(cs_attr):
-            del rFonts.attrib[cs_attr]
         # Remove theme font overrides
         for theme_attr in ['w:asciiTheme', 'w:hAnsiTheme', 'w:eastAsiaTheme', 'w:cstheme']:
             ta = qn(theme_attr)
             if rFonts.get(ta):
                 del rFonts.attrib[ta]
         # Remove bidi/rtl — KrutiDev is LTR ASCII
-        for cs_tag in ['w:rtl', 'w:cs', 'w:bidi']:
+        for cs_tag in ['w:rtl', 'w:bidi']:
             el = rPr.find(qn(cs_tag))
             if el is not None:
                 rPr.remove(el)
@@ -822,6 +823,7 @@ def _apply_table_borders(table):
 
 
 def format_table_cells(doc, font_name, base_size, line_spacing, black):
+    TABLE_SIZE = 11.0  # Table content always 11pt per spec
     for table in doc.tables:
         # Apply borders to every table
         _apply_table_borders(table)
@@ -833,7 +835,10 @@ def format_table_cells(doc, font_name, base_size, line_spacing, black):
                         continue
                     set_para_font(para, font_name)
                     clear_pPr_sz(para)
-                    set_pPr_sz(para, int(base_size * 2))
+                    set_pPr_sz(para, int(TABLE_SIZE * 2))
+
+                    # Center align all table cell content
+                    para.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
                     # Apply line spacing
                     pPr = para._p.get_or_add_pPr()
@@ -844,23 +849,19 @@ def format_table_cells(doc, font_name, base_size, line_spacing, black):
                     try:
                         ls = float(line_spacing)
                     except Exception:
-                        ls = 1.5
-                    if ls == 1.0:
-                        spacing.set(qn('w:lineRule'), 'auto')
-                        spacing.set(qn('w:line'), '240')
-                    elif ls == 2.0:
-                        spacing.set(qn('w:lineRule'), 'auto')
-                        spacing.set(qn('w:line'), '480')
-                    else:
-                        spacing.set(qn('w:lineRule'), 'auto')
-                        spacing.set(qn('w:line'), str(int(ls * 240)))
+                        ls = 1.0
+                    spacing.set(qn('w:lineRule'), 'auto')
+                    spacing.set(qn('w:line'), str(int(ls * 240)))
+                    spacing.set(qn('w:before'), '0')
+                    spacing.set(qn('w:after'), '0')
 
                     for run in para.runs:
                         if run_has_drawing(run):
                             continue
                         was_bold = run.bold
-                        set_font_properly(run, font_name, base_size)
+                        set_font_properly(run, font_name, TABLE_SIZE)
                         run.bold = was_bold
+                        run.font.size = Pt(TABLE_SIZE)
                         run.font.color.rgb = black
 
 
@@ -1088,8 +1089,11 @@ def _split_and_convert_run(run, font_name, pre_font=None):
     if not text:
         return None
 
-    # Normalize special chars first
-    text = _fix_english_special(text)
+    # Normalize special chars ONLY for non-KrutiDev runs.
+    # KrutiDev-encoded text uses en-dash (–), em-dash (—), etc. as valid
+    # glyph separators — replacing them corrupts the encoded text.
+    if not is_krutidev(pre_font or ''):
+        text = _fix_english_special(text)
 
     if not has_unicode_hindi(text):
         # Pure ASCII run — could be already-converted KrutiDev OR English/punctuation.
@@ -1116,8 +1120,20 @@ def _split_and_convert_run(run, font_name, pre_font=None):
             # Already KrutiDev-encoded run — keep KrutiDev font
             return None  # caller will set_font_properly with KrutiDev
         else:
-            # Non-Hindi, non-KrutiDev run — use fallback font
-            _set_run_font_fallback(run._element, font_name)
+            # Non-Hindi run: decide font based on content
+            # English A-Z or ASCII digits -> fallback font (Times New Roman)
+            # Pure punctuation/symbols -> KrutiDev font (consistent with surrounding Hindi)
+            import re as _re
+            # Only pure English words or ASCII digits get fallback font
+            # Spaces, punctuation, &, ?, ., , etc. stay in KrutiDev
+            # (they render identically in both fonts, and switching causes spacing issues)
+            has_english = bool(_re.search(r'[A-Za-z]', text))
+            has_ascii_digits = bool(_re.search(r'[0-9]', text))
+            if has_english or has_ascii_digits:
+                _set_run_font_fallback(run._element, font_name)
+            else:
+                # Pure punctuation/spaces -> KrutiDev (consistent font in Hindi para)
+                set_font_properly(run, font_name)
             return None
 
     segments = _segment_text(text)
@@ -1183,6 +1199,16 @@ def convert_doc_runs(doc, font_name):
     if not is_krutidev(font_name):
         return
 
+    # Merge split runs BEFORE conversion — split runs cause mid-syllable
+    # conversion errors (e.g. 'पद्धत' + 'ि' converts incorrectly when separate)
+    for para in doc.paragraphs:
+        merge_runs_in_para(para)
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for para in cell.paragraphs:
+                    merge_runs_in_para(para)
+
     def process_para(para):
         if has_drawing(para):
             return
@@ -1232,8 +1258,15 @@ def convert_doc_runs(doc, font_name):
                 if had_unicode_hindi or is_krutidev(run_effective_font):
                     set_font_properly(run, font_name)
                 else:
-                    # Genuine English/punctuation -> fallback font
-                    _set_run_font_fallback(r_elem, font_name)
+                    # Non-Hindi run: English/digits -> fallback, punctuation -> KrutiDev
+                    import re as _re2
+                    _text = run.text or ''
+                    _has_eng_or_digit = bool(_re2.search(r'[A-Za-z0-9]', _text))
+                    if _has_eng_or_digit:
+                        _set_run_font_fallback(r_elem, font_name)
+                    else:
+                        # Pure punctuation/spaces stay in KrutiDev font
+                        set_font_properly(run, font_name)
 
     # 1. Main paragraphs
     for para in doc.paragraphs:
