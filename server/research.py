@@ -1283,3 +1283,49 @@ def _apply_transition_spacing(doc, in_numbered_zone=False, in_reference_zone=Fal
         # Case 3: heading right after another heading → space_before + 1.5 line spacing
         elif prev == 'heading' and cur == 'heading':
             _set_before(paragraphs[i], SPACING_BEFORE, LINE_SPACING_1_5)
+
+
+
+
+
+
+
+
+
+
+""" 
+
+yaha pr bolna dashboard ke call automation agents zoho crm se connect hai aur abhi thanks call agent me ek changes karna hai -
+
+mere pass 7 different websites hai aur jab bhi user x website se form fill karta hai to vo zoho crm me store hota hai aur
+than thanks call tirgger hota hai uss number ke liye to abhi jab bhi thanks call jata hai to greetings me wo edwin incorpartion 
+means parent copany ka naam leta hai but mai chahalta hu ki jiss plateform se form fill kiya gya hai thanks call me greeting ussi
+organization ke name se ho like agar form xyz page se fill hua hai to - hi i'm calling from xyz organization aur yese hi sabhi ke liye 
+batao kya approch hoga isko solve karne ka aur kaha aur kya changes karne padenge? 
+
+-----------
+
+iss repo ko dekho yaha pr maine ek stand alone api calculator banaya tha but now mujhe yesa chahiye ki sift ugc wala part hai ho aur usse me deploye
+kru aur current zohosite pr bani ek website ke navbar me connect kru 
+
+but yaha mujhe logic logout feature chahiye jiska id and password ek hi hogna fixed aur koi bhi sift ussi he login kr payega
+
+to mai soch rha hu ki ek html, css, aur js ka use kr ke banou usse vercel ya kahi bhi deploye kr du aur uska link zoho sitesme 
+ke nav me link kr du to batao ki kya approch hona chahiye page to thik hai lekin login wale feature ka kya karenge yaha database to nhi 
+chahiye pr result calculate hone ke baad pdf me export hone wala feature chahiye batao mujhe kya approach hona chahiye? 
+
+
+"""
+
+
+
+
+
+
+
+
+
+
+
+
+

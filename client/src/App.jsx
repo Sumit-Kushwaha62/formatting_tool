@@ -296,12 +296,12 @@ function UserDashboard({ user, navTo, openModal }) {
             <div className="activity-list">
               {/* {mockActivity.slice(0, 3).map((a, i) => ( */}
 
-{(realDocs.length > 0 ? realDocs.slice(0, 3).map(doc => ({
-  icon: doc.doc_type === 'book' ? '📖' : doc.doc_type === 'thesis' ? '🎓' : doc.doc_type === 'research' ? '🔬' : '✉️',
-  name: `${doc.doc_type.charAt(0).toUpperCase() + doc.doc_type.slice(1)} — ${doc.file_name}`,
-  meta: new Date(doc.created_at).toLocaleDateString('en-IN'),
-  status: doc.status,
-})) : mockActivity.slice(0, 3)).map((a, i) => (
+              {(realDocs.length > 0 ? realDocs.slice(0, 3).map(doc => ({
+                icon: doc.doc_type === 'book' ? '📖' : doc.doc_type === 'thesis' ? '🎓' : doc.doc_type === 'research' ? '🔬' : '✉️',
+                name: `${doc.doc_type.charAt(0).toUpperCase() + doc.doc_type.slice(1)} — ${doc.file_name}`,
+                meta: new Date(doc.created_at).toLocaleDateString('en-IN'),
+                status: doc.status,
+              })) : mockActivity.slice(0, 3)).map((a, i) => (
 
 
 
@@ -478,31 +478,31 @@ export default function App() {
   }, []);
 
 
-useEffect(() => {
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    if (session?.user) {
-      setUser({
-        name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
-        email: session.user.email,
-        id: session.user.id,
-      });
-    }
-  });
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser({
+          name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+          email: session.user.email,
+          id: session.user.id,
+        });
+      }
+    });
 
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) {
-      setUser({
-        name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
-        email: session.user.email,
-        id: session.user.id,
-      });
-    } else {
-      setUser(null);
-    }
-  });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({
+          name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+          email: session.user.email,
+          id: session.user.id,
+        });
+      } else {
+        setUser(null);
+      }
+    });
 
-  return () => subscription.unsubscribe();
-}, []);
+    return () => subscription.unsubscribe();
+  }, []);
 
 
   const openModal = (m) => { setModal(m); setAuthError(''); setAuthForm({ name: '', email: '', password: '' }); };
@@ -519,20 +519,20 @@ useEffect(() => {
 
 
 
-const handleLogin = async () => {
-  if (!authForm.email || !authForm.password) {
-    setAuthError('Email aur password required hai.');
-    return;
-  }
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: authForm.email,
-    password: authForm.password,
-  });
-  if (error) { setAuthError(error.message); return; }
-  setUser({ name: data.user.email.split('@')[0], email: data.user.email, id: data.user.id });
-  closeModal();
-  setPage('dashboard');
-};
+  const handleLogin = async () => {
+    if (!authForm.email || !authForm.password) {
+      setAuthError('Email aur password required hai.');
+      return;
+    }
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: authForm.email,
+      password: authForm.password,
+    });
+    if (error) { setAuthError(error.message); return; }
+    setUser({ name: data.user.email.split('@')[0], email: data.user.email, id: data.user.id });
+    closeModal();
+    setPage('dashboard');
+  };
 
 
 
@@ -548,21 +548,21 @@ const handleLogin = async () => {
 
 
 
-const handleSignup = async () => {
-  if (!authForm.name || !authForm.email || !authForm.password) {
-    setAuthError('All fields required.');
-    return;
-  }
-  const { data, error } = await supabase.auth.signUp({
-    email: authForm.email,
-    password: authForm.password,
-    options: { data: { full_name: authForm.name } }
-  });
-  if (error) { setAuthError(error.message); return; }
-  setUser({ name: authForm.name, email: authForm.email, id: data.user.id });
-  closeModal();
-  setPage('dashboard');
-};
+  const handleSignup = async () => {
+    if (!authForm.name || !authForm.email || !authForm.password) {
+      setAuthError('All fields required.');
+      return;
+    }
+    const { data, error } = await supabase.auth.signUp({
+      email: authForm.email,
+      password: authForm.password,
+      options: { data: { full_name: authForm.name } }
+    });
+    if (error) { setAuthError(error.message); return; }
+    setUser({ name: authForm.name, email: authForm.email, id: data.user.id });
+    closeModal();
+    setPage('dashboard');
+  };
 
 
 
@@ -570,33 +570,33 @@ const handleSignup = async () => {
   // const handleLogout = () => { setUser(null); setPage('home'); };
 
 
-const handleLogout = async () => {
-  await supabase.auth.signOut();
-  setUser(null);
-  setPage('home');
-};
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setPage('home');
+  };
 
-// const handleGoogleLogin = async () => {
-//   const { error } = await supabase.auth.signInWithOAuth({
-//     provider: 'google',
-//     options: {
-//       redirectTo: window.location.origin
-//     }
-//   });
-//   if (error) setAuthError(error.message);
-// };
+  // const handleGoogleLogin = async () => {
+  //   const { error } = await supabase.auth.signInWithOAuth({
+  //     provider: 'google',
+  //     options: {
+  //       redirectTo: window.location.origin
+  //     }
+  //   });
+  //   if (error) setAuthError(error.message);
+  // };
 
 
 
-const handleGoogleLogin = async () => {
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: import.meta.env.VITE_SITE_URL || window.location.origin
-    }
-  });
-  if (error) setAuthError(error.message);
-};
+  const handleGoogleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: import.meta.env.VITE_SITE_URL || window.location.origin
+      }
+    });
+    if (error) setAuthError(error.message);
+  };
 
 
 
@@ -635,6 +635,47 @@ const handleGoogleLogin = async () => {
     setStep(1); setSelectedType(null); setFormData({});
     setFile(null); setStatus('idle'); setDownloadUrl(null);
   };
+
+  const handlePayment = async () => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+      // Server se order banao
+      const { data } = await axios.post(`${API_URL}/create-order`);
+
+      // Razorpay checkout open karo
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: data.amount,
+        currency: 'INR',
+        name: 'Format Studio',
+        description: 'Professional Plan — ₹199/month',
+        order_id: data.id,
+        handler: async (response) => {
+          // Payment verify karo
+          await axios.post(`${API_URL}/verify-payment`, {
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            userId: user?.id,
+          });
+          alert('Payment successful! Pro plan activated.');
+          navTo('dashboard');
+        },
+        prefill: {
+          name: user?.name || '',
+          email: user?.email || '',
+        },
+        theme: { color: '#1A2744' },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      alert('Payment failed. Please try again.');
+    }
+  };
+
 
   const navTo = (p) => { setPage(p); setMenuOpen(false); window.scrollTo(0, 0); };
 
@@ -1793,7 +1834,14 @@ const handleGoogleLogin = async () => {
                     </ul>
                     <button
                       className={`pricing-cta ${plan.highlight ? 'pricing-cta-solid' : 'pricing-cta-ghost'}`}
-                      onClick={() => plan.highlight ? openModal('signup') : navTo('tool')}
+                      onClick={() => {
+                        if (plan.highlight) {
+                          if (!user) { openModal('signup'); }
+                          else { handlePayment(); }
+                        } else {
+                          navTo('tool');
+                        }
+                      }}
                     >
                       {plan.cta}
                     </button>
@@ -2112,7 +2160,7 @@ const handleGoogleLogin = async () => {
               <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
                 {/* <a href={downloadUrl} download="formatted_document.docx" className="btn-download">⬇ Download File</a> */}
 
-<a href={downloadUrl} download={file?.name || 'formatted_document.docx'} className="btn-download">⬇ Download File</a>
+                <a href={downloadUrl} download={file?.name || 'formatted_document.docx'} className="btn-download">⬇ Download File</a>
 
                 <button className="btn-secondary" onClick={handleReset}>Format Another</button>
               </div>
@@ -2209,7 +2257,7 @@ const handleGoogleLogin = async () => {
       )} */}
 
 
-{/* ══════════ MODALS ══════════ */}
+      {/* ══════════ MODALS ══════════ */}
       {/* {modal === 'login' && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
           <div className="modal-card">
@@ -2237,7 +2285,7 @@ const handleGoogleLogin = async () => {
       )} */}
 
 
-{/* ══════════ MODALS ══════════ */}
+      {/* ══════════ MODALS ══════════ */}
       {modal === 'login' && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
           <div className="modal-card">
@@ -2265,7 +2313,7 @@ const handleGoogleLogin = async () => {
       )}
 
 
-{/* 
+      {/* 
       {modal === 'signup' && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
           <div className="modal-card">
@@ -2293,7 +2341,7 @@ const handleGoogleLogin = async () => {
 
 
 
-{modal === 'signup' && (
+      {modal === 'signup' && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
           <div className="modal-card">
             <button className="modal-close" onClick={closeModal}>✕</button>
@@ -2364,13 +2412,4 @@ const handleGoogleLogin = async () => {
 
 
 
-/* 
 
-mai last 1 month se hindi to krutidev converstion model pr work kr rha hu and conversion ho bhi rha hai h 
-maine koi pre-build model nhi use kiya hu maine apna hi algorithm banaya tha but iss me font setup ka issue aa rha
-hai find but the issue is and what solution we have i want to fix it without investing more time on it 
-
-
-
-
-*/
