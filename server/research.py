@@ -659,11 +659,130 @@ def _convert_tabular_text_to_tables(doc):
 # MAIN FORMATTER
 # ═══════════════════════════════════════════════
 
+def _apply_ref_para_spacing(para, before, after, line, font, size, black):
+    """Apply exact reference-file spacing + font to a paragraph.
+    before/after/line are twip strings or None to skip. size is pt float."""
+    from docx.oxml import OxmlElement as _OE
+    from docx.oxml.ns import qn as _qn
+    from docx.shared import Pt as _Pt
+
+    # Spacing XML
+    _pPr = para._p.get_or_add_pPr()
+    _sp = _pPr.find(_qn('w:spacing'))
+    if _sp is None:
+        _sp = _OE('w:spacing')
+        _pPr.append(_sp)
+    if before is not None:
+        _sp.set(_qn('w:before'), before)
+    if after is not None:
+        _sp.set(_qn('w:after'), after)
+    if line is not None:
+        _sp.set(_qn('w:line'), line)
+        _sp.set(_qn('w:lineRule'), 'auto')
+    for _attr in [_qn('w:beforeLines'), _qn('w:afterLines'),
+                  _qn('w:beforeAutospacing'), _qn('w:afterAutospacing')]:
+        if _sp.get(_attr) is not None:
+            del _sp.attrib[_attr]
+
+    # Fix paragraph mark font (rPr inside pPr)
+    _rPr = _pPr.find(_qn('w:rPr'))
+    if _rPr is None:
+        _rPr = _OE('w:rPr')
+        _pPr.append(_rPr)
+    _rFonts = _rPr.find(_qn('w:rFonts'))
+    if _rFonts is None:
+        _rFonts = _OE('w:rFonts')
+        _rPr.insert(0, _rFonts)
+    _rFonts.set(_qn('w:ascii'), font)
+    _rFonts.set(_qn('w:hAnsi'), font)
+    _rFonts.set(_qn('w:cs'), font)
+    for _sz_name in ['w:sz', 'w:szCs']:
+        _sz_el = _rPr.find(_qn(_sz_name))
+        if _sz_el is None:
+            _sz_el = _OE(_sz_name)
+            _rPr.append(_sz_el)
+        _sz_el.set(_qn('w:val'), str(int(size * 2)))
+
+    # Fix runs font+size
+    for r in para.runs:
+        set_font_properly(r, font)
+        r.font.size = _Pt(size)
+        r.font.color.rgb = black
+
+
+def _fix_normal_style(doc, font, base_size, line_spacing):
+    """
+    Fix the doc-level Normal style so pressing Enter creates a paragraph
+    with correct font (Times New Roman), size (12pt), and 1.15 line spacing.
+    This prevents Mangal/24pt appearing on new paragraphs.
+    """
+    from docx.oxml import OxmlElement as _OE
+    from docx.oxml.ns import qn as _qn
+    from docx.shared import Pt as _Pt
+
+    try:
+        normal = doc.styles['Normal']
+    except KeyError:
+        return
+
+    # Fix font
+    nf = normal.font
+    nf.name = font
+    nf.size = _Pt(base_size)
+    nf.bold = False
+    nf.italic = False
+    nf.color.rgb = BLACK
+
+    # Fix paragraph format
+    npf = normal.paragraph_format
+    npf.space_before = _Pt(0)
+    npf.space_after = _Pt(0)
+    npf.line_spacing_rule = WD_LINE_SPACING.SINGLE
+    npf.line_spacing = line_spacing
+
+    # Fix via XML on the style element too
+    el = normal.element
+    pPr = el.find(_qn('w:pPr'))
+    if pPr is None:
+        pPr = _OE('w:pPr')
+        el.append(pPr)
+    sp = pPr.find(_qn('w:spacing'))
+    if sp is None:
+        sp = _OE('w:spacing')
+        pPr.append(sp)
+    sp.set(_qn('w:before'), '0')
+    sp.set(_qn('w:after'), '0')
+    sp.set(_qn('w:line'), str(int(line_spacing * 240)))
+    sp.set(_qn('w:lineRule'), 'auto')
+
+    # Fix rPr (run properties) on style — sets font for paragraph mark
+    rPr = el.find(_qn('w:rPr'))
+    if rPr is None:
+        rPr = _OE('w:rPr')
+        el.append(rPr)
+    rFonts = rPr.find(_qn('w:rFonts'))
+    if rFonts is None:
+        rFonts = _OE('w:rFonts')
+        rPr.insert(0, rFonts)
+    rFonts.set(_qn('w:ascii'), font)
+    rFonts.set(_qn('w:hAnsi'), font)
+    rFonts.set(_qn('w:cs'), font)
+    for _sz_name in ['w:sz', 'w:szCs']:
+        _sz_el = rPr.find(_qn(_sz_name))
+        if _sz_el is None:
+            _sz_el = _OE(_sz_name)
+            rPr.append(_sz_el)
+        _sz_el.set(_qn('w:val'), str(int(base_size * 2)))
+
+
 def format_research_body(doc, opts, font_name):
     font = font_name if font_name else RESEARCH_FONT
     base_size = 12.0  # Body/heading font size always 12pt (title uses TITLE_SIZE=14pt)
     line_spacing = float(opts.get('line_spacing', LINE_SPACING))
     krutidev_mode = is_krutidev(font)
+
+    # === STEP -1: Fix doc-level Normal style so Enter gives correct font/size ===
+    _fix_normal_style(doc, font, base_size, line_spacing)
 
     # === STEP 0: Remove GPT horizontal rule separators ===
     remove_gpt_hr_lines(doc)
@@ -826,7 +945,7 @@ def format_research_body(doc, opts, font_name):
             _clear_all_indents(para)
             para.alignment = WD_ALIGN_PARAGRAPH.LEFT
             para.paragraph_format.space_before = Pt(10)
-            para.paragraph_format.space_after = Pt(0)
+            para.paragraph_format.space_after = Pt(12)
             para.paragraph_format.line_spacing = 1.15
             for r in para.runs:
                 set_font_properly(r, font)
@@ -842,7 +961,7 @@ def format_research_body(doc, opts, font_name):
             _set_hanging_indent(para, 0.35)
             para.alignment = WD_ALIGN_PARAGRAPH.LEFT
             para.paragraph_format.line_spacing = 1.15
-            para.paragraph_format.space_after = Pt(0)
+            para.paragraph_format.space_after = Pt(12)
             para.paragraph_format.space_before = Pt(0)
 
             for r in para.runs:
@@ -851,6 +970,11 @@ def format_research_body(doc, opts, font_name):
                 r.font.size = Pt(base_size)
                 r.font.color.rgb = BLACK
             prev_body_para = None
+            continue
+
+        # --- EMPTY PARAGRAPHS: reference values before=100 after=100 line=360 ---
+        if etype == 'empty':
+            _apply_ref_para_spacing(para, '100', '100', '360', font, base_size, BLACK)
             continue
 
         # --- HEADINGS ---
@@ -907,7 +1031,7 @@ def format_research_body(doc, opts, font_name):
             _clear_all_indents(para)
             para.alignment = WD_ALIGN_PARAGRAPH.LEFT
             para.paragraph_format.space_before = Pt(0)
-            para.paragraph_format.space_after = Pt(0)
+            para.paragraph_format.space_after = Pt(12)
             para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
             para.paragraph_format.line_spacing = line_spacing
             # Remove Word's auto-spacing via XML directly
@@ -918,14 +1042,13 @@ def format_research_body(doc, opts, font_name):
             if spacing_el is None:
                 spacing_el = _OE('w:spacing')
                 pPr.append(spacing_el)
-            spacing_el.set(_qn('w:before'), '0')
-            spacing_el.set(_qn('w:after'), '240')   # one line gap after heading
-            spacing_el.set(_qn('w:beforeLines'), '0')
-            spacing_el.set(_qn('w:afterLines'), '0')
-            spacing_el.set(_qn('w:line'), str(int(line_spacing * 240)))
+            # Reference file exact values: before=100, after=100, line=360 (1.5)
+            spacing_el.set(_qn('w:before'), '100')
+            spacing_el.set(_qn('w:after'), '100')
+            spacing_el.set(_qn('w:line'), '360')
             spacing_el.set(_qn('w:lineRule'), 'auto')
-            # Remove autospacing attributes if present
-            for attr in [_qn('w:beforeAutospacing'), _qn('w:afterAutospacing')]:
+            for attr in [_qn('w:beforeLines'), _qn('w:afterLines'),
+                         _qn('w:beforeAutospacing'), _qn('w:afterAutospacing')]:
                 if spacing_el.get(attr) is not None:
                     del spacing_el.attrib[attr]
             # Remove contextualSpacing (Word adds gap between heading and body)
@@ -960,7 +1083,7 @@ def format_research_body(doc, opts, font_name):
             _clear_all_indents(para)
             para.alignment = WD_ALIGN_PARAGRAPH.LEFT
             para.paragraph_format.space_before = Pt(0)
-            para.paragraph_format.space_after = Pt(0)
+            para.paragraph_format.space_after = Pt(12)
             para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
             para.paragraph_format.line_spacing = line_spacing
             full_txt = para.text
@@ -996,26 +1119,8 @@ def format_research_body(doc, opts, font_name):
         if etype == 'numbered_list_item' or is_bullet_para(para):
             _set_hanging_indent(para, 0.25)
             para.alignment = WD_ALIGN_PARAGRAPH.LEFT
-            para.paragraph_format.space_before = Pt(0)
-            para.paragraph_format.space_after = Pt(0)
-            para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
-            para.paragraph_format.line_spacing = line_spacing
-            # Force via XML
-            from docx.oxml import OxmlElement as _OE
-            from docx.oxml.ns import qn as _qn
-            _bPr = para._p.get_or_add_pPr()
-            _bSp = _bPr.find(_qn('w:spacing'))
-            if _bSp is None:
-                _bSp = _OE('w:spacing')
-                _bPr.append(_bSp)
-            _bSp.set(_qn('w:before'), '0')
-            _bSp.set(_qn('w:after'), '0')
-            _bSp.set(_qn('w:line'), str(int(line_spacing * 240)))
-            _bSp.set(_qn('w:lineRule'), 'auto')
-            for r in para.runs:
-                set_font_properly(r, font)
-                r.font.size = Pt(base_size)
-                r.font.color.rgb = BLACK
+            # Reference file exact values: before=100, after=100, no line override
+            _apply_ref_para_spacing(para, '100', '100', None, font, base_size, BLACK)
             prev_body_para = None
             continue
 
@@ -1025,7 +1130,7 @@ def format_research_body(doc, opts, font_name):
             _set_hanging_indent(para, 0.3)
             para.alignment = WD_ALIGN_PARAGRAPH.LEFT
             para.paragraph_format.line_spacing = 1.15
-            para.paragraph_format.space_after = Pt(0)
+            para.paragraph_format.space_after = Pt(12)
 
             current_text = para.text.strip()
             current_text = re.sub(r'^[•\-\*]\s*', '', current_text)
@@ -1073,7 +1178,7 @@ def format_research_body(doc, opts, font_name):
 
         # para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         # para.paragraph_format.line_spacing = 1.5
-        # para.paragraph_format.space_after = Pt(0)
+        # para.paragraph_format.space_after = Pt(12)
         # for r in para.runs:
         #     set_font_properly(r, font)
         #     r.bold = False
@@ -1084,30 +1189,97 @@ def format_research_body(doc, opts, font_name):
         prev_body_para = para
 
         para.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-        para.paragraph_format.space_before = Pt(0)
-        para.paragraph_format.space_after = Pt(12)
-        para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
-        para.paragraph_format.line_spacing = line_spacing
-        # Force spacing via XML to override Word's Normal style defaults
-        _pPr = para._p.get_or_add_pPr()
-        _sp = _pPr.find(qn('w:spacing'))
-        if _sp is None:
-            from docx.oxml import OxmlElement as _OE
-            _sp = _OE('w:spacing')
-            _pPr.append(_sp)
-        _sp.set(qn('w:before'), '0')
-        _sp.set(qn('w:after'), '240')   # one line gap between paragraphs
-        _sp.set(qn('w:line'), str(int(line_spacing * 240)))
-        _sp.set(qn('w:lineRule'), 'auto')
-        for attr in [qn('w:beforeAutospacing'), qn('w:afterAutospacing')]:
-            if _sp.get(attr) is not None:
-                del _sp.attrib[attr]
+        # Reference file exact values: before=100, after=100, no explicit line (inherited)
+        _apply_ref_para_spacing(para, '100', '100', None, font, base_size, BLACK)
+        # Ensure bold is off for body text
         for r in para.runs:
-            set_font_properly(r, font)
             r.bold = False
-            r.font.size = Pt(base_size)
-            r.font.color.rgb = BLACK
         prev_was_heading = False
 
 
+
+
+
+
+
+
+
     format_table_cells(doc, font, base_size, line_spacing, BLACK)
+
+    # No post-processing needed — reference values applied directly
+
+
+def _apply_transition_spacing(doc, in_numbered_zone=False, in_reference_zone=False, in_questionnaire_zone=False):
+    """
+    Separate post-processing pass — adds 1.5 line (360 twips) space_before to any paragraph
+    that immediately follows a heading, OR is the first bullet after a body paragraph.
+    Does NOT touch any other paragraph spacing. Safe to call after main formatting loop.
+    """
+    from docx.oxml import OxmlElement as _OE
+    from docx.oxml.ns import qn as _qn
+    from docx.shared import Pt
+
+    # Word line spacing: 1.5 lines = w:line of 360 (240 * 1.5)
+    # Space before paragraph: reference doc uses 100 twips (5pt) before heading/body/bullet transitions
+    SPACING_BEFORE  = '360'   # 18pt space before transitions (1.5 line visual gap)
+    LINE_SPACING_1_5 = '360'  # 1.5 line spacing = 360 twips
+
+    paragraphs = [p for p in doc.paragraphs if p._element.getparent() is not None]
+    total = len(paragraphs)
+
+    # Build a simple label list: 'heading', 'bullet', 'body', 'other'
+    def _label(para):
+        txt = para.text.strip()
+        if not txt:
+            return 'empty'
+        if is_bullet_para(para):
+            return 'bullet'
+        pPr = para._p.find(_qn('w:pPr'))
+        if pPr is not None:
+            pStyle = pPr.find(_qn('w:pStyle'))
+            if pStyle is not None:
+                val = pStyle.get(_qn('w:val'), '').lower()
+                if 'heading' in val:
+                    return 'heading'
+        # Detect bold-only paragraph (subheading / heading style)
+        if txt and all(r.bold for r in para.runs if r.text.strip()):
+            if para.runs:
+                return 'heading'
+        return 'body'
+
+    labels = [_label(p) for p in paragraphs]
+
+    def _set_before(para, before_twips, line_twips=None):
+        """Set ONLY w:before on paragraph — does NOT touch line spacing."""
+        from docx.shared import Pt as _Pt
+        pt_val = int(before_twips) / 20.0
+        para.paragraph_format.space_before = _Pt(pt_val)
+        _pPr = para._p.get_or_add_pPr()
+        _sp = _pPr.find(_qn('w:spacing'))
+        if _sp is None:
+            _sp = _OE('w:spacing')
+            _pPr.append(_sp)
+        _sp.set(_qn('w:before'), before_twips)
+        # Do NOT set w:line here — preserve existing 1.15 line spacing set by main loop
+        for _attr in [_qn('w:beforeAutospacing')]:
+            if _sp.get(_attr) is not None:
+                del _sp.attrib[_attr]
+
+    for i in range(1, total):
+        cur  = labels[i]
+        prev = labels[i - 1]
+
+        if cur in ('empty', 'other'):
+            continue
+
+        # Case 1: anything right after a heading → space_before + 1.5 line spacing
+        if prev == 'heading' and cur in ('body', 'bullet'):
+            _set_before(paragraphs[i], SPACING_BEFORE, LINE_SPACING_1_5)
+
+        # Case 2: first bullet after a body paragraph → space_before + 1.5 line spacing
+        elif prev == 'body' and cur == 'bullet':
+            _set_before(paragraphs[i], SPACING_BEFORE, LINE_SPACING_1_5)
+
+        # Case 3: heading right after another heading → space_before + 1.5 line spacing
+        elif prev == 'heading' and cur == 'heading':
+            _set_before(paragraphs[i], SPACING_BEFORE, LINE_SPACING_1_5)
