@@ -14,6 +14,7 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
 const app = express();
 app.use(cors());
@@ -51,6 +52,7 @@ app.post('/format', upload.single('file'), (req, res) => {
 
   exec(formatCommand, (fErr, fStdout, fStderr) => {
     if (fs.existsSync(optionsFile)) fs.unlinkSync(optionsFile);
+
     if (fErr) {
       console.error('Format Error:', fStderr);
       return res.status(500).json({ error: 'Formatting failed' });
@@ -62,12 +64,17 @@ app.post('/format', upload.single('file'), (req, res) => {
       if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
       const userId = req.body.userId;
       if (userId) {
-        await supabase.from('documents').insert({
-          user_id: userId,
-          doc_type: docType,
-          file_name: originalName,
-          status: 'done',
-        });
+        try {
+          await supabase.from('documents').insert({
+            user_id: userId,
+            doc_type: docType,
+            file_name: originalName,
+            status: 'done',
+          });
+          console.log('Document logged for userId:', userId);
+        } catch (err) {
+          console.error('Supabase insert error:', err);
+        }
       }
     });
   });
@@ -77,7 +84,7 @@ app.post('/format', upload.single('file'), (req, res) => {
 app.post('/create-order', async (req, res) => {
   try {
     const order = await razorpay.orders.create({
-      amount: 19900, // ₹199 in paise — test ke liye 100 karo
+      amount: 19900,
       currency: 'INR',
       receipt: 'receipt_' + Date.now(),
     });
@@ -122,11 +129,50 @@ app.post('/verify-payment', async (req, res) => {
     return res.status(500).json({ error: 'Plan update failed' });
   }
 
+  const { error: paymentError } = await supabase.from('payments').insert({
+    user_id: userId,
+    payment_id: razorpay_payment_id,
+    amount: 19900,
+  });
+
+  if (paymentError) {
+    console.error('Supabase payment insert error:', paymentError);
+    return res.status(500).json({ error: 'Payment history update failed' });
+  }
+
   console.log('Plan updated to pro for userId:', userId);
   res.json({ success: true });
+});
+
+// ── Contact form ──
+app.post('/contact', async (req, res) => {
+  const { name, email, message } = req.body;
+  if (!name || !email || !message) {
+    return res.status(400).json({ error: 'All fields required' });
+  }
+  try {
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+    await transporter.sendMail({
+      from: `"Format Studio" <${process.env.SMTP_USER}>`,
+      to: 'care@edwinepc.com',
+      subject: `Contact Form: ${name}`,
+      html: `<p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><p><strong>Message:</strong><br>${message}</p>`,
+    });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Contact email error:', err);
+    res.status(500).json({ error: 'Failed to send email' });
+  }
 });
 
 // ── Server start ──
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
