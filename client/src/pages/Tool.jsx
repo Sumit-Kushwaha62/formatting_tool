@@ -31,6 +31,24 @@ export default function Tool({ navTo }) {
   const currentType = DOC_TYPES.find(t => t.id === selectedType);
   const fontList = formData.font_script === 'hindi' ? HINDI_FONTS : formData.font_script === 'english' ? ENGLISH_FONTS : [];
 
+  const withTimeout = (promise, ms, message) => (
+    Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error(message)), ms);
+      })
+    ])
+  );
+
+  const refreshDocsWithRetry = async (userId) => {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await refreshPlanAndDocs(userId);
+      if (attempt < 2) {
+        await new Promise(resolve => setTimeout(resolve, 1200));
+      }
+    }
+  };
+
   const handleTypeSelect = (id) => {
     setSelectedType(id);
     setFormData({});
@@ -102,17 +120,32 @@ const handleSubmit = async () => {
   setStatus('uploading');
 
   try {
-    if (user?.id) {
-      const { count, error } = await supabase
-        .from('documents')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+    const { data: { session } } = await supabase.auth.getSession();
+    const activeUserId = user?.id || session?.user?.id;
 
-      if (error) {
-        throw error;
+    if (activeUserId && userPlan === 'free') {
+      let latestCount = docsCount;
+
+      try {
+        const { count, error } = await withTimeout(
+          supabase
+            .from('documents')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', activeUserId),
+          15000,
+          'Document count check timed out'
+        );
+
+        if (error) {
+          throw error;
+        }
+
+        latestCount = count || 0;
+      } catch (countErr) {
+        console.warn('Using cached document count after count check failed:', countErr);
       }
 
-      if (userPlan === 'free' && count >= 3) {
+      if (latestCount >= 3) {
         setPaywallOpen(true);
         setStatus('idle');
         return;
@@ -123,13 +156,17 @@ const handleSubmit = async () => {
     fd.append('file', file);
     fd.append('docType', selectedType);
     fd.append('options', JSON.stringify(formData));
-    if (user?.id) fd.append('userId', user.id);
+    if (activeUserId) fd.append('userId', activeUserId);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    const res = await axios.post(`${API_URL}/format`, fd, { responseType: 'blob' });
-    setDownloadUrl(URL.createObjectURL(new Blob([res.data])));
+    const res = await axios.post(`${API_URL}/format`, fd, {
+      timeout: 180000,
+    });
+    const { downloadUrl: dlUrl } = res.data;
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    setDownloadUrl(API_BASE + dlUrl);
     setStatus('done');
-    if (user?.id) refreshPlanAndDocs(user.id);
+    if (activeUserId) refreshDocsWithRetry(activeUserId);
   } catch (err) {
     console.error('Error:', err);
     setStatus('error');

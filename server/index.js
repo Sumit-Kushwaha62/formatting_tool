@@ -21,11 +21,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
-if (!fs.existsSync('outputs')) fs.mkdirSync('outputs');
+const uploadsDir = path.resolve(__dirname, 'uploads');
+const outputsDir = path.resolve(__dirname, 'outputs');
+
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
+if (!fs.existsSync(outputsDir)) fs.mkdirSync(outputsDir);
 
 const storage = multer.diskStorage({
-  destination: 'uploads/',
+  destination: uploadsDir,
   filename: (req, file, cb) => cb(null, uuidv4() + '.docx')
 });
 const upload = multer({ storage });
@@ -37,47 +40,101 @@ const razorpay = new Razorpay({
 
 // ── Format route ──
 app.post('/format', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
   console.log('userId received:', req.body.userId);
-  const inputPath = path.resolve(req.file.path);
+  const inputPath = req.file.path;
   const outputName = uuidv4() + '_formatted.docx';
-  const outputPath = path.resolve('outputs', outputName);
+  const outputPath = path.resolve(outputsDir, outputName);
   const docType = req.body.docType || 'book';
   const options = req.body.options || '{}';
 
-  const optionsFile = path.resolve('uploads', uuidv4() + '_options.json');
+  const optionsFile = path.resolve(uploadsDir, uuidv4() + '_options.json');
   fs.writeFileSync(optionsFile, options);
 
   const formatCommand = `python "${path.join(__dirname, 'formatter.py')}" "${inputPath}" "${outputPath}" "${docType}" "${optionsFile}"`;
   console.log('Running Formatter:', formatCommand);
 
-  exec(formatCommand, (fErr, fStdout, fStderr) => {
+  exec(formatCommand, { cwd: __dirname, windowsHide: true, maxBuffer: 10 * 1024 * 1024, timeout: 180000 }, (fErr, fStdout, fStderr) => {
     if (fs.existsSync(optionsFile)) fs.unlinkSync(optionsFile);
 
     if (fErr) {
       console.error('Format Error:', fStderr);
+      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
       return res.status(500).json({ error: 'Formatting failed' });
     }
 
-    const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8') || 'formatted_document.docx';
+    if (!fs.existsSync(outputPath)) {
+      console.error('Formatter completed but output file was not created:', outputPath);
+      if (fStdout) console.log('Formatter stdout:', fStdout);
+      if (fStderr) console.error('Formatter stderr:', fStderr);
+      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+      return res.status(500).json({ error: 'Formatted file was not created' });
+    }
 
-    res.download(outputPath, originalName, async (dlErr) => {
-      if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-      const userId = req.body.userId;
-      if (userId) {
-        try {
-          await supabase.from('documents').insert({
-            user_id: userId,
-            doc_type: docType,
-            file_name: originalName,
-            status: 'done',
-          });
-          console.log('Document logged for userId:', userId);
-        } catch (err) {
-          console.error('Supabase insert error:', err);
-        }
+    const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8') || 'formatted_document.docx';
+    const userId = req.body.userId;
+
+    const sendDownload = () => {
+      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+      res.json({ downloadUrl: '/download/' + outputName, fileName: originalName });
+    };
+
+    if (!userId) {
+      console.warn('Document formatted without userId; skipping document log.');
+      sendDownload();
+      return;
+    }
+
+    Promise.race([
+      supabase.from('documents').insert({
+        user_id: userId,
+        doc_type: docType,
+        file_name: originalName,
+        status: 'done',
+      }),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Document log timed out')), 8000);
+      })
+    ]).then(({ error }) => {
+      if (error) {
+        console.error('Supabase insert error:', error);
+      } else {
+        console.log('Document logged for userId:', userId);
       }
+    }).catch((err) => {
+      console.error('Supabase insert exception:', err);
     });
+
+    sendDownload();
   });
+});
+
+app.delete('/account/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'userId required' });
+  }
+
+  try {
+    await supabase.from('documents').delete().eq('user_id', userId);
+    await supabase.from('payments').delete().eq('user_id', userId);
+    await supabase.from('profiles').delete().eq('id', userId);
+
+    const { error } = await supabase.auth.admin.deleteUser(userId);
+    if (error) {
+      console.error('Supabase auth delete error:', error);
+      return res.status(500).json({ error: 'Account delete failed' });
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Account delete exception:', err);
+    res.status(500).json({ error: 'Account delete failed' });
+  }
 });
 
 // ── Razorpay: Order banao ──
@@ -144,6 +201,17 @@ app.post('/verify-payment', async (req, res) => {
   res.json({ success: true });
 });
 
+app.get('/download/:filename', (req, res) => {
+  const filePath = path.resolve(outputsDir, req.params.filename);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found or expired' });
+  }
+  res.download(filePath, (err) => {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    if (err) console.error('Download error:', err);
+  });
+});
+
 // ── Contact form ──
 app.post('/contact', async (req, res) => {
   const { name, email, message } = req.body;
@@ -175,4 +243,18 @@ app.post('/contact', async (req, res) => {
 
 // ── Server start ──
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.get('/health', (req, res) => {
+  res.json({ ok: true });
+});
+
+const server = app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use. Stop the existing server or use a different PORT.`);
+    process.exit(1);
+  }
+
+  console.error('Server startup error:', err);
+  process.exit(1);
+});

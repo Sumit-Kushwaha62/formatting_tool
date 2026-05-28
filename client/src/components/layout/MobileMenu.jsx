@@ -21,6 +21,12 @@ export default function MobileMenu({ isOpen, navTo, setMenuOpen }) {
     openModal(type);
   };
 
+  const handleLogout = async () => {
+    await logout();
+    setMenuOpen(false);
+    navTo('home');
+  };
+
   return (
     <div className="mobile-menu">
       <button className="nav-link" onClick={() => handleNav('home')}>Home</button>
@@ -34,7 +40,7 @@ export default function MobileMenu({ isOpen, navTo, setMenuOpen }) {
           <button 
             className="nav-logout" 
             style={{ alignSelf: 'flex-start', marginTop: '8px', minHeight: '44px', display: 'flex', alignItems: 'center' }} 
-            onClick={() => { logout(); setMenuOpen(false); }}
+            onClick={handleLogout}
           >
             Logout
           </button>

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 
-export default function Profile() {
-  const { user } = useAuth();
+export default function Profile({ navTo }) {
+  const { user, deleteAccount } = useAuth();
   
   const [profileForm, setProfileForm] = useState({
     name: user?.name || '',
@@ -11,10 +11,24 @@ export default function Profile() {
     org: ''
   });
   const [profileSaved, setProfileSaved] = useState(false);
+  const [deleteStatus, setDeleteStatus] = useState('idle');
 
   const saveProfile = () => {
     setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 2500);
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm('Delete your account and all associated data? This action cannot be undone.');
+    if (!confirmed) return;
+
+    setDeleteStatus('deleting');
+    const deleted = await deleteAccount();
+    if (deleted) {
+      navTo('home');
+      return;
+    }
+    setDeleteStatus('error');
   };
 
   return (
@@ -66,7 +80,12 @@ export default function Profile() {
       <div className="danger-zone">
         <div className="danger-title">Danger Zone</div>
         <div className="danger-desc">Permanently delete your account and all associated data. This action cannot be undone.</div>
-        <button className="btn-danger">Delete Account</button>
+        <button className="btn-danger" onClick={handleDeleteAccount} disabled={deleteStatus === 'deleting'}>
+          {deleteStatus === 'deleting' ? 'Deleting...' : 'Delete Account'}
+        </button>
+        {deleteStatus === 'error' && (
+          <div className="modal-error" style={{ marginTop: 12 }}>Could not delete account. Please try again.</div>
+        )}
       </div>
     </>
   );

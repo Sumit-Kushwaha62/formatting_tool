@@ -89,7 +89,7 @@ export default function Dashboard({ navTo }) {
           <Subscription navTo={navTo} />
         )}
         {dashTab === 'profile' && (
-          <Profile />
+          <Profile navTo={navTo} />
         )}
       </main>
     </div>

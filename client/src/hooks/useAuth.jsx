@@ -150,10 +150,41 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut({ scope: 'global' });
+    if (error) {
+      console.error('Logout error:', error);
+    }
     setUser(null);
     setUserPlan('free');
     setRealDocs([]);
+    closeModal();
+    return !error;
+  };
+
+  const deleteAccount = async () => {
+    const targetId = user?.id;
+    if (!targetId) return false;
+
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const res = await fetch(`${API_URL}/account/${targetId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        throw new Error('Account delete failed');
+      }
+
+      await supabase.auth.signOut({ scope: 'global' });
+      setUser(null);
+      setUserPlan('free');
+      setRealDocs([]);
+      closeModal();
+      return true;
+    } catch (err) {
+      console.error('Delete account error:', err);
+      return false;
+    }
   };
 
   const loginWithGoogle = async () => {
@@ -181,6 +212,7 @@ export function AuthProvider({ children }) {
         login,
         signup,
         logout,
+        deleteAccount,
         loginWithGoogle,
         refreshPlanAndDocs: (id) => refreshPlanAndDocs(id || user?.id),
       }}

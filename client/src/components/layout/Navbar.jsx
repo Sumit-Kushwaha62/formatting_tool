@@ -19,6 +19,11 @@ export default function Navbar({ page, navTo, menuOpen, setMenuOpen }) {
     }, 100);
   };
 
+  const handleLogout = async () => {
+    await logout();
+    navTo('home');
+  };
+
   return (
     <nav className={`nav ${scrolled ? 'scrolled' : ''}`}>
       <div className="nav-logo" onClick={() => navTo('home')}>
@@ -68,7 +73,7 @@ export default function Navbar({ page, navTo, menuOpen, setMenuOpen }) {
               My Account
             </button>
             <div className="nav-user-dot">{user.name.charAt(0).toUpperCase()}</div>
-            <button className="nav-logout" onClick={logout}>
+            <button className="nav-logout" onClick={handleLogout}>
               Logout
             </button>
           </>
