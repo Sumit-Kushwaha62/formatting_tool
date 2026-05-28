@@ -120,8 +120,15 @@ const handleSubmit = async () => {
   setStatus('uploading');
 
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    const activeUserId = user?.id || session?.user?.id;
+    let activeUserId = user?.id;
+    if (!activeUserId) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        activeUserId = session?.user?.id;
+      } catch (e) {
+        console.warn('Session fetch failed:', e);
+      }
+    }
 
     if (activeUserId && userPlan === 'free') {
       let latestCount = docsCount;
