@@ -1,21 +1,124 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function Profile({ navTo }) {
   const { user, deleteAccount } = useAuth();
   
   const [profileForm, setProfileForm] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
+    name: '',
+    email: '',
     phone: '',
     org: ''
   });
   const [profileSaved, setProfileSaved] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState('');
   const [deleteStatus, setDeleteStatus] = useState('idle');
 
-  const saveProfile = () => {
-    setProfileSaved(true);
-    setTimeout(() => setProfileSaved(false), 2500);
+  // Password state
+  const [newPassword, setNewPassword] = useState('');
+  const [pwStatus, setPwStatus] = useState('idle'); // 'idle' | 'saving' | 'done' | 'error'
+  const [pwError, setPwError] = useState('');
+
+  // Load existing profile data from Supabase on mount
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const loadProfile = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('name, phone, org')
+        .eq('id', user.id)
+        .single();
+
+      if (!error && data) {
+        setProfileForm({
+          name: data.name || user?.name || '',
+          email: user?.email || '',
+          phone: data.phone || '',
+          org: data.org || '',
+        });
+      } else {
+        // Fallback to auth user data
+        setProfileForm({
+          name: user?.name || '',
+          email: user?.email || '',
+          phone: '',
+          org: '',
+        });
+      }
+    };
+
+    loadProfile();
+  }, [user?.id]);
+
+  // Fix #3: Wire Save Profile to Supabase profiles table
+  const saveProfile = async () => {
+    if (!user?.id) return;
+
+    setProfileSaving(true);
+    setProfileError('');
+    setProfileSaved(false);
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: profileForm.name.trim(),
+          phone: profileForm.phone.trim(),
+          org: profileForm.org.trim(),
+        })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Profile update error:', error);
+        setProfileError('Failed to save profile. Please try again.');
+        return;
+      }
+
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 2500);
+    } catch (err) {
+      console.error('Profile save exception:', err);
+      setProfileError('An unexpected error occurred.');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  // Fix #4: Wire Update Password to supabase.auth.updateUser
+  const handleUpdatePassword = async () => {
+    setPwError('');
+    setPwStatus('idle');
+
+    if (!newPassword || newPassword.length < 8) {
+      setPwError('Password must be at least 8 characters.');
+      return;
+    }
+
+    setPwStatus('saving');
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) {
+        console.error('Password update error:', error);
+        setPwError(error.message || 'Failed to update password.');
+        setPwStatus('error');
+        return;
+      }
+
+      setPwStatus('done');
+      setNewPassword('');
+      setTimeout(() => setPwStatus('idle'), 3000);
+    } catch (err) {
+      console.error('Password update exception:', err);
+      setPwError('An unexpected error occurred.');
+      setPwStatus('error');
+    }
   };
 
   const handleDeleteAccount = async () => {
@@ -42,7 +145,7 @@ export default function Profile({ navTo }) {
         <div className="profile-grid">
           {[
             { key: 'name', label: 'Full Name', placeholder: 'Your name', type: 'text' },
-            { key: 'email', label: 'Email Address', placeholder: 'you@example.com', type: 'email' },
+            { key: 'email', label: 'Email Address', placeholder: 'you@example.com', type: 'email', disabled: true },
             { key: 'phone', label: 'Phone Number', placeholder: '+91 00000 00000', type: 'text' },
             { key: 'org', label: 'Organization / University', placeholder: 'e.g. IIT Delhi', type: 'text' },
           ].map(f => (
@@ -53,15 +156,19 @@ export default function Profile({ navTo }) {
                 type={f.type} 
                 placeholder={f.placeholder}
                 value={profileForm[f.key]} 
-                onChange={e => setProfileForm(p => ({ ...p, [f.key]: e.target.value }))} 
+                onChange={e => setProfileForm(p => ({ ...p, [f.key]: e.target.value }))}
+                disabled={f.disabled || profileSaving}
               />
             </div>
           ))}
         </div>
+        {profileError && (
+          <div className="modal-error" style={{ marginTop: 12 }}>{profileError}</div>
+        )}
         <div className="divider" />
         <div className="btn-row">
-          <button className="btn-primary" onClick={saveProfile}>
-            {profileSaved ? '✓ Saved' : 'Save Changes'}
+          <button className="btn-primary" onClick={saveProfile} disabled={profileSaving}>
+            {profileSaving ? 'Saving...' : profileSaved ? '✓ Saved' : 'Save Changes'}
           </button>
         </div>
       </div>
@@ -70,10 +177,32 @@ export default function Profile({ navTo }) {
       <div className="profile-form" style={{ marginBottom: 0 }}>
         <div className="field-group" style={{ maxWidth: 360 }}>
           <label className="field-label">New Password</label>
-          <input className="field-input" type="password" placeholder="Min. 8 characters" />
+          <input
+            className="field-input"
+            type="password"
+            placeholder="Min. 8 characters"
+            value={newPassword}
+            onChange={e => setNewPassword(e.target.value)}
+            disabled={pwStatus === 'saving'}
+          />
         </div>
+        {pwError && (
+          <div className="modal-error" style={{ marginTop: 8 }}>{pwError}</div>
+        )}
+        {pwStatus === 'done' && (
+          <div style={{ marginTop: 8, color: '#22c55e', fontSize: 13, fontFamily: "'DM Sans', sans-serif" }}>
+            ✓ Password updated successfully
+          </div>
+        )}
         <div style={{ marginTop: 16 }}>
-          <button className="btn-secondary" style={{ minHeight: '44px' }}>Update Password</button>
+          <button
+            className="btn-secondary"
+            style={{ minHeight: '44px' }}
+            onClick={handleUpdatePassword}
+            disabled={pwStatus === 'saving'}
+          >
+            {pwStatus === 'saving' ? 'Updating...' : 'Update Password'}
+          </button>
         </div>
       </div>
       

@@ -60,7 +60,9 @@ export default function Overview({ navTo, setDashTab }) {
           {userPlan === 'free' && (
             <button className="btn-plan-upgrade" onClick={() => navTo('pricing')}>Upgrade Plan</button>
           )}
-          <button className="btn-plan-cancel">Manage</button>
+          {userPlan !== 'free' && (
+            <button className="btn-plan-cancel" onClick={() => setDashTab('subscription')}>Manage</button>
+          )}
         </div>
       </div>
       

@@ -6,6 +6,7 @@ export default function Subscription({ navTo }) {
   const { user, userPlan, docsCount, refreshPlanAndDocs } = useAuth();
   const [payments, setPayments] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [cancelStatus, setCancelStatus] = useState('idle'); // 'idle' | 'confirming' | 'cancelling' | 'done' | 'error'
 
   useEffect(() => {
     if (!user?.id) return;
@@ -30,6 +31,50 @@ export default function Subscription({ navTo }) {
   const activePlanName = userPlan === 'pro' ? 'Professional' : userPlan === 'team' ? 'Institution' : 'Scholar';
   const activePlanPrice = userPlan === 'pro' ? '₹199/month' : userPlan === 'team' ? '₹999/month' : '₹0/forever';
   const activePlanRenew = userPlan === 'pro' ? 'Next billing: 8 June 2026' : 'Active free plan';
+
+  // Fix #5: Cancel subscription — reset plan to 'free' in profiles table
+  const handleCancelSubscription = async () => {
+    if (cancelStatus === 'idle') {
+      setCancelStatus('confirming');
+      return;
+    }
+
+    if (cancelStatus !== 'confirming') return;
+
+    setCancelStatus('cancelling');
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ plan: 'free' })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Cancel subscription error:', error);
+        setCancelStatus('error');
+        setTimeout(() => setCancelStatus('idle'), 3000);
+        return;
+      }
+
+      setCancelStatus('done');
+      await refreshPlanAndDocs();
+      setTimeout(() => setCancelStatus('idle'), 3000);
+    } catch (err) {
+      console.error('Cancel subscription exception:', err);
+      setCancelStatus('error');
+      setTimeout(() => setCancelStatus('idle'), 3000);
+    }
+  };
+
+  const getCancelButtonText = () => {
+    switch (cancelStatus) {
+      case 'confirming': return 'Confirm Cancel — Are you sure?';
+      case 'cancelling': return 'Cancelling...';
+      case 'done': return '✓ Plan Reverted to Free';
+      case 'error': return '⚠ Failed — Try Again';
+      default: return 'Cancel Subscription';
+    }
+  };
 
   // Format date helper
   const formatDate = (dateStr) => {
@@ -64,7 +109,17 @@ export default function Subscription({ navTo }) {
           {userPlan === 'free' && (
             <button className="btn-plan-upgrade" onClick={() => navTo('pricing')}>Change Plan</button>
           )}
-          <button className="btn-plan-cancel">Cancel Subscription</button>
+          {/* Fix #5: Only show cancel for pro/team users */}
+          {userPlan !== 'free' && (
+            <button
+              className="btn-plan-cancel"
+              onClick={handleCancelSubscription}
+              disabled={cancelStatus === 'cancelling'}
+              style={cancelStatus === 'confirming' ? { background: '#ef4444', color: '#fff', borderColor: '#ef4444' } : {}}
+            >
+              {getCancelButtonText()}
+            </button>
+          )}
         </div>
       </div>
       

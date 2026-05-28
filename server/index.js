@@ -218,26 +218,62 @@ app.post('/contact', async (req, res) => {
   if (!name || !email || !message) {
     return res.status(400).json({ error: 'All fields required' });
   }
+
+  let emailSent = false;
+
+  // Try SMTP if credentials are configured
+  if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: Number(process.env.SMTP_PORT) || 587,
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+        pool: true,
+        maxConnections: 1,
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
+      });
+      await transporter.sendMail({
+        from: `"Format Studio" <${process.env.SMTP_USER}>`,
+        to: 'care@edwinepc.com',
+        subject: `Contact Form: ${name}`,
+        html: `<p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><p><strong>Message:</strong><br>${message}</p>`,
+      });
+      emailSent = true;
+      console.log('Contact email sent via SMTP');
+    } catch (smtpErr) {
+      console.warn('SMTP failed, falling back to Supabase storage:', smtpErr.message);
+    }
+  }
+
+  // Always store in Supabase contacts table as reliable backup
   try {
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
+    const { error: dbError } = await supabase.from('contacts').insert({
+      name,
+      email,
+      message,
+      email_sent: emailSent,
     });
-    await transporter.sendMail({
-      from: `"Format Studio" <${process.env.SMTP_USER}>`,
-      to: 'care@edwinepc.com',
-      subject: `Contact Form: ${name}`,
-      html: `<p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><p><strong>Message:</strong><br>${message}</p>`,
-    });
+    if (dbError) {
+      console.error('Supabase contacts insert error:', dbError);
+      // If SMTP also failed, this is a total failure
+      if (!emailSent) {
+        return res.status(500).json({ error: 'Failed to send message' });
+      }
+    }
     res.json({ success: true });
   } catch (err) {
-    console.error('Contact email error:', err);
-    res.status(500).json({ error: 'Failed to send email' });
+    console.error('Contact save error:', err);
+    if (emailSent) {
+      // Email was sent even though DB save failed — still success
+      return res.json({ success: true });
+    }
+    res.status(500).json({ error: 'Failed to send message' });
   }
 });
 

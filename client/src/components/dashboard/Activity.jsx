@@ -6,21 +6,70 @@ export default function Activity({ navTo }) {
   const { user } = useAuth();
   const [documents, setDocuments] = React.useState([]);
 
-  React.useEffect(() => {
+  // Initial fetch
+  const fetchDocuments = React.useCallback(async () => {
     if (!user?.id) return;
 
-    supabase
+    const { data, error } = await supabase
       .from('documents')
       .select('*')
       .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .then(({ data, error }) => {
-        if (error) {
-          console.error('Error fetching activity:', error);
-          return;
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching activity:', error);
+      return;
+    }
+    setDocuments(data || []);
+  }, [user?.id]);
+
+  React.useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
+
+  // Fix #6: Realtime subscription on documents table
+  React.useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel('activity-documents')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'documents',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Realtime document change:', payload.eventType);
+
+          if (payload.eventType === 'INSERT') {
+            // Prepend new document to the list
+            setDocuments(prev => [payload.new, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            // Update existing document in place
+            setDocuments(prev =>
+              prev.map(doc => (doc.id === payload.new.id ? payload.new : doc))
+            );
+          } else if (payload.eventType === 'DELETE') {
+            // Remove deleted document
+            setDocuments(prev =>
+              prev.filter(doc => doc.id !== payload.old.id)
+            );
+          }
         }
-        setDocuments(data || []);
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Realtime activity subscription active');
+        }
       });
+
+    // Cleanup on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user?.id]);
 
   const formatDate = (dateStr) => {

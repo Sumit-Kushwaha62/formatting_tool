@@ -7,8 +7,17 @@ import { DOC_TYPES, ENGLISH_FONTS, HINDI_FONTS, FONT_SIZES, LINE_SPACINGS, PAGE_
 import TrialBanner from '../components/ui/TrialBanner';
 import PaywallModal from '../components/ui/PaywallModal';
 
+// Fix #7: Whitelisted emails that always get pro access (paywall never shows)
+const PRO_WHITELIST = [
+  'care@edwin.co.in',
+  'sumitkushwaha99375@gmail.com',
+];
+
 export default function Tool({ navTo }) {
   const { user, userPlan, docsCount, refreshPlanAndDocs } = useAuth();
+
+  // Check if current user is whitelisted
+  const isWhitelisted = user?.email && PRO_WHITELIST.includes(user.email.toLowerCase());
 
   const [step, setStep] = useState(1);
   const [selectedType, setSelectedType] = useState(null);
@@ -26,7 +35,8 @@ export default function Tool({ navTo }) {
   }, [user?.id]);
 
   // If a free user has formatted 3 or more documents, we block them with the paywall modal
-  const showPaywall = user && userPlan === 'free' && (docsCount >= 3 || paywallOpen);
+  // Whitelisted users never see the paywall
+  const showPaywall = user && !isWhitelisted && userPlan === 'free' && (docsCount >= 3 || paywallOpen);
 
   const currentType = DOC_TYPES.find(t => t.id === selectedType);
   const fontList = formData.font_script === 'hindi' ? HINDI_FONTS : formData.font_script === 'english' ? ENGLISH_FONTS : [];
@@ -130,7 +140,7 @@ const handleSubmit = async () => {
       }
     }
 
-    if (activeUserId && userPlan === 'free') {
+    if (activeUserId && !isWhitelisted && userPlan === 'free') {
       let latestCount = docsCount;
 
       try {
