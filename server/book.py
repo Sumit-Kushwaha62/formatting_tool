@@ -8,8 +8,7 @@ from utils import (
     has_drawing, run_has_drawing, is_all_bold, is_bullet_para,
     apply_para_formatting, set_para_text_formatted, strip_list_numbering,
     apply_clean_justify, format_table_cells, add_run_with_font,
-    set_font_properly, is_krutidev, CHAPTER_HEADING_RE, CHAPTER_HEADING_LOOSE_RE,
-    inject_heading_number
+    set_font_properly, is_krutidev, CHAPTER_HEADING_RE, CHAPTER_HEADING_LOOSE_RE
 )
 
 
@@ -196,8 +195,6 @@ def format_book_body(doc, opts, font_name):
     line_spacing  = float(opts.get('line_spacing', 1.5))
 
     heading_font = 'Kruti Dev 010' if krutidev_mode else 'Times New Roman'
-    heading_counters = [0, 0]
-
     i          = 0
     prev_etype = None
 
@@ -238,9 +235,6 @@ def format_book_body(doc, opts, font_name):
             set_para_text_formatted(para, text.upper(), 20, True, black, heading_font)
 
         elif etype == 'chapter_heading':
-            heading_counters[0] = 0
-            heading_counters[1] = 0
-
             if ':' in text and re.match(r'^(chapter|unit|part|lesson)\s*[-–—]?\s*\S+', text, re.IGNORECASE):
                 parts         = text.split(':', 1)
                 chapter_label = parts[0].strip()
@@ -308,9 +302,6 @@ def format_book_body(doc, opts, font_name):
         elif etype == 'main_heading':
             # FIX 4: main_heading → 16pt (was 14pt)
             strip_list_numbering(para)
-            heading_counters[0] += 1
-            heading_counters[1]  = 0
-            inject_heading_number(para, heading_counters[0], krutidev_mode=krutidev_mode)
             apply_para_formatting(para, etype, font_name,
                 font_size_pt=16, bold=True, color=black,
                 align=WD_ALIGN_PARAGRAPH.JUSTIFY,
@@ -321,13 +312,6 @@ def format_book_body(doc, opts, font_name):
         elif etype == 'sub_heading':
             # FIX 4: sub_heading → 14pt (unchanged, already correct)
             strip_list_numbering(para)
-            heading_counters[1] += 1
-            m = re.match(r'^(\d+)\.(\d+)\.?\s+', text)
-            if m:
-                heading_counters[0] = int(m.group(1))
-                heading_counters[1] = int(m.group(2))
-            else:
-                inject_heading_number(para, heading_counters[0], heading_counters[1], krutidev_mode=krutidev_mode)
 
             apply_para_formatting(para, etype, font_name,
                 font_size_pt=14, bold=True, color=black,

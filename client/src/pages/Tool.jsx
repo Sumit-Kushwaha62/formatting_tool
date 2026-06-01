@@ -7,22 +7,14 @@ import { DOC_TYPES, ENGLISH_FONTS, HINDI_FONTS, FONT_SIZES, LINE_SPACINGS, PAGE_
 import TrialBanner from '../components/ui/TrialBanner';
 import PaywallModal from '../components/ui/PaywallModal';
 
-// Fix #7: Whitelisted emails that always get pro access (paywall never shows)
-const PRO_WHITELIST = [
-  'care@edwin.co.in',
-  'sumitkushwaha99375@gmail.com',
-];
-
 export default function Tool({ navTo }) {
   const { user, userPlan, docsCount, refreshPlanAndDocs } = useAuth();
-
-  // Check if current user is whitelisted
-  const isWhitelisted = user?.email && PRO_WHITELIST.includes(user.email.toLowerCase());
 
   const [step, setStep] = useState(1);
   const [selectedType, setSelectedType] = useState(null);
   const [formData, setFormData] = useState({});
   const [file, setFile] = useState(null);
+  const [downloadFileName, setDownloadFileName] = useState('formatted_document.docx');
   const [status, setStatus] = useState('idle'); // 'idle' | 'uploading' | 'done' | 'error'
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
@@ -35,8 +27,7 @@ export default function Tool({ navTo }) {
   }, [user?.id]);
 
   // If a free user has formatted 3 or more documents, we block them with the paywall modal
-  // Whitelisted users never see the paywall
-  const showPaywall = user && !isWhitelisted && userPlan === 'free' && (docsCount >= 3 || paywallOpen);
+  const showPaywall = user && userPlan === 'free' && (docsCount >= 3 || paywallOpen);
 
   const currentType = DOC_TYPES.find(t => t.id === selectedType);
   const fontList = formData.font_script === 'hindi' ? HINDI_FONTS : formData.font_script === 'english' ? ENGLISH_FONTS : [];
@@ -74,8 +65,14 @@ export default function Tool({ navTo }) {
   };
 
   const onDrop = useCallback((files) => {
-    setFile(files[0]);
-  }, []);
+    const selectedFile = files[0];
+    setFile(selectedFile);
+    setDownloadFileName(selectedFile?.name || 'formatted_document.docx');
+    if (downloadUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(downloadUrl);
+      setDownloadUrl(null);
+    }
+  }, [downloadUrl]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -133,14 +130,18 @@ const handleSubmit = async () => {
     let activeUserId = user?.id;
     if (!activeUserId) {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await withTimeout(
+          supabase.auth.getSession(),
+          5000,
+          'Session check timed out'
+        );
         activeUserId = session?.user?.id;
-      } catch (e) {
-        console.warn('Session fetch failed:', e);
+      } catch (sessionErr) {
+        console.warn('Continuing without session after session check failed:', sessionErr);
       }
     }
 
-    if (activeUserId && !isWhitelisted && userPlan === 'free') {
+    if (activeUserId && userPlan === 'free') {
       let latestCount = docsCount;
 
       try {
@@ -177,11 +178,22 @@ const handleSubmit = async () => {
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const res = await axios.post(`${API_URL}/format`, fd, {
+      responseType: 'blob',
       timeout: 180000,
     });
-    const { downloadUrl: dlUrl } = res.data;
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    setDownloadUrl(API_BASE + dlUrl);
+    if (downloadUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(downloadUrl);
+    }
+    const contentType = res.headers['content-type'] || '';
+    if (contentType.includes('application/json')) {
+      const responseText = await res.data.text();
+      const { downloadUrl: dlUrl, fileName } = JSON.parse(responseText);
+      setDownloadFileName(fileName || file.name);
+      setDownloadUrl(API_URL + dlUrl);
+    } else {
+      setDownloadFileName(file.name);
+      setDownloadUrl(URL.createObjectURL(res.data));
+    }
     setStatus('done');
     if (activeUserId) refreshDocsWithRetry(activeUserId);
   } catch (err) {
@@ -197,7 +209,11 @@ const handleSubmit = async () => {
     setSelectedType(null);
     setFormData({});
     setFile(null);
+    setDownloadFileName('formatted_document.docx');
     setStatus('idle');
+    if (downloadUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(downloadUrl);
+    }
     setDownloadUrl(null);
   };
 
@@ -409,7 +425,7 @@ const handleSubmit = async () => {
                 <span>📎</span>
                 <span className="file-name">{file.name}</span>
                 <span className="file-size">{(file.size / 1024).toFixed(1)} KB</span>
-                <button className="file-remove" onClick={() => setFile(null)}>✕</button>
+                <button className="file-remove" onClick={() => { setFile(null); setDownloadFileName('formatted_document.docx'); }}>✕</button>
               </div>
             )}
 
@@ -450,7 +466,7 @@ const handleSubmit = async () => {
           <div className="status-title">Document Formatted</div>
           <div className="status-sub">Your document is ready to download.</div>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href={downloadUrl} download={file?.name || 'formatted_document.docx'} className="btn-download">⬇ Download File</a>
+            <a href={downloadUrl} download={downloadFileName} className="btn-download">⬇ Download File</a>
             <button className="btn-secondary" onClick={handleReset}>Format Another</button>
           </div>
         </div>

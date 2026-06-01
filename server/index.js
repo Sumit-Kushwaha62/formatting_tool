@@ -17,7 +17,9 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  exposedHeaders: ['Content-Disposition', 'X-Original-Filename'],
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -32,6 +34,21 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => cb(null, uuidv4() + '.docx')
 });
 const upload = multer({ storage });
+
+const getOriginalDownloadName = (uploadedFile) => {
+  const originalName = uploadedFile?.originalname || 'formatted_document.docx';
+  return path.basename(originalName) || 'formatted_document.docx';
+};
+
+const getRequestedDownloadName = (value) => {
+  if (!value) return 'formatted_document.docx';
+
+  try {
+    return path.basename(decodeURIComponent(value)) || 'formatted_document.docx';
+  } catch {
+    return path.basename(value) || 'formatted_document.docx';
+  }
+};
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -74,12 +91,15 @@ app.post('/format', upload.single('file'), (req, res) => {
       return res.status(500).json({ error: 'Formatted file was not created' });
     }
 
-    const originalName = Buffer.from(req.file.originalname, 'latin1').toString('utf8') || 'formatted_document.docx';
+    const originalName = getOriginalDownloadName(req.file);
     const userId = req.body.userId;
 
     const sendDownload = () => {
       if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
-      res.json({ downloadUrl: '/download/' + outputName, fileName: originalName });
+      res.json({
+        downloadUrl: `/download/${outputName}?name=${encodeURIComponent(originalName)}`,
+        fileName: originalName,
+      });
     };
 
     if (!userId) {
@@ -109,6 +129,20 @@ app.post('/format', upload.single('file'), (req, res) => {
     });
 
     sendDownload();
+  });
+});
+
+app.get('/download/:filename', (req, res) => {
+  const filePath = path.resolve(outputsDir, req.params.filename);
+  if (!filePath.startsWith(outputsDir + path.sep) || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found or expired' });
+  }
+
+  const downloadName = getRequestedDownloadName(req.query.name);
+  res.setHeader('X-Original-Filename', encodeURIComponent(downloadName));
+  res.download(filePath, downloadName, (err) => {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    if (err) console.error('Download error:', err);
   });
 });
 
@@ -201,79 +235,32 @@ app.post('/verify-payment', async (req, res) => {
   res.json({ success: true });
 });
 
-app.get('/download/:filename', (req, res) => {
-  const filePath = path.resolve(outputsDir, req.params.filename);
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ error: 'File not found or expired' });
-  }
-  res.download(filePath, (err) => {
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    if (err) console.error('Download error:', err);
-  });
-});
-
 // ── Contact form ──
 app.post('/contact', async (req, res) => {
   const { name, email, message } = req.body;
   if (!name || !email || !message) {
     return res.status(400).json({ error: 'All fields required' });
   }
-
-  let emailSent = false;
-
-  // Try SMTP if credentials are configured
-  if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-    try {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: false,
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-        pool: true,
-        maxConnections: 1,
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 15000,
-      });
-      await transporter.sendMail({
-        from: `"Format Studio" <${process.env.SMTP_USER}>`,
-        to: 'care@edwinepc.com',
-        subject: `Contact Form: ${name}`,
-        html: `<p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><p><strong>Message:</strong><br>${message}</p>`,
-      });
-      emailSent = true;
-      console.log('Contact email sent via SMTP');
-    } catch (smtpErr) {
-      console.warn('SMTP failed, falling back to Supabase storage:', smtpErr.message);
-    }
-  }
-
-  // Always store in Supabase contacts table as reliable backup
   try {
-    const { error: dbError } = await supabase.from('contacts').insert({
-      name,
-      email,
-      message,
-      email_sent: emailSent,
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
     });
-    if (dbError) {
-      console.error('Supabase contacts insert error:', dbError);
-      // If SMTP also failed, this is a total failure
-      if (!emailSent) {
-        return res.status(500).json({ error: 'Failed to send message' });
-      }
-    }
+    await transporter.sendMail({
+      from: `"Format Studio" <${process.env.SMTP_USER}>`,
+      to: 'care@edwinepc.com',
+      subject: `Contact Form: ${name}`,
+      html: `<p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><p><strong>Message:</strong><br>${message}</p>`,
+    });
     res.json({ success: true });
   } catch (err) {
-    console.error('Contact save error:', err);
-    if (emailSent) {
-      // Email was sent even though DB save failed — still success
-      return res.json({ success: true });
-    }
-    res.status(500).json({ error: 'Failed to send message' });
+    console.error('Contact email error:', err);
+    res.status(500).json({ error: 'Failed to send email' });
   }
 });
 
