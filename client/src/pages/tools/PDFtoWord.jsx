@@ -37,7 +37,7 @@ export default function PDFtoWord({ navTo }) {
     formData.append('file', file);
 
     try {
-      const res = await fetch('/api/pdf-to-word', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/pdf-to-word`, {
         method: 'POST',
         body: formData,
       });

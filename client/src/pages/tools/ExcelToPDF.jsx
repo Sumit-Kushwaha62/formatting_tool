@@ -37,7 +37,7 @@ export default function ExcelToPDF({ navTo }) {
     formData.append('file', file);
 
     try {
-      const res = await fetch('/api/excel-to-pdf', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/excel-to-pdf`, {
         method: 'POST',
         body: formData,
       });

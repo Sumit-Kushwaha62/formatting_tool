@@ -41,7 +41,7 @@ export default function MergePDF({ navTo }) {
     files.forEach(f => formData.append('files', f));
 
     try {
-      const res = await fetch('/api/merge-pdf', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/merge-pdf`, {
         method: 'POST',
         body: formData,
       });

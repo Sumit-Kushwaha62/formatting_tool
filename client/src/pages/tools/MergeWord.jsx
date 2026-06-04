@@ -41,7 +41,7 @@ export default function MergeWord({ navTo }) {
     files.forEach(f => formData.append('files', f));
 
     try {
-      const res = await fetch('/api/merge-word', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/merge-word`, {
         method: 'POST',
         body: formData,
       });
