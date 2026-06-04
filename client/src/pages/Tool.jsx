@@ -246,20 +246,53 @@ const handleSubmit = async () => {
 
       {/* Step 1: Select Type */}
       {step === 1 && (
-        <div className="card">
-          <div className="card-title">Select document type</div>
-          <div className="card-sub">Choose the format that matches your document</div>
-          <div className="type-grid">
-            {DOC_TYPES.map(t => (
-              <div className="type-card" key={t.id} onClick={() => handleTypeSelect(t.id)}>
-                <div className="type-card-tag">{t.tag}</div>
-                <div className="type-card-icon">{t.icon}</div>
-                <div className="type-card-name">{t.label}</div>
-                <div className="type-card-desc">{t.desc}</div>
-              </div>
-            ))}
+        <>
+          <div className="card" style={{ marginBottom: 24 }}>
+            <div className="card-title">Select document type</div>
+            <div className="card-sub">Choose the format that matches your document</div>
+            <div className="type-grid">
+              {DOC_TYPES.map(t => (
+                <div className="type-card" key={t.id} onClick={() => handleTypeSelect(t.id)}>
+                  <div className="type-card-tag">{t.tag}</div>
+                  <div className="type-card-icon">{t.icon}</div>
+                  <div className="type-card-name">{t.label}</div>
+                  <div className="type-card-desc">{t.desc}</div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+
+          <div className="card">
+            <div className="card-title">Document Converters</div>
+            <div className="card-sub">Quick tools to merge or convert your documents</div>
+            <div className="type-grid">
+              <div className="type-card" onClick={() => navTo('merge-pdf')}>
+                <div className="type-card-tag">PDF Utility</div>
+                <div className="type-card-icon">📄</div>
+                <div className="type-card-name">Merge PDF</div>
+                <div className="type-card-desc">Combine multiple PDF files into one.</div>
+              </div>
+              <div className="type-card" onClick={() => navTo('merge-word')}>
+                <div className="type-card-tag">Word Utility</div>
+                <div className="type-card-icon">📝</div>
+                <div className="type-card-name">Merge Word</div>
+                <div className="type-card-desc">Combine multiple .docx files into one.</div>
+              </div>
+              <div className="type-card" onClick={() => navTo('pdf-to-word')}>
+                <div className="type-card-tag">Converter</div>
+                <div className="type-card-icon">🔄</div>
+                <div className="type-card-name">PDF to Word</div>
+                <div className="type-card-desc">Convert PDF files to editable .docx format.</div>
+              </div>
+              <div className="type-card" onClick={() => navTo('excel-to-pdf')}>
+                <div className="type-card-tag">Converter</div>
+                <div className="type-card-icon">📊</div>
+                <div className="type-card-name">Excel to PDF</div>
+                <div className="type-card-desc">Convert .xlsx spreadsheets to PDF format.</div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Step 2: Configure */}

@@ -100,6 +100,34 @@ export default function Home({ navTo }) {
                 <div className="doc-type-desc">{t.desc}</div>
               </div>
             ))}
+            
+            <div className="doc-type-card" onClick={() => navTo('merge-pdf')}>
+              <div className="doc-type-tag">Convert</div>
+              <div className="doc-type-icon">🔗</div>
+              <div className="doc-type-name">Merge PDF</div>
+              <div className="doc-type-desc">Combine multiple PDF files into a single document</div>
+            </div>
+
+            <div className="doc-type-card" onClick={() => navTo('merge-word')}>
+              <div className="doc-type-tag">Convert</div>
+              <div className="doc-type-icon">📝</div>
+              <div className="doc-type-name">Merge Word</div>
+              <div className="doc-type-desc">Merge multiple Word documents into one file</div>
+            </div>
+
+            <div className="doc-type-card" onClick={() => navTo('pdf-to-word')}>
+              <div className="doc-type-tag">Convert</div>
+              <div className="doc-type-icon">🔄</div>
+              <div className="doc-type-name">PDF → Word</div>
+              <div className="doc-type-desc">Convert PDF documents into editable Word files</div>
+            </div>
+
+            <div className="doc-type-card" onClick={() => navTo('excel-to-pdf')}>
+              <div className="doc-type-tag">Convert</div>
+              <div className="doc-type-icon">📊</div>
+              <div className="doc-type-name">Excel → PDF</div>
+              <div className="doc-type-desc">Convert Excel spreadsheets into professional PDFs</div>
+            </div>
           </div>
         </div>
       </section>

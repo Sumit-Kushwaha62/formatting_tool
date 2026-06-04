@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import logo from '../../assets/logo.png';
 
 export default function Navbar({ page, navTo, menuOpen, setMenuOpen }) {
   const { user, logout, openModal } = useAuth();
   const [scrolled, setScrolled] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -11,23 +13,19 @@ export default function Navbar({ page, navTo, menuOpen, setMenuOpen }) {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const handleFeaturesClick = () => {
-    setMenuOpen(false);
-    navTo('home');
-    setTimeout(() => {
-      document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
-  };
-
   const handleLogout = async () => {
     await logout();
     navTo('home');
   };
 
+  const handleMouseEnter = () => setToolsOpen(true);
+  const handleMouseLeave = () => setToolsOpen(false);
+  const toggleTools = () => setToolsOpen(!toolsOpen);
+
   return (
     <nav className={`nav ${scrolled ? 'scrolled' : ''}`}>
       <div className="nav-logo" onClick={() => navTo('home')}>
-        <div className="nav-logo-mark">FS</div>
+        <img src={logo} alt="Format Studio" style={{ height: 32, width: 'auto' }} />
         <div>
           <div className="nav-logo-text">Format Studio</div>
           <div className="nav-logo-sub">Edwin Incorporation</div>
@@ -43,9 +41,38 @@ export default function Navbar({ page, navTo, menuOpen, setMenuOpen }) {
         >
           Home
         </button>
-        <button className="nav-link" onClick={handleFeaturesClick}>
-          Features
-        </button>
+        
+        <div 
+          className="nav-dropdown-wrap" 
+          onMouseEnter={handleMouseEnter} 
+          onMouseLeave={handleMouseLeave}
+        >
+          <button 
+            className={`nav-link ${toolsOpen ? 'active' : ''}`}
+            onClick={toggleTools}
+          >
+            Tools <span style={{ fontSize: 10, marginLeft: 4 }}>▾</span>
+          </button>
+          {toolsOpen && (
+            <div className="nav-mega-dropdown" onMouseEnter={handleMouseEnter}>
+              <div className="dropdown-col">
+                <div className="dropdown-section-label">Format Documents</div>
+                <button onClick={() => { navTo('tool'); setToolsOpen(false); }}>📖 Book</button>
+                <button onClick={() => { navTo('tool'); setToolsOpen(false); }}>🎓 Thesis</button>
+                <button onClick={() => { navTo('tool'); setToolsOpen(false); }}>🔬 Research Paper</button>
+                <button onClick={() => { navTo('tool'); setToolsOpen(false); }}>✉️ Letter / Notice</button>
+              </div>
+              <div className="dropdown-col">
+                <div className="dropdown-section-label">Convert & Merge</div>
+                <button onClick={() => { navTo('merge-pdf'); setToolsOpen(false); }}>🔗 Merge PDF</button>
+                <button onClick={() => { navTo('merge-word'); setToolsOpen(false); }}>📝 Merge Word</button>
+                <button onClick={() => { navTo('pdf-to-word'); setToolsOpen(false); }}>🔄 PDF → Word</button>
+                <button onClick={() => { navTo('excel-to-pdf'); setToolsOpen(false); }}>📊 Excel → PDF</button>
+              </div>
+            </div>
+          )}
+        </div>
+
         <button 
           className={`nav-link ${page === 'pricing' ? 'active' : ''}`} 
           onClick={() => navTo('pricing')}

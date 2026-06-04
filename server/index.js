@@ -31,9 +31,87 @@ if (!fs.existsSync(outputsDir)) fs.mkdirSync(outputsDir);
 
 const storage = multer.diskStorage({
   destination: uploadsDir,
-  filename: (req, file, cb) => cb(null, uuidv4() + '.docx')
+  filename: (req, file, cb) => cb(null, uuidv4() + path.extname(file.originalname))
 });
 const upload = multer({ storage });
+
+// ── Converter Routes ──
+app.post('/api/merge-pdf', upload.array('files'), (req, res) => {
+  if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
+  const outputName = `output_${Date.now()}.pdf`;
+  const outputPath = path.resolve(uploadsDir, outputName);
+  const inputPaths = req.files.map(f => `"${f.path}"`).join(' ');
+  const cmd = `python "${path.join(__dirname, 'converter.py')}" merge_pdfs "${outputPath}" ${inputPaths}`;
+
+  exec(cmd, (err, stdout, stderr) => {
+    req.files.forEach(f => fs.existsSync(f.path) && fs.unlinkSync(f.path));
+    if (err) {
+      console.error('Merge PDF Error:', stderr);
+      return res.status(500).json({ error: 'Merge failed' });
+    }
+    res.json({ downloadUrl: `/api/download/${outputName}` });
+  });
+});
+
+app.post('/api/merge-word', upload.array('files'), (req, res) => {
+  if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
+  const outputName = `output_${Date.now()}.docx`;
+  const outputPath = path.resolve(uploadsDir, outputName);
+  const inputPaths = req.files.map(f => `"${f.path}"`).join(' ');
+  const cmd = `python "${path.join(__dirname, 'converter.py')}" merge_word "${outputPath}" ${inputPaths}`;
+
+  exec(cmd, (err, stdout, stderr) => {
+    req.files.forEach(f => fs.existsSync(f.path) && fs.unlinkSync(f.path));
+    if (err) {
+      console.error('Merge Word Error:', stderr);
+      return res.status(500).json({ error: 'Merge failed' });
+    }
+    res.json({ downloadUrl: `/api/download/${outputName}` });
+  });
+});
+
+app.post('/api/pdf-to-word', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const outputName = `output_${Date.now()}.docx`;
+  const outputPath = path.resolve(uploadsDir, outputName);
+  const inputPath = req.file.path;
+  const cmd = `python "${path.join(__dirname, 'converter.py')}" pdf_to_word "${inputPath}" "${outputPath}"`;
+
+  exec(cmd, (err, stdout, stderr) => {
+    if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+    if (err) {
+      console.error('PDF to Word Error:', stderr);
+      return res.status(500).json({ error: 'Conversion failed' });
+    }
+    res.json({ downloadUrl: `/api/download/${outputName}` });
+  });
+});
+
+app.post('/api/excel-to-pdf', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const outputName = `output_${Date.now()}.pdf`;
+  const outputPath = path.resolve(uploadsDir, outputName);
+  const inputPath = req.file.path;
+  const cmd = `python "${path.join(__dirname, 'converter.py')}" excel_to_pdf "${inputPath}" "${outputPath}"`;
+
+  exec(cmd, (err, stdout, stderr) => {
+    if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+    if (err) {
+      console.error('Excel to PDF Error:', stderr);
+      return res.status(500).json({ error: 'Conversion failed' });
+    }
+    res.json({ downloadUrl: `/api/download/${outputName}` });
+  });
+});
+
+app.get('/api/download/:filename', (req, res) => {
+  const filePath = path.resolve(uploadsDir, req.params.filename);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
+  res.download(filePath, (err) => {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    if (err && !res.headersSent) console.error('Download error:', err);
+  });
+});
 
 const getOriginalDownloadName = (uploadedFile) => {
   const originalName = uploadedFile?.originalname || 'formatted_document.docx';
