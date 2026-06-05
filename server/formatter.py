@@ -285,15 +285,20 @@ def format_document(input_file, output_file, opts, doc_type='book'):
 
 
 if __name__ == '__main__':
-    in_p   = sys.argv[1]
-    out_p  = sys.argv[2]
-    type_d = sys.argv[3]
-    opts_f = sys.argv[4]
-
-    options = {}
-    if os.path.exists(opts_f) and os.path.getsize(opts_f) > 0:
-        with open(opts_f, 'r', encoding='utf-8') as f:
-            options = json.load(f)
-
-    format_document(in_p, out_p, options, doc_type=type_d)
-    print(f'Success: {out_p}')
+    import traceback
+    try:
+        in_p   = sys.argv[1]
+        out_p  = sys.argv[2]
+        type_d = sys.argv[3]
+        opts_f = sys.argv[4]
+        options = {}
+        if os.path.exists(opts_f) and os.path.getsize(opts_f) > 0:
+            with open(opts_f, 'r', encoding='utf-8') as f:
+                options = json.load(f)
+        format_document(in_p, out_p, options, doc_type=type_d)
+        print(f'Success: {out_p}', flush=True)
+        sys.exit(0)
+    except Exception as e:
+        print(f'FATAL ERROR: {type(e).__name__}: {e}', file=sys.stderr, flush=True)
+        print(traceback.format_exc(), file=sys.stderr, flush=True)
+        sys.exit(1)

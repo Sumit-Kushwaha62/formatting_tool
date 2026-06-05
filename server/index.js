@@ -156,7 +156,10 @@ app.post('/format', upload.single('file'), (req, res) => {
     if (fs.existsSync(optionsFile)) fs.unlinkSync(optionsFile);
 
     if (fErr) {
-      console.error('Format Error:', fStderr);
+      console.error('Format Error exit code:', fErr.code);
+      console.error('Format Error signal:', fErr.signal);
+      if (fStderr && fStderr.trim()) console.error('Format stderr:\n', fStderr.trim());
+      if (fStdout && fStdout.trim()) console.error('Format stdout:\n', fStdout.trim());
       if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
       return res.status(500).json({ error: 'Formatting failed' });
     }
