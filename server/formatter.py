@@ -1,6 +1,9 @@
 import sys
 import json
 import os
+import re
+import zipfile
+import shutil
 from docx import Document
 from docx.shared import Pt, Inches, RGBColor, Mm
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -43,93 +46,88 @@ def format_document(input_file, output_file, opts, doc_type='book'):
         # Fix Normal style
         try:
             normal_style = doc.styles['Normal']
-            normal_style.font.name = formal_name
-            from docx.oxml.ns import qn as _qn
+            if normal_style.font.name != formal_name:
+                normal_style.font.name = formal_name
             rPr = normal_style.element.get_or_add_rPr()
-            rFonts = rPr.find(_qn('w:rFonts'))
+            rFonts = rPr.find(qn('w:rFonts'))
             if rFonts is None:
-                from docx.oxml import OxmlElement as _OE
-                rFonts = _OE('w:rFonts')
+                rFonts = OxmlElement('w:rFonts')
                 rPr.insert(0, rFonts)
             # No hint, no eastAsia, no cs - same logic as set_font_properly
-            hint_a = _qn('w:hint')
+            hint_a = qn('w:hint')
             if rFonts.get(hint_a): del rFonts.attrib[hint_a]
-            rFonts.set(_qn('w:ascii'), formal_name)
-            rFonts.set(_qn('w:hAnsi'), formal_name)
-            ea_a = _qn('w:eastAsia')
+            if rFonts.get(qn('w:ascii')) != formal_name:
+                rFonts.set(qn('w:ascii'), formal_name)
+            if rFonts.get(qn('w:hAnsi')) != formal_name:
+                rFonts.set(qn('w:hAnsi'), formal_name)
+            ea_a = qn('w:eastAsia')
             if rFonts.get(ea_a): del rFonts.attrib[ea_a]
-            cs_attr = _qn('w:cs')
+            cs_attr = qn('w:cs')
             if rFonts.get(cs_attr): del rFonts.attrib[cs_attr]
             for ta in ['w:asciiTheme', 'w:hAnsiTheme', 'w:eastAsiaTheme', 'w:cstheme']:
-                t = _qn(ta)
+                t = qn(ta)
                 if rFonts.get(t): del rFonts.attrib[t]
             # Set lang x-none to prevent font substitution
-            lang = rPr.find(_qn('w:lang'))
+            lang = rPr.find(qn('w:lang'))
             if lang is None:
-                from docx.oxml import OxmlElement as _OE2
-                lang = _OE2('w:lang')
+                lang = OxmlElement('w:lang')
                 rPr.append(lang)
-            lang.set(_qn('w:val'), 'x-none')
-            lang.set(_qn('w:ascii'), 'x-none')
-            lang.set(_qn('w:hAnsi'), 'x-none')
-            bidi_l = _qn('w:bidi')
+            if lang.get(qn('w:val')) != 'x-none': lang.set(qn('w:val'), 'x-none')
+            if lang.get(qn('w:ascii')) != 'x-none': lang.set(qn('w:ascii'), 'x-none')
+            if lang.get(qn('w:hAnsi')) != 'x-none': lang.set(qn('w:hAnsi'), 'x-none')
+            bidi_l = qn('w:bidi')
             if lang.get(bidi_l): del lang.attrib[bidi_l]
         except Exception:
             pass
 
         # Fix document defaults (docDefaults in settings)
         try:
-            from docx.oxml.ns import qn as _qn
-            from docx.oxml import OxmlElement as _OE
             doc_elm = doc.element
-            body = doc_elm.find(_qn('w:body'))
-            styles_elm = doc_elm.find(_qn('w:styles'))
+            styles_elm = doc_elm.find(qn('w:styles'))
             if styles_elm is not None:
-                docDefaults = styles_elm.find(_qn('w:docDefaults'))
+                docDefaults = styles_elm.find(qn('w:docDefaults'))
                 if docDefaults is not None:
-                    rPrDefault = docDefaults.find(_qn('w:rPrDefault'))
+                    rPrDefault = docDefaults.find(qn('w:rPrDefault'))
                     if rPrDefault is None:
-                        rPrDefault = _OE('w:rPrDefault')
+                        rPrDefault = OxmlElement('w:rPrDefault')
                         docDefaults.append(rPrDefault)
-                    rPr = rPrDefault.find(_qn('w:rPr'))
+                    rPr = rPrDefault.find(qn('w:rPr'))
                     if rPr is None:
-                        rPr = _OE('w:rPr')
+                        rPr = OxmlElement('w:rPr')
                         rPrDefault.append(rPr)
-                    rFonts = rPr.find(_qn('w:rFonts'))
+                    rFonts = rPr.find(qn('w:rFonts'))
                     if rFonts is None:
-                        rFonts = _OE('w:rFonts')
+                        rFonts = OxmlElement('w:rFonts')
                         rPr.insert(0, rFonts)
                     # No hint, no eastAsia, no cs
-                    hint_a = _qn('w:hint')
+                    hint_a = qn('w:hint')
                     if rFonts.get(hint_a): del rFonts.attrib[hint_a]
-                    rFonts.set(_qn('w:ascii'), formal_name)
-                    rFonts.set(_qn('w:hAnsi'), formal_name)
-                    ea_a = _qn('w:eastAsia')
+                    if rFonts.get(qn('w:ascii')) != formal_name:
+                        rFonts.set(qn('w:ascii'), formal_name)
+                    if rFonts.get(qn('w:hAnsi')) != formal_name:
+                        rFonts.set(qn('w:hAnsi'), formal_name)
+                    ea_a = qn('w:eastAsia')
                     if rFonts.get(ea_a): del rFonts.attrib[ea_a]
-                    cs_attr = _qn('w:cs')
+                    cs_attr = qn('w:cs')
                     if rFonts.get(cs_attr): del rFonts.attrib[cs_attr]
                     for ta in ['w:asciiTheme', 'w:hAnsiTheme', 'w:eastAsiaTheme', 'w:cstheme']:
-                        t = _qn(ta)
+                        t = qn(ta)
                         if rFonts.get(t): del rFonts.attrib[t]
                     # lang x-none
-                    lang = rPr.find(_qn('w:lang'))
+                    lang = rPr.find(qn('w:lang'))
                     if lang is None:
-                        lang = _OE('w:lang')
+                        lang = OxmlElement('w:lang')
                         rPr.append(lang)
-                    lang.set(_qn('w:val'), 'x-none')
-                    lang.set(_qn('w:ascii'), 'x-none')
-                    lang.set(_qn('w:hAnsi'), 'x-none')
-                    bidi_l = _qn('w:bidi')
+                    if lang.get(qn('w:val')) != 'x-none': lang.set(qn('w:val'), 'x-none')
+                    if lang.get(qn('w:ascii')) != 'x-none': lang.set(qn('w:ascii'), 'x-none')
+                    if lang.get(qn('w:hAnsi')) != 'x-none': lang.set(qn('w:hAnsi'), 'x-none')
+                    bidi_l = qn('w:bidi')
                     if lang.get(bidi_l): del lang.attrib[bidi_l]
         except Exception:
             pass
 
         # Fix Word theme fonts (theme/theme1.xml) - this is where "Mangal (Body)" comes from
         try:
-            from docx.oxml.ns import qn as _qn
-            from docx.oxml import OxmlElement as _OE
-            import zipfile, shutil, os, re
-
             # Access the theme part directly via document's part
             theme_part = None
             for rel in doc.part.rels.values():
@@ -138,21 +136,22 @@ def format_document(input_file, output_file, opts, doc_type='book'):
                     break
 
             if theme_part is not None:
-                theme_xml = theme_part.blob.decode('utf-8', errors='replace')
-                # Replace majorFont and minorFont Hindi/Urdu/Devanagari scripts with KrutiDev
-                # Also replace the main latin font references
-                theme_xml = re.sub(
-                    r'<a:font script="Deva"[^/]*/?>',
-                    f'<a:font script="Deva" typeface="{formal_name}"/>',
-                    theme_xml
-                )
-                theme_xml = re.sub(
-                    r'<a:font script="Sinh"[^/]*/?>',
-                    f'<a:font script="Sinh" typeface="{formal_name}"/>',
-                    theme_xml
-                )
-                theme_part._blob = theme_xml.encode('utf-8')
-        except Exception as e:
+                blob = theme_part.blob
+                # Only process if Deva or Sinh script tags are present in the theme
+                if b'Deva' in blob or b'Sinh' in blob:
+                    theme_xml = blob.decode('utf-8', errors='replace')
+                    theme_xml = re.sub(
+                        r'<a:font script="Deva"[^/]*/?>',
+                        f'<a:font script="Deva" typeface="{formal_name}"/>',
+                        theme_xml
+                    )
+                    theme_xml = re.sub(
+                        r'<a:font script="Sinh"[^/]*/?>',
+                        f'<a:font script="Sinh" typeface="{formal_name}"/>',
+                        theme_xml
+                    )
+                    theme_part._blob = theme_xml.encode('utf-8')
+        except Exception:
             pass
 
     # 1. Pre-clean
