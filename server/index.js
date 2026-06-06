@@ -217,7 +217,9 @@ app.post('/format', upload.single('file'), (req, res) => {
   };
 
   pythonProcess.stdout.on('data', (data) => {
-    stdoutData = appendLog(stdoutData, data.toString());
+    const chunk = data.toString();
+    console.log('[Formatter STDOUT]:', chunk.trim());
+    stdoutData = appendLog(stdoutData, chunk);
   });
 
   pythonProcess.stderr.on('data', (data) => {

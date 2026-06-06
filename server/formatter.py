@@ -31,7 +31,10 @@ PAGE_SIZE_MAP = {
 
 
 def format_document(input_file, output_file, opts, doc_type='book'):
+    print("FORMATTER START", flush=True)
+    print("STEP 1: Loading document", flush=True)
     doc       = Document(input_file)
+    print("STEP 2: Document loaded", flush=True)
     font_name = opts.get('font_style') or 'Garamond'
     black     = RGBColor(0, 0, 0)
     gray      = RGBColor(100, 100, 100)
@@ -40,6 +43,7 @@ def format_document(input_file, output_file, opts, doc_type='book'):
     # Without this, Word falls back to Mangal (system Hindi font) for runs
     # that don't have an explicit font set
     if is_krutidev(font_name):
+        print("STEP 3: Applying font defaults for KrutiDev", flush=True)
         formal_name = font_name
         from utils import FONT_NAME_MAP
         formal_name = FONT_NAME_MAP.get(font_name, font_name)
@@ -155,9 +159,11 @@ def format_document(input_file, output_file, opts, doc_type='book'):
             pass
 
     # 1. Pre-clean
+    print("STEP 4: Pre-cleaning document", flush=True)
     preprocess_document(doc)
 
     # 2. Page Size & Margins
+    print("STEP 5: Setting page size and margins", flush=True)
     page_size_key = opts.get('page_size', 'A4')
     page_w, page_h = PAGE_SIZE_MAP.get(page_size_key, PAGE_SIZE_MAP['A4'])
     for section in doc.sections:
@@ -186,9 +192,11 @@ def format_document(input_file, output_file, opts, doc_type='book'):
             section.right_margin  = Inches(1.0)
 
     # 2b. Center all tables
+    print("STEP 6: Centering tables", flush=True)
     center_all_tables(doc)
 
     # 3. Title page — by doc_type
+    print(f"STEP 7: Inserting {doc_type} title page", flush=True)
     if doc_type == 'thesis':
         insert_thesis_title_page(doc, opts, font_name)
     elif doc_type == 'letter':
@@ -201,6 +209,7 @@ def format_document(input_file, output_file, opts, doc_type='book'):
         insert_title_page(doc, opts, font_name)
 
     # 4. Body formatting — by doc_type
+    print(f"STEP 8: Formatting {doc_type} body", flush=True)
     if doc_type == 'thesis':
         format_thesis_body(doc, opts, font_name)
     elif doc_type == 'letter':
@@ -212,6 +221,7 @@ def format_document(input_file, output_file, opts, doc_type='book'):
         format_book_body(doc, opts, font_name)
 
     # 5. Headers & Footers
+    print("STEP 9: Adding headers and footers", flush=True)
     header_text  = opts.get('header', '').strip()
     footer_text  = opts.get('footer', '').strip()
     page_numbers = opts.get('page_numbers', False)
@@ -278,9 +288,12 @@ def format_document(input_file, output_file, opts, doc_type='book'):
 
     # 6. Kruti Dev Unicode → ASCII conversion (must run AFTER all formatting
     #    so runs added by title-page and body formatters are also converted)
+    print("STEP 10: Final font conversion", flush=True)
     convert_doc_runs(doc, font_name)
 
+    print("STEP 11: Saving document", flush=True)
     doc.save(output_file)
+    print("FORMATTER COMPLETE", flush=True)
 
 
 if __name__ == '__main__':
