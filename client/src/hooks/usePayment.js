@@ -14,7 +14,7 @@ export function usePayment() {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
       // 1. Create order on the server
-      const { data } = await axios.post(`${API_URL}/create-order`);
+      const { data } = await axios.post(`${API_URL}/create-order`, {}, { timeout: 600000 });
 
       // 2. Open Razorpay checkout
       const options = {
@@ -32,7 +32,7 @@ export function usePayment() {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
               userId: user.id,
-            });
+            }, { timeout: 600000 });
 
             if (verifyRes.data && (verifyRes.data.success || verifyRes.status === 200)) {
               // 4. Update state and notify

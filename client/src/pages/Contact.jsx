@@ -12,7 +12,7 @@ export default function Contact() {
     setStatus('submitting');
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      await axios.post(`${API_URL}/contact`, formData);
+      await axios.post(`${API_URL}/contact`, formData, { timeout: 600000 });
       setStatus('success');
       setFormData({ name: '', email: '', message: '' });
     } catch (err) {

@@ -179,7 +179,7 @@ const handleSubmit = async () => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const res = await axios.post(`${API_URL}/format`, fd, {
       responseType: 'blob',
-      timeout: 180000,
+      timeout: 600000,
     });
     if (downloadUrl?.startsWith('blob:')) {
       URL.revokeObjectURL(downloadUrl);
