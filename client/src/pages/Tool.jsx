@@ -499,7 +499,12 @@ const handleSubmit = async () => {
           <div className="status-title">Document Formatted</div>
           <div className="status-sub">Your document is ready to download.</div>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href={downloadUrl} download={downloadFileName} className="btn-download">⬇ Download File</a>
+            <button 
+              onClick={() => { window.location.href = downloadUrl; }} 
+              className="btn-download"
+            >
+              ⬇ Download File
+            </button>
             <button className="btn-secondary" onClick={handleReset}>Format Another</button>
           </div>
         </div>

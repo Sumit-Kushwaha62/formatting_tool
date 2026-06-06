@@ -8,7 +8,7 @@ const supabase = createClient(
 const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
@@ -33,7 +33,13 @@ const storage = multer.diskStorage({
   destination: uploadsDir,
   filename: (req, file, cb) => cb(null, uuidv4() + path.extname(file.originalname))
 });
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: Number(process.env.MAX_UPLOAD_SIZE || 25 * 1024 * 1024), // default 25MB
+    files: 10,
+  },
+});
 
 // ── Converter Routes ──
 app.post('/api/merge-pdf', upload.array('files'), (req, res) => {
@@ -43,6 +49,7 @@ app.post('/api/merge-pdf', upload.array('files'), (req, res) => {
   const inputPaths = req.files.map(f => `"${f.path}"`).join(' ');
   const cmd = `python "${path.join(__dirname, 'converter.py')}" merge_pdfs "${outputPath}" ${inputPaths}`;
 
+  const { exec } = require('child_process');
   exec(cmd, (err, stdout, stderr) => {
     req.files.forEach(f => fs.existsSync(f.path) && fs.unlinkSync(f.path));
     if (err) {
@@ -60,6 +67,7 @@ app.post('/api/merge-word', upload.array('files'), (req, res) => {
   const inputPaths = req.files.map(f => `"${f.path}"`).join(' ');
   const cmd = `python "${path.join(__dirname, 'converter.py')}" merge_word "${outputPath}" ${inputPaths}`;
 
+  const { exec } = require('child_process');
   exec(cmd, (err, stdout, stderr) => {
     req.files.forEach(f => fs.existsSync(f.path) && fs.unlinkSync(f.path));
     if (err) {
@@ -77,6 +85,7 @@ app.post('/api/pdf-to-word', upload.single('file'), (req, res) => {
   const inputPath = req.file.path;
   const cmd = `python "${path.join(__dirname, 'converter.py')}" pdf_to_word "${inputPath}" "${outputPath}"`;
 
+  const { exec } = require('child_process');
   exec(cmd, (err, stdout, stderr) => {
     if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
     if (err) {
@@ -94,6 +103,7 @@ app.post('/api/excel-to-pdf', upload.single('file'), (req, res) => {
   const inputPath = req.file.path;
   const cmd = `python "${path.join(__dirname, 'converter.py')}" excel_to_pdf "${inputPath}" "${outputPath}"`;
 
+  const { exec } = require('child_process');
   exec(cmd, (err, stdout, stderr) => {
     if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
     if (err) {
@@ -113,10 +123,45 @@ app.get('/api/download/:filename', (req, res) => {
   });
 });
 
-const getOriginalDownloadName = (uploadedFile) => {
-  const originalName = uploadedFile?.originalname || 'formatted_document.docx';
-  return path.basename(originalName) || 'formatted_document.docx';
+const getOriginalDownloadName = (file) => {
+  return file && file.originalname ? file.originalname : 'formatted_document.docx';
 };
+
+const fixMojibakeFileName = (name = 'formatted_document.docx') => {
+  if (!name) return 'formatted_document.docx';
+
+  const attempts = [
+    name,
+    Buffer.from(name, 'latin1').toString('utf8'),
+    Buffer.from(name, 'binary').toString('utf8'),
+  ];
+
+  for (const value of attempts) {
+    if (value && !/[àÃÂ¤¥§]/.test(value) && !value.includes('')) {
+      return path.basename(value);
+    }
+  }
+
+  return path.basename(Buffer.from(name, 'latin1').toString('utf8') || name);
+};
+
+const hasMojibake = (value = '') =>
+  /(?:Ã|Â|à¤|à¥|à¦|à§|)/.test(value);
+
+const fixMojibakeOnlyIfNeeded = (name = 'formatted_document.docx') => {
+  if (!hasMojibake(name)) return path.basename(name);
+  try {
+    const fixed = Buffer.from(name, 'latin1').toString('utf8');
+    return path.basename(fixed.includes('') ? name : fixed);
+  } catch {
+    return path.basename(name);
+  }
+};
+
+const encodeRFC5987ValueChars = (str) =>
+  encodeURIComponent(str)
+    .replace(/['()]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase())
+    .replace(/\*/g, '%2A');
 
 const getRequestedDownloadName = (value) => {
   if (!value) return 'formatted_document.docx';
@@ -132,6 +177,8 @@ const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
+
+const PYTHON_CMD = process.env.PYTHON_CMD || 'python3';
 
 // ── Format route ──
 app.post('/format', upload.single('file'), (req, res) => {
@@ -149,34 +196,101 @@ app.post('/format', upload.single('file'), (req, res) => {
   const optionsFile = path.resolve(uploadsDir, uuidv4() + '_options.json');
   fs.writeFileSync(optionsFile, options);
 
-  const formatCommand = `python "${path.join(__dirname, 'formatter.py')}" "${inputPath}" "${outputPath}" "${docType}" "${optionsFile}"`;
-  console.log('Running Formatter:', formatCommand);
+  const formatterPath = path.join(__dirname, 'formatter.py');
+  console.log('Running Formatter (spawn):', formatterPath, [inputPath, outputPath, docType, optionsFile]);
 
-  exec(formatCommand, { cwd: __dirname, windowsHide: true, maxBuffer: 10 * 1024 * 1024, timeout: 180000 }, (fErr, fStdout, fStderr) => {
-    if (fs.existsSync(optionsFile)) fs.unlinkSync(optionsFile);
+  const pythonProcess = spawn(PYTHON_CMD, [formatterPath, inputPath, outputPath, docType, optionsFile], {
+    cwd: __dirname,
+    windowsHide: true,
+  });
 
-    if (fErr) {
-      console.error('Format Error exit code:', fErr.code);
-      console.error('Format Error signal:', fErr.signal);
-      if (fStderr && fStderr.trim()) console.error('Format stderr:\n', fStderr.trim());
-      if (fStdout && fStdout.trim()) console.error('Format stdout:\n', fStdout.trim());
-      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
-      return res.status(500).json({ error: 'Formatting failed' });
+  let stdoutData = '';
+  let stderrData = '';
+  const MAX_LOG_SIZE = 50 * 1024; // 50KB limit
+
+  const appendLog = (current, newData) => {
+    let combined = current + newData;
+    if (combined.length > MAX_LOG_SIZE) {
+      return combined.slice(-MAX_LOG_SIZE);
+    }
+    return combined;
+  };
+
+  pythonProcess.stdout.on('data', (data) => {
+    stdoutData = appendLog(stdoutData, data.toString());
+  });
+
+  pythonProcess.stderr.on('data', (data) => {
+    stderrData = appendLog(stderrData, data.toString());
+  });
+
+  let isFinished = false;
+
+  const safeUnlink = (filePath) => {
+    try {
+      if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch (err) {
+      console.error('Cleanup error:', err.message);
+    }
+  };
+
+  const cleanupTempFiles = ({ removeOutput = false } = {}) => {
+    safeUnlink(optionsFile);
+    safeUnlink(inputPath);
+    if (removeOutput) safeUnlink(outputPath);
+  };
+
+  const failOnce = (statusCode, message) => {
+    if (isFinished) return;
+    isFinished = true;
+    clearTimeout(timer);
+    cleanupTempFiles({ removeOutput: true });
+
+    if (!res.headersSent) {
+      return res.status(statusCode).json({ error: message });
+    }
+  };
+
+  const timeout = Number(process.env.FORMAT_TIMEOUT_MS || 900000); // default 15 minutes
+  const timer = setTimeout(() => {
+    if (isFinished) return;
+    console.error(`Formatter timed out after ${timeout}ms. Killing process...`);
+    try {
+      pythonProcess.kill('SIGKILL');
+    } catch (err) {
+      console.error('Formatter kill error:', err.message);
+    }
+    failOnce(503, 'Processing timed out. Please try a smaller file.');
+  }, timeout);
+
+  pythonProcess.on('close', (code) => {
+    if (isFinished) return;
+    clearTimeout(timer);
+    safeUnlink(optionsFile);
+
+    if (code !== 0) {
+      console.error(`Formatter process exited with code ${code}`);
+      if (stderrData.trim()) console.error('Formatter stderr (last 50KB):\n', stderrData.trim());
+      if (stdoutData.trim()) console.error('Formatter stdout (last 50KB):\n', stdoutData.trim());
+      return failOnce(500, 'Formatting failed');
     }
 
     if (!fs.existsSync(outputPath)) {
       console.error('Formatter completed but output file was not created:', outputPath);
-      if (fStdout) console.log('Formatter stdout:', fStdout);
-      if (fStderr) console.error('Formatter stderr:', fStderr);
-      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
-      return res.status(500).json({ error: 'Formatted file was not created' });
+      return failOnce(500, 'Formatted file was not created');
     }
 
-    const originalName = getOriginalDownloadName(req.file);
+    isFinished = true;
+
+    let originalName = getOriginalDownloadName(req.file);
+    console.log('Original filename from multer:', req.file.originalname);
+    console.log('Before filename fix:', originalName);
+    originalName = fixMojibakeFileName(originalName);
+    console.log('After filename fix:', originalName);
     const userId = req.body.userId;
 
     const sendDownload = () => {
-      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+      safeUnlink(inputPath);
       res.json({
         downloadUrl: `/download/${outputName}?name=${encodeURIComponent(originalName)}`,
         fileName: originalName,
@@ -207,9 +321,14 @@ app.post('/format', upload.single('file'), (req, res) => {
       }
     }).catch((err) => {
       console.error('Supabase insert exception:', err);
+    }).finally(() => {
+      sendDownload();
     });
+  });
 
-    sendDownload();
+  pythonProcess.on('error', (err) => {
+    console.error('Failed to start formatter process:', err);
+    failOnce(500, 'Failed to start formatting');
   });
 });
 
@@ -219,12 +338,48 @@ app.get('/download/:filename', (req, res) => {
     return res.status(404).json({ error: 'File not found or expired' });
   }
 
-  const downloadName = getRequestedDownloadName(req.query.name);
-  res.setHeader('X-Original-Filename', encodeURIComponent(downloadName));
-  res.download(filePath, downloadName, (err) => {
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    if (err) console.error('Download error:', err);
+  let downloadName = getRequestedDownloadName(req.query.name);
+  downloadName = fixMojibakeOnlyIfNeeded(downloadName);
+
+  if (!downloadName.toLowerCase().endsWith('.docx')) {
+    downloadName += '.docx';
+  }
+
+  const encodedName = encodeRFC5987ValueChars(downloadName);
+  const asciiFallback = downloadName
+    .replace(/[^\x20-\x7E]/g, '_')
+    .replace(/["\\;]/g, '_');
+
+  res.setHeader(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  );
+
+  res.setHeader('X-Original-Filename', encodedName);
+
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodedName}`
+  );
+
+  const stream = fs.createReadStream(filePath);
+
+  stream.on('error', (err) => {
+    console.error('Download stream error:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Download failed' });
+    }
   });
+
+  stream.on('close', () => {
+    try {
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch (err) {
+      console.error('Download cleanup error:', err.message);
+    }
+  });
+
+  stream.pipe(res);
 });
 
 app.delete('/account/:userId', async (req, res) => {

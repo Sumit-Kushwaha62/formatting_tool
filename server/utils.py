@@ -1,3 +1,4 @@
+
 import re
 from docx.shared import Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
@@ -524,23 +525,22 @@ def set_para_font(para, font_name):
         rPr.insert(0, rFonts)
 
     if is_krutidev(formal_name):
-        # Same logic as set_font_properly: no hint, no eastAsia, no cs
+        # KrutiDev paragraph defaults must match run-level font handling.
+        # Keep ascii/hAnsi/cs as KrutiDev and remove eastAsia/theme fallbacks.
         hint_attr = qn('w:hint')
         if rFonts.get(hint_attr):
             del rFonts.attrib[hint_attr]
         rFonts.set(qn('w:ascii'), formal_name)
         rFonts.set(qn('w:hAnsi'), formal_name)
+        rFonts.set(qn('w:cs'), formal_name)
         ea_attr = qn('w:eastAsia')
         if rFonts.get(ea_attr):
             del rFonts.attrib[ea_attr]
-        cs_attr = qn('w:cs')
-        if rFonts.get(cs_attr):
-            del rFonts.attrib[cs_attr]
         for theme_attr in ['w:asciiTheme', 'w:hAnsiTheme', 'w:eastAsiaTheme', 'w:cstheme']:
             ta = qn(theme_attr)
             if rFonts.get(ta):
                 del rFonts.attrib[ta]
-        for cs_tag in ['w:rtl', 'w:cs', 'w:bidi']:
+        for cs_tag in ['w:rtl', 'w:bidi']:
             el = rPr.find(qn(cs_tag))
             if el is not None:
                 rPr.remove(el)
@@ -949,22 +949,50 @@ def _fix_english_special(text):
 FALLBACK_FONT = 'Times New Roman'
 
 def _segment_text(text):
-    """Split text into (is_hindi, chunk) pairs."""
+    """
+    Split text into (use_krutidev, chunk) pairs for KrutiDev conversion.
+
+    Previous logic split on every Hindi/non-Hindi boundary, so a Hindi
+    paragraph like "यह एक नमूना है" became: Hindi, space, Hindi, space...
+    That created thousands of extra DOCX XML runs and caused server timeouts.
+
+    New logic keeps Hindi text + spaces + punctuation together in KrutiDev
+    chunks, and only splits ASCII words/digits into fallback-font chunks.
+    This preserves mixed English/Hindi behavior while massively reducing run
+    count for Hindi documents.
+    """
+    if not text:
+        return []
+
+    # Normalize punctuation once before segmentation.
+    text = _fix_english_special(text)
+
     segments = []
-    current_hindi = None
+    current_is_ascii_word = None
     current_chunk = []
+
+    def is_ascii_word_char(ch):
+        return bool(re.match(r'[A-Za-z0-9]', ch))
+
     for ch in text:
-        ch_is_hindi = '\u0900' <= ch <= '\u097F'
-        if current_hindi is None:
-            current_hindi = ch_is_hindi
-        if ch_is_hindi == current_hindi:
+        ch_is_ascii_word = is_ascii_word_char(ch)
+        if current_is_ascii_word is None:
+            current_is_ascii_word = ch_is_ascii_word
+
+        if ch_is_ascii_word == current_is_ascii_word:
             current_chunk.append(ch)
         else:
-            segments.append((current_hindi, ''.join(current_chunk)))
-            current_hindi = ch_is_hindi
+            chunk = ''.join(current_chunk)
+            # ASCII words/digits should use fallback font; everything else
+            # stays with KrutiDev to avoid run explosion and spacing issues.
+            segments.append((not current_is_ascii_word, chunk))
+            current_is_ascii_word = ch_is_ascii_word
             current_chunk = [ch]
+
     if current_chunk:
-        segments.append((current_hindi, ''.join(current_chunk)))
+        chunk = ''.join(current_chunk)
+        segments.append((not current_is_ascii_word, chunk))
+
     return segments
 
 

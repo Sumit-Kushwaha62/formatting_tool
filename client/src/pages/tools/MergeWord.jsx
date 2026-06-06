@@ -121,9 +121,15 @@ export default function MergeWord({ navTo }) {
             <div className="status-icon">✅</div>
             <h2 className="status-title">Merge Complete</h2>
             <p className="status-sub">Your Word files have been combined successfully.</p>
-            <a href={result.downloadUrl} className="btn-download" download>
+            <button 
+              onClick={() => {
+                const API_URL = import.meta.env.VITE_API_URL || '';
+                window.location.href = (result.downloadUrl.startsWith('http') ? '' : API_URL) + result.downloadUrl;
+              }} 
+              className="btn-download"
+            >
               Download Merged Document
-            </a>
+            </button>
             <button 
               className="btn-secondary" 
               style={{ marginLeft: 12 }} 

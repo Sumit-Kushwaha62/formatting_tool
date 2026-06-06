@@ -109,9 +109,15 @@ export default function ExcelToPDF({ navTo }) {
             <div className="status-icon">✅</div>
             <h2 className="status-title">Conversion Complete</h2>
             <p className="status-sub">Your Excel file has been converted to PDF successfully.</p>
-            <a href={result.downloadUrl} className="btn-download" download>
-              Download PDF File
-            </a>
+            <button 
+              onClick={() => {
+                const API_URL = import.meta.env.VITE_API_URL || '';
+                window.location.href = (result.downloadUrl.startsWith('http') ? '' : API_URL) + result.downloadUrl;
+              }} 
+              className="btn-download"
+            >
+              Download PDF
+            </button>
             <button 
               className="btn-secondary" 
               style={{ marginLeft: 12 }} 
