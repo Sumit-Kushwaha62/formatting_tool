@@ -8,7 +8,9 @@ const supabase = createClient(
 const express = require('express');
 const multer = require('multer');
 const cors = require('cors');
+
 const { spawn } = require('child_process');
+const PYTHON_CMD = process.env.PYTHON_CMD || 'python3';
 const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
@@ -47,7 +49,7 @@ app.post('/api/merge-pdf', upload.array('files'), (req, res) => {
   const outputName = `output_${Date.now()}.pdf`;
   const outputPath = path.resolve(uploadsDir, outputName);
   const inputPaths = req.files.map(f => `"${f.path}"`).join(' ');
-  const cmd = `python "${path.join(__dirname, 'converter.py')}" merge_pdfs "${outputPath}" ${inputPaths}`;
+  const cmd = `${PYTHON_CMD} "${path.join(__dirname, 'converter.py')}" merge_pdfs "${outputPath}" ${inputPaths}`;
 
   const { exec } = require('child_process');
   exec(cmd, (err, stdout, stderr) => {
@@ -65,7 +67,7 @@ app.post('/api/merge-word', upload.array('files'), (req, res) => {
   const outputName = `output_${Date.now()}.docx`;
   const outputPath = path.resolve(uploadsDir, outputName);
   const inputPaths = req.files.map(f => `"${f.path}"`).join(' ');
-  const cmd = `python "${path.join(__dirname, 'converter.py')}" merge_word "${outputPath}" ${inputPaths}`;
+  const cmd = `${PYTHON_CMD} "${path.join(__dirname, 'converter.py')}" merge_word "${outputPath}" ${inputPaths}`;
 
   const { exec } = require('child_process');
   exec(cmd, (err, stdout, stderr) => {
@@ -83,7 +85,7 @@ app.post('/api/pdf-to-word', upload.single('file'), (req, res) => {
   const outputName = `output_${Date.now()}.docx`;
   const outputPath = path.resolve(uploadsDir, outputName);
   const inputPath = req.file.path;
-  const cmd = `python "${path.join(__dirname, 'converter.py')}" pdf_to_word "${inputPath}" "${outputPath}"`;
+  const cmd = `${PYTHON_CMD} "${path.join(__dirname, 'converter.py')}" pdf_to_word "${inputPath}" "${outputPath}"`;
 
   const { exec } = require('child_process');
   exec(cmd, (err, stdout, stderr) => {
@@ -101,7 +103,7 @@ app.post('/api/excel-to-pdf', upload.single('file'), (req, res) => {
   const outputName = `output_${Date.now()}.pdf`;
   const outputPath = path.resolve(uploadsDir, outputName);
   const inputPath = req.file.path;
-  const cmd = `python "${path.join(__dirname, 'converter.py')}" excel_to_pdf "${inputPath}" "${outputPath}"`;
+  const cmd = `${PYTHON_CMD} "${path.join(__dirname, 'converter.py')}" excel_to_pdf "${inputPath}" "${outputPath}"`;
 
   const { exec } = require('child_process');
   exec(cmd, (err, stdout, stderr) => {
@@ -177,8 +179,6 @@ const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
-
-const PYTHON_CMD = process.env.PYTHON_CMD || 'python3';
 
 // ── Format route ──
 app.post('/format', upload.single('file'), (req, res) => {
