@@ -10,12 +10,26 @@ def merge_pdfs(file_paths, output_path):
 # 2. Merge Word files  
 def merge_word(file_paths, output_path):
     from docx import Document
-    from docxcompose.composer import Composer
+    from docx.oxml.ns import qn
+    import copy
+
+    if not file_paths:
+        return
+
+    # Open first document as base
     base = Document(file_paths[0])
-    composer = Composer(base)
+    
+    # Process subsequent documents one by one to save memory
     for path in file_paths[1:]:
-        composer.append(Document(path))
-    composer.save(output_path)
+        doc = Document(path)
+        for element in doc.element.body:
+            # Append each element using XML copy approach
+            if element.tag != qn('w:sectPr'):
+                base.element.body.insert(-1, copy.deepcopy(element))
+        # Explicitly delete to free memory
+        del doc
+        
+    base.save(output_path)
 
 # 3. PDF to Word
 def pdf_to_word(input_path, output_path):
