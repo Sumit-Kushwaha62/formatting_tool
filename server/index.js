@@ -18,6 +18,7 @@ const { v4: uuidv4 } = require('uuid');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
 app.use(cors({
@@ -551,6 +552,71 @@ app.post('/contact', async (req, res) => {
   } catch (err) {
     console.error('Contact email error:', err);
     res.status(500).json({ error: 'Failed to send email' });
+  }
+});
+
+// ── AI Suggest Route ──
+app.post('/api/ai-suggest', async (req, res) => {
+  const { docType, userPrompt } = req.body;
+  const geminiKey = process.env.GEMINI_API_KEY;
+
+  const defaults = {
+    book: { font_style: 'Garamond', font_size: '12', line_spacing: '1.15', page_size: 'A5', page_numbers: true },
+    thesis: { font_style: 'Times New Roman', font_size: '12', line_spacing: '1.5', page_size: 'A4', page_numbers: true },
+    letter: { font_style: 'Arial', font_size: '11', line_spacing: '1.0', page_size: 'A4', page_numbers: false },
+    research: { font_style: 'Times New Roman', font_size: '10', line_spacing: '1.0', page_size: 'A4', page_numbers: true }
+  };
+
+  const currentDefaults = defaults[docType] || defaults.book;
+
+  if (!userPrompt || !geminiKey) {
+    return res.json({ docType, options: currentDefaults, aiUsed: false });
+  }
+
+  try {
+    const genAI = new GoogleGenerativeAI(geminiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+
+    const systemPrompt = `You are a professional document formatter. 
+    Available options:
+    - font_style (e.g., 'Garamond', 'Times New Roman', 'Arial', 'Kruti Dev 010')
+    - font_size (numeric string, e.g., '10', '11', '12', '14')
+    - line_spacing (string, e.g., '1.0', '1.15', '1.5', '2.0')
+    - page_size ('A4', 'A5', 'A3', 'Letter', 'Legal')
+    - page_numbers (boolean)
+    - page_number_position ('left', 'center', 'right')
+    - header (string)
+    - footer (string)
+    - font_script ('english', 'hindi')
+
+    Rules:
+    - Always respond with valid JSON only. No explanations, no apologies, no markdown.
+    - If user requests a feature that doesn't exist in the options, silently ignore it and return best matching available options.
+    - Never write 'I'm sorry' or any conversational text. Only JSON output.
+
+    Based on the user's request for a ${docType}, return ONLY a valid JSON object matching these keys. 
+    If a value is not specified, use professional defaults for a ${docType}.
+    Defaults for ${docType}: ${JSON.stringify(currentDefaults)}
+    
+    User request: "${userPrompt}"`;
+
+    const result = await model.generateContent(systemPrompt);
+    const response = await result.response;
+    let text = response.text();
+    
+    // Clean up potential markdown formatting from AI
+    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    try {
+      const options = JSON.parse(text);
+      res.json({ docType, options: { ...currentDefaults, ...options }, aiUsed: true });
+    } catch (parseErr) {
+      console.log('AI parse failed, using defaults:', parseErr.message, 'Raw text:', text);
+      res.json({ docType, options: currentDefaults, aiUsed: false });
+    }
+  } catch (err) {
+    console.error('Gemini API Error:', err);
+    res.json({ docType, options: currentDefaults, aiUsed: false });
   }
 });
 

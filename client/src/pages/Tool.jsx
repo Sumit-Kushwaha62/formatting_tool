@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { DOC_TYPES, ENGLISH_FONTS, HINDI_FONTS, FONT_SIZES, LINE_SPACINGS, PAGE_SIZES, PAGE_NUM_POSITIONS } from '../constants/data';
 import TrialBanner from '../components/ui/TrialBanner';
 import PaywallModal from '../components/ui/PaywallModal';
+import AIMagicModal from '../components/ui/AIMagicModal';
 
 export default function Tool({ navTo }) {
   const { user, userPlan, docsCount, refreshPlanAndDocs } = useAuth();
@@ -18,6 +19,7 @@ export default function Tool({ navTo }) {
   const [status, setStatus] = useState('idle'); // 'idle' | 'uploading' | 'done' | 'error'
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [showAIMagic, setShowAIMagic] = useState(false);
 
   // Fetch real document count on mount
   React.useEffect(() => {
@@ -79,47 +81,6 @@ export default function Tool({ navTo }) {
     accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] },
     multiple: false,
   });
-
-  // const handleSubmit = async () => {
-  //   if (!file) return;
-
-  //   try {
-  //     setStatus('uploading');
-
-  //     // 1. Sync check for free plan limit
-  //     const { docsCount: latestCount, plan: latestPlan } = await refreshPlanAndDocs(user?.id);
-  //     if (latestPlan === 'free' && latestCount >= 3) {
-  //       setStatus('idle');
-  //       return;
-  //     }
-
-
-  //     // 2. Prepare data
-  //     const fd = new FormData();
-  //     fd.append('file', file);
-  //     fd.append('docType', selectedType);
-  //     fd.append('options', JSON.stringify(formData));
-  //     if (user?.id) {
-  //       fd.append('userId', user.id);
-  //     }
-
-  //     // 3. API call with exact working pattern
-  //     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-  //     const res = await axios.post(`${API_URL}/format`, fd, { responseType: 'blob' });
-
-  //     setDownloadUrl(URL.createObjectURL(new Blob([res.data])));
-  //     setStatus('done');
-
-  //     // 4. Update local document list/count
-  //     if (user?.id) {
-  //       refreshPlanAndDocs();
-  //     }
-  //   } catch (err) {
-  //     console.error('Format Submit Error:', err);
-  //     setStatus('error');
-  //   }
-  // };
-
 
 const handleSubmit = async () => {
   if (!file) return;
@@ -248,8 +209,13 @@ const handleSubmit = async () => {
       {step === 1 && (
         <>
           <div className="card" style={{ marginBottom: 24 }}>
-            <div className="card-title">Select document type</div>
-            <div className="card-sub">Choose the format that matches your document</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+              <div>
+                <div className="card-title">Select document type</div>
+                <div className="card-sub" style={{ margin: 0 }}>Choose the format that matches your document</div>
+              </div>
+              <button className="btn-secondary" onClick={() => setShowAIMagic(true)} style={{ padding: '8px 16px', minHeight: 'unset' }}>✨ AI Magic</button>
+            </div>
             <div className="type-grid">
               {DOC_TYPES.map(t => (
                 <div className="type-card" key={t.id} onClick={() => handleTypeSelect(t.id)}>
@@ -525,6 +491,17 @@ const handleSubmit = async () => {
           </div>
         </div>
       )}
+
+      <AIMagicModal 
+        isOpen={showAIMagic} 
+        onClose={() => setShowAIMagic(false)} 
+        onApply={(result) => {
+          setSelectedType(result.docType);
+          setFormData(result.options);
+          setStep(2);
+          setShowAIMagic(false);
+        }}
+      />
     </div>
   );
 }
