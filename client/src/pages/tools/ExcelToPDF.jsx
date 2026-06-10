@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 export default function ExcelToPDF({ navTo }) {
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -19,14 +19,20 @@ export default function ExcelToPDF({ navTo }) {
     e.stopPropagation();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const f = e.dataTransfer.files[0];
-      if (f.name.endsWith('.xlsx')) setFile(f);
+      const newFiles = Array.from(e.dataTransfer.files).filter(f => 
+        f.name.toLowerCase().endsWith('.xlsx') || f.name.toLowerCase().endsWith('.xls')
+      );
+      setFiles(prev => [...prev, ...newFiles]);
     }
   };
 
+  const removeFile = (index) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async () => {
-    if (!file) {
-      setError('Please select an Excel file.');
+    if (files.length === 0) {
+      setError('Please select at least one Excel file.');
       return;
     }
     setLoading(true);
@@ -34,7 +40,7 @@ export default function ExcelToPDF({ navTo }) {
     setResult(null);
 
     const formData = new FormData();
-    formData.append('file', file);
+    files.forEach(file => formData.append('files', file));
 
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/excel-to-pdf`, {
@@ -74,22 +80,27 @@ export default function ExcelToPDF({ navTo }) {
               onClick={() => document.getElementById('fileInput').click()}
             >
               <div className="dropzone-icon">📊</div>
-              <div className="dropzone-text">Click or drag Excel file here</div>
-              <div className="dropzone-sub">Supports single .xlsx file</div>
+              <div className="dropzone-text">Click or drag Excel files here</div>
+              <div className="dropzone-sub">Supports multiple .xlsx, .xls files</div>
               <input 
                 id="fileInput"
                 type="file" 
-                accept=".xlsx"
+                accept=".xlsx,.xls"
+                multiple
                 style={{ display: 'none' }} 
-                onChange={(e) => e.target.files[0] && setFile(e.target.files[0])}
+                onChange={(e) => setFiles(prev => [...prev, ...Array.from(e.target.files)])}
               />
             </div>
 
-            {file && (
-              <div className="file-selected">
-                <span className="file-name">{file.name}</span>
-                <span className="file-size">{(file.size / 1024).toFixed(1)} KB</span>
-                <button className="file-remove" onClick={() => setFile(null)}>×</button>
+            {files.length > 0 && (
+              <div className="file-list" style={{ marginTop: 20, marginBottom: 20 }}>
+                {files.map((file, idx) => (
+                  <div key={idx} className="file-selected" style={{ marginBottom: 8 }}>
+                    <span className="file-name">{file.name}</span>
+                    <span className="file-size">{(file.size / 1024).toFixed(1)} KB</span>
+                    <button className="file-remove" onClick={(e) => { e.stopPropagation(); removeFile(idx); }}>×</button>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -99,31 +110,41 @@ export default function ExcelToPDF({ navTo }) {
               className="btn-primary" 
               style={{ width: '100%', justifyContent: 'center' }}
               onClick={handleSubmit}
-              disabled={loading || !file}
+              disabled={loading || files.length === 0}
             >
-              {loading ? <div className="spinner" style={{ width: 18, height: 18, margin: 0 }} /> : 'Convert to PDF'}
+              {loading ? <div className="spinner" style={{ width: 18, height: 18, margin: 0 }} /> : `Convert ${files.length} File${files.length > 1 ? 's' : ''} to PDF`}
             </button>
           </>
         ) : (
           <div className="status-center">
             <div className="status-icon">✅</div>
             <h2 className="status-title">Conversion Complete</h2>
-            <p className="status-sub">Your Excel file has been converted to PDF successfully.</p>
-            <button 
-              onClick={() => {
-                const API_URL = import.meta.env.VITE_API_URL || '';
-                window.location.href = (result.downloadUrl.startsWith('http') ? '' : API_URL) + result.downloadUrl;
-              }} 
-              className="btn-download"
-            >
-              Download PDF
-            </button>
+            <p className="status-sub">Your Excel files have been converted to PDF successfully.</p>
+            
+            <div className="download-list" style={{ marginTop: 20, marginBottom: 20, width: '100%' }}>
+              {result.files.map((resFile, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px', background: '#f8fafc', borderRadius: '8px', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>{resFile.originalName}</span>
+                  <button 
+                    onClick={() => {
+                      const API_URL = import.meta.env.VITE_API_URL || '';
+                      window.location.href = (resFile.downloadUrl.startsWith('http') ? '' : API_URL) + resFile.downloadUrl;
+                    }} 
+                    className="btn-download"
+                    style={{ padding: '6px 12px', fontSize: '12px' }}
+                  >
+                    Download
+                  </button>
+                </div>
+              ))}
+            </div>
+
             <button 
               className="btn-secondary" 
-              style={{ marginLeft: 12 }} 
-              onClick={() => { setResult(null); setFile(null); }}
+              style={{ width: '100%', justifyContent: 'center' }} 
+              onClick={() => { setResult(null); setFiles([]); }}
             >
-              Convert Another
+              Convert More Files
             </button>
           </div>
         )}

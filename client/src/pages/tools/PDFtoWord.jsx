@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 export default function PDFtoWord({ navTo }) {
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -19,14 +19,18 @@ export default function PDFtoWord({ navTo }) {
     e.stopPropagation();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const f = e.dataTransfer.files[0];
-      if (f.type === 'application/pdf') setFile(f);
+      const newFiles = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+      setFiles(prev => [...prev, ...newFiles]);
     }
   };
 
+  const removeFile = (index) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async () => {
-    if (!file) {
-      setError('Please select a PDF file.');
+    if (files.length === 0) {
+      setError('Please select at least one PDF file.');
       return;
     }
     setLoading(true);
@@ -34,7 +38,7 @@ export default function PDFtoWord({ navTo }) {
     setResult(null);
 
     const formData = new FormData();
-    formData.append('file', file);
+    files.forEach(file => formData.append('files', file));
 
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/pdf-to-word`, {
@@ -74,22 +78,27 @@ export default function PDFtoWord({ navTo }) {
               onClick={() => document.getElementById('fileInput').click()}
             >
               <div className="dropzone-icon">🔄</div>
-              <div className="dropzone-text">Click or drag PDF file here</div>
-              <div className="dropzone-sub">Supports single .pdf file</div>
+              <div className="dropzone-text">Click or drag PDF files here</div>
+              <div className="dropzone-sub">Supports multiple .pdf files</div>
               <input 
                 id="fileInput"
                 type="file" 
                 accept=".pdf"
+                multiple
                 style={{ display: 'none' }} 
-                onChange={(e) => e.target.files[0] && setFile(e.target.files[0])}
+                onChange={(e) => setFiles(prev => [...prev, ...Array.from(e.target.files)])}
               />
             </div>
 
-            {file && (
-              <div className="file-selected">
-                <span className="file-name">{file.name}</span>
-                <span className="file-size">{(file.size / 1024).toFixed(1)} KB</span>
-                <button className="file-remove" onClick={() => setFile(null)}>×</button>
+            {files.length > 0 && (
+              <div className="file-list" style={{ marginTop: 20, marginBottom: 20 }}>
+                {files.map((file, idx) => (
+                  <div key={idx} className="file-selected" style={{ marginBottom: 8 }}>
+                    <span className="file-name">{file.name}</span>
+                    <span className="file-size">{(file.size / 1024).toFixed(1)} KB</span>
+                    <button className="file-remove" onClick={(e) => { e.stopPropagation(); removeFile(idx); }}>×</button>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -99,31 +108,41 @@ export default function PDFtoWord({ navTo }) {
               className="btn-primary" 
               style={{ width: '100%', justifyContent: 'center' }}
               onClick={handleSubmit}
-              disabled={loading || !file}
+              disabled={loading || files.length === 0}
             >
-              {loading ? <div className="spinner" style={{ width: 18, height: 18, margin: 0 }} /> : 'Convert to Word'}
+              {loading ? <div className="spinner" style={{ width: 18, height: 18, margin: 0 }} /> : `Convert ${files.length} File${files.length > 1 ? 's' : ''} to Word`}
             </button>
           </>
         ) : (
           <div className="status-center">
             <div className="status-icon">✅</div>
             <h2 className="status-title">Conversion Complete</h2>
-            <p className="status-sub">Your PDF has been converted to Word successfully.</p>
-            <button 
-              onClick={() => {
-                const API_URL = import.meta.env.VITE_API_URL || '';
-                window.location.href = (result.downloadUrl.startsWith('http') ? '' : API_URL) + result.downloadUrl;
-              }} 
-              className="btn-download"
-            >
-              Download Word Document
-            </button>
+            <p className="status-sub">Your PDF files have been converted to Word successfully.</p>
+            
+            <div className="download-list" style={{ marginTop: 20, marginBottom: 20, width: '100%' }}>
+              {result.files.map((resFile, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px', background: '#f8fafc', borderRadius: '8px', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>{resFile.originalName}</span>
+                  <button 
+                    onClick={() => {
+                      const API_URL = import.meta.env.VITE_API_URL || '';
+                      window.location.href = (resFile.downloadUrl.startsWith('http') ? '' : API_URL) + resFile.downloadUrl;
+                    }} 
+                    className="btn-download"
+                    style={{ padding: '6px 12px', fontSize: '12px' }}
+                  >
+                    Download
+                  </button>
+                </div>
+              ))}
+            </div>
+
             <button 
               className="btn-secondary" 
-              style={{ marginLeft: 12 }} 
-              onClick={() => { setResult(null); setFile(null); }}
+              style={{ width: '100%', justifyContent: 'center' }} 
+              onClick={() => { setResult(null); setFiles([]); }}
             >
-              Convert Another
+              Convert More Files
             </button>
           </div>
         )}

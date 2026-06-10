@@ -25,7 +25,7 @@ export default function Navbar({ page, navTo, menuOpen, setMenuOpen }) {
   return (
     <nav className={`nav ${scrolled ? 'scrolled' : ''}`}>
       <div className="nav-logo" onClick={() => navTo('home')}>
-        <img src={logo} alt="Format Studio" style={{ height: 32, width: 'auto' }} />
+        {/* <img src={logo} alt="Format Studio" style={{ height: 32, width: 'auto' }} /> */}
         <div>
           <div className="nav-logo-text">Format Studio</div>
           <div className="nav-logo-sub">Edwin Incorporation</div>

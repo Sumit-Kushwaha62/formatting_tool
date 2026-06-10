@@ -13,6 +13,7 @@ const { spawn } = require('child_process');
 const PYTHON_CMD = process.env.PYTHON_CMD || 'python3';
 const path = require('path');
 const fs = require('fs');
+const http = require('http');
 const { v4: uuidv4 } = require('uuid');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
@@ -43,77 +44,128 @@ const upload = multer({
   },
 });
 
+// ── Health Check ──
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+  });
+});
+
 // ── Converter Routes ──
-app.post('/api/merge-pdf', upload.array('files'), (req, res) => {
+app.post('/api/merge-pdf', upload.array('files'), async (req, res) => {
   if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
   const outputName = `output_${Date.now()}.pdf`;
   const outputPath = path.resolve(uploadsDir, outputName);
-  const inputPaths = req.files.map(f => `"${f.path}"`).join(' ');
-  const cmd = `${PYTHON_CMD} "${path.join(__dirname, 'converter.py')}" merge_pdfs "${outputPath}" ${inputPaths}`;
+  const args = [path.join(__dirname, 'converter.py'), 'merge_pdfs', outputPath, ...req.files.map(f => f.path)];
 
-  const { exec } = require('child_process');
-  exec(cmd, (err, stdout, stderr) => {
-    req.files.forEach(f => fs.existsSync(f.path) && fs.unlinkSync(f.path));
-    if (err) {
-      console.error('Merge PDF Error:', stderr);
-      return res.status(500).json({ error: 'Merge failed' });
-    }
+  try {
+    await new Promise((resolve, reject) => {
+      const child = spawn(PYTHON_CMD, args);
+      let stderr = '';
+      child.stderr.on('data', data => stderr += data.toString());
+      child.on('close', code => (code === 0 ? resolve() : reject(stderr)));
+      child.on('error', reject);
+    });
     res.json({ downloadUrl: `/api/download/${outputName}` });
-  });
+  } catch (err) {
+    console.error('Merge PDF Error:', err);
+    res.status(500).json({ error: err || 'Merge failed' });
+  } finally {
+    req.files.forEach(f => fs.existsSync(f.path) && fs.unlinkSync(f.path));
+  }
 });
 
-app.post('/api/merge-word', upload.array('files'), (req, res) => {
+app.post('/api/merge-word', upload.array('files'), async (req, res) => {
   if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
   const outputName = `output_${Date.now()}.docx`;
   const outputPath = path.resolve(uploadsDir, outputName);
-  const inputPaths = req.files.map(f => `"${f.path}"`).join(' ');
-  const cmd = `${PYTHON_CMD} "${path.join(__dirname, 'converter.py')}" merge_word "${outputPath}" ${inputPaths}`;
+  const args = [path.join(__dirname, 'converter.py'), 'merge_word', outputPath, ...req.files.map(f => f.path)];
 
-  const { exec } = require('child_process');
-  exec(cmd, (err, stdout, stderr) => {
+  try {
+    await new Promise((resolve, reject) => {
+      const child = spawn(PYTHON_CMD, args);
+      let stderr = '';
+      child.stderr.on('data', data => stderr += data.toString());
+      child.on('close', code => (code === 0 ? resolve() : reject(stderr)));
+      child.on('error', reject);
+    });
+    res.json({ downloadUrl: `/api/download/${outputName}` });
+  } catch (err) {
+    console.error('Merge Word Error:', err);
+    res.status(500).json({ error: err || 'Merge failed' });
+  } finally {
     req.files.forEach(f => fs.existsSync(f.path) && fs.unlinkSync(f.path));
-    if (err) {
-      console.error('Merge Word Error:', stderr);
-      return res.status(500).json({ error: 'Merge failed' });
-    }
-    res.json({ downloadUrl: `/api/download/${outputName}` });
-  });
+  }
 });
 
-app.post('/api/pdf-to-word', upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  const outputName = `output_${Date.now()}.docx`;
-  const outputPath = path.resolve(uploadsDir, outputName);
-  const inputPath = req.file.path;
-  const cmd = `${PYTHON_CMD} "${path.join(__dirname, 'converter.py')}" pdf_to_word "${inputPath}" "${outputPath}"`;
+app.post('/api/pdf-to-word', upload.array('files', 10), async (req, res) => {
+  if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
+  
+  const results = [];
+  try {
+    for (const file of req.files) {
+      const outputName = `output_${uuidv4()}.docx`;
+      const outputPath = path.resolve(uploadsDir, outputName);
+      const inputPath = file.path;
+      const args = [path.join(__dirname, 'converter.py'), 'pdf_to_word', inputPath, outputPath];
 
-  const { exec } = require('child_process');
-  exec(cmd, (err, stdout, stderr) => {
-    if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
-    if (err) {
-      console.error('PDF to Word Error:', stderr);
-      return res.status(500).json({ error: 'Conversion failed' });
+      await new Promise((resolve, reject) => {
+        const child = spawn(PYTHON_CMD, args);
+        let stderr = '';
+        child.stderr.on('data', data => stderr += data.toString());
+        child.on('close', code => (code === 0 ? resolve() : reject(stderr)));
+        child.on('error', reject);
+      });
+
+      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+      results.push({
+        originalName: file.originalname,
+        downloadUrl: `/api/download/${outputName}`
+      });
     }
-    res.json({ downloadUrl: `/api/download/${outputName}` });
-  });
+    res.json({ files: results });
+  } catch (err) {
+    console.error('PDF to Word Error:', err);
+    res.status(500).json({ error: err || 'Conversion failed' });
+    // Cleanup remaining files on error
+    req.files.forEach(f => fs.existsSync(f.path) && fs.unlinkSync(f.path));
+  }
 });
 
-app.post('/api/excel-to-pdf', upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  const outputName = `output_${Date.now()}.pdf`;
-  const outputPath = path.resolve(uploadsDir, outputName);
-  const inputPath = req.file.path;
-  const cmd = `${PYTHON_CMD} "${path.join(__dirname, 'converter.py')}" excel_to_pdf "${inputPath}" "${outputPath}"`;
+app.post('/api/excel-to-pdf', upload.array('files', 10), async (req, res) => {
+  if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
+  
+  const results = [];
+  try {
+    for (const file of req.files) {
+      const outputName = `output_${uuidv4()}.pdf`;
+      const outputPath = path.resolve(uploadsDir, outputName);
+      const inputPath = file.path;
+      const args = [path.join(__dirname, 'converter.py'), 'excel_to_pdf', inputPath, outputPath];
 
-  const { exec } = require('child_process');
-  exec(cmd, (err, stdout, stderr) => {
-    if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
-    if (err) {
-      console.error('Excel to PDF Error:', stderr);
-      return res.status(500).json({ error: 'Conversion failed' });
+      await new Promise((resolve, reject) => {
+        const child = spawn(PYTHON_CMD, args);
+        let stderr = '';
+        child.stderr.on('data', data => stderr += data.toString());
+        child.on('close', code => (code === 0 ? resolve() : reject(stderr)));
+        child.on('error', reject);
+      });
+
+      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+      results.push({
+        originalName: file.originalname,
+        downloadUrl: `/api/download/${outputName}`
+      });
     }
-    res.json({ downloadUrl: `/api/download/${outputName}` });
-  });
+    res.json({ files: results });
+  } catch (err) {
+    console.error('Excel to PDF Error:', err);
+    res.status(500).json({ error: err || 'Conversion failed' });
+    // Cleanup remaining files on error
+    req.files.forEach(f => fs.existsSync(f.path) && fs.unlinkSync(f.path));
+  }
 });
 
 app.get('/api/download/:filename', (req, res) => {
@@ -504,10 +556,6 @@ app.post('/contact', async (req, res) => {
 
 // ── Server start ──
 const PORT = process.env.PORT || 5000;
-app.get('/health', (req, res) => {
-  res.json({ ok: true });
-});
-
 const server = app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 server.on('error', (err) => {
@@ -519,3 +567,37 @@ server.on('error', (err) => {
   console.error('Server startup error:', err);
   process.exit(1);
 });
+
+// ── Maintenance Tasks ──
+
+// Self-ping to prevent Render cold starts (every 14 mins)
+if (process.env.NODE_ENV === 'production') {
+  setInterval(() => {
+    http.get(`http://localhost:${PORT}/health`, (res) => {
+      console.log(`Self-ping status: ${res.statusCode}`);
+    }).on('error', (err) => {
+      console.error('Self-ping failed:', err.message);
+    });
+  }, 14 * 60 * 1000);
+}
+
+// Cleanup old files in uploads/ (every 30 mins)
+setInterval(() => {
+  const now = Date.now();
+  const ONE_HOUR = 60 * 60 * 1000;
+  let deletedCount = 0;
+  try {
+    const files = fs.readdirSync(uploadsDir);
+    files.forEach(file => {
+      const filePath = path.join(uploadsDir, file);
+      const stats = fs.statSync(filePath);
+      if (now - stats.mtime.getTime() > ONE_HOUR) {
+        fs.unlinkSync(filePath);
+        deletedCount++;
+      }
+    });
+    if (deletedCount > 0) console.log(`Cleanup: Deleted ${deletedCount} old files from uploads/`);
+  } catch (err) {
+    console.error('Cleanup job error:', err.message);
+  }
+}, 30 * 60 * 1000);
