@@ -66,8 +66,10 @@ def format_document(input_file, output_file, opts, doc_type='book'):
                 rFonts.set(qn('w:hAnsi'), formal_name)
             ea_a = qn('w:eastAsia')
             if rFonts.get(ea_a): del rFonts.attrib[ea_a]
-            cs_attr = qn('w:cs')
-            if rFonts.get(cs_attr): del rFonts.attrib[cs_attr]
+            # MUST set w:cs in docDefaults too — Word uses cs font path when user
+            # types new text after existing Devanagari content. Without this,
+            # Word falls back to Mangal (system Hindi font) for newly typed runs.
+            rFonts.set(qn('w:cs'), formal_name)
             for ta in ['w:asciiTheme', 'w:hAnsiTheme', 'w:eastAsiaTheme', 'w:cstheme']:
                 t = qn(ta)
                 if rFonts.get(t): del rFonts.attrib[t]
@@ -112,8 +114,10 @@ def format_document(input_file, output_file, opts, doc_type='book'):
                         rFonts.set(qn('w:hAnsi'), formal_name)
                     ea_a = qn('w:eastAsia')
                     if rFonts.get(ea_a): del rFonts.attrib[ea_a]
-                    cs_attr = qn('w:cs')
-                    if rFonts.get(cs_attr): del rFonts.attrib[cs_attr]
+                    # MUST set w:cs in docDefaults too — Word uses cs font path when user
+                    # types new text after existing Devanagari content. Without this,
+                    # Word falls back to Mangal (system Hindi font) for newly typed runs.
+                    rFonts.set(qn('w:cs'), formal_name)
                     for ta in ['w:asciiTheme', 'w:hAnsiTheme', 'w:eastAsiaTheme', 'w:cstheme']:
                         t = qn(ta)
                         if rFonts.get(t): del rFonts.attrib[t]
@@ -154,6 +158,17 @@ def format_document(input_file, output_file, opts, doc_type='book'):
                         f'<a:font script="Sinh" typeface="{formal_name}"/>',
                         theme_xml
                     )
+
+                    if 'script="Deva"' not in theme_xml:
+                        # Inject Deva entry into supplementalFontList or majorFont/minorFont
+                        theme_xml = theme_xml.replace(
+                            '</a:majorFont>',
+                            f'<a:font script="Deva" typeface="{formal_name}"/></a:majorFont>'
+                        )
+                        theme_xml = theme_xml.replace(
+                            '</a:minorFont>',
+                            f'<a:font script="Deva" typeface="{formal_name}"/></a:minorFont>'
+                        )
                     theme_part._blob = theme_xml.encode('utf-8')
         except Exception:
             pass

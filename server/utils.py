@@ -1,4 +1,3 @@
-
 import re
 from docx.shared import Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
@@ -948,6 +947,12 @@ def _fix_english_special(text):
 # so non-Hindi segments get a fallback font (Times New Roman) instead.
 FALLBACK_FONT = 'Times New Roman'
 
+# ASCII punctuation chars that KrutiDev maps to wrong Hindi glyphs.
+# These MUST be rendered in FALLBACK_FONT, not KrutiDev.
+# e.g. comma (,) -> ए, semicolon (;) -> wrong glyph, etc.
+# Safe chars that render correctly in KrutiDev: space, hyphen, slash, pipe, underscore
+KRUTIDEV_BROKEN_PUNCT = set(',;:!?()\'"[]{}@#$%^&*+=<>\\`~')
+
 def _segment_text(text):
     """
     Split text into (use_krutidev, chunk) pairs for KrutiDev conversion.
@@ -971,22 +976,23 @@ def _segment_text(text):
     current_is_ascii_word = None
     current_chunk = []
 
-    def is_ascii_word_char(ch):
-        return bool(re.match(r'[A-Za-z0-9]', ch))
+    def needs_fallback_font(ch):
+        # ASCII letters/digits AND broken KrutiDev punctuation both need fallback font
+        return bool(re.match(r'[A-Za-z0-9]', ch)) or ch in KRUTIDEV_BROKEN_PUNCT
 
     for ch in text:
-        ch_is_ascii_word = is_ascii_word_char(ch)
+        ch_needs_fallback = needs_fallback_font(ch)
         if current_is_ascii_word is None:
-            current_is_ascii_word = ch_is_ascii_word
+            current_is_ascii_word = ch_needs_fallback
 
-        if ch_is_ascii_word == current_is_ascii_word:
+        if ch_needs_fallback == current_is_ascii_word:
             current_chunk.append(ch)
         else:
             chunk = ''.join(current_chunk)
-            # ASCII words/digits should use fallback font; everything else
-            # stays with KrutiDev to avoid run explosion and spacing issues.
+            # fallback=True  -> Times New Roman (English, digits, broken KrutiDev punct)
+            # fallback=False -> KrutiDev (Hindi text, spaces, safe punctuation like - / |)
             segments.append((not current_is_ascii_word, chunk))
-            current_is_ascii_word = ch_is_ascii_word
+            current_is_ascii_word = ch_needs_fallback
             current_chunk = [ch]
 
     if current_chunk:
@@ -1157,10 +1163,11 @@ def _split_and_convert_run(run, font_name, pre_font=None):
             # (they render identically in both fonts, and switching causes spacing issues)
             has_english = bool(_re.search(r'[A-Za-z]', text))
             has_ascii_digits = bool(_re.search(r'[0-9]', text))
-            if has_english or has_ascii_digits:
+            has_broken_punct = any(c in KRUTIDEV_BROKEN_PUNCT for c in text)
+            if has_english or has_ascii_digits or has_broken_punct:
                 _set_run_font_fallback(run._element, font_name)
             else:
-                # Pure punctuation/spaces -> KrutiDev (consistent font in Hindi para)
+                # Pure spaces/safe-punctuation (hyphen, slash, pipe) -> KrutiDev
                 set_font_properly(run, font_name)
             return None
 
@@ -1283,17 +1290,32 @@ def convert_doc_runs(doc, font_name):
                 # it to legacy ASCII; force KrutiDev now.  Checking run.text
                 # *after* conversion is the old bug: it no longer contains
                 # Devanagari, so the code incorrectly assigned fallback fonts.
-                if had_unicode_hindi or is_krutidev(run_effective_font):
+                import re as _re2
+                _text = run.text or ''
+                _has_eng_or_digit = bool(_re2.search(r'[A-Za-z0-9]', _text))
+
+                if had_unicode_hindi:
+                    # Run was Unicode Hindi — now converted to KrutiDev ASCII.
+                    # Chars like ';' in _text are KrutiDev GLYPHS (e.g. ';' = ं),
+                    # NOT actual punctuation. MUST use KrutiDev font, never fallback.
                     set_font_properly(run, font_name)
-                else:
-                    # Non-Hindi run: English/digits -> fallback, punctuation -> KrutiDev
-                    import re as _re2
-                    _text = run.text or ''
-                    _has_eng_or_digit = bool(_re2.search(r'[A-Za-z0-9]', _text))
-                    if _has_eng_or_digit:
+                elif is_krutidev(run_effective_font):
+                    # Run inherited KrutiDev font from parent style but had NO Unicode Hindi.
+                    # This means it's a standalone punctuation/symbol run (e.g. a comma
+                    # that was in a separate run in the input doc).
+                    # Here ';' IS actual punctuation, not a KrutiDev glyph — check it.
+                    _has_broken_punct = any(c in KRUTIDEV_BROKEN_PUNCT for c in _text)
+                    if _has_eng_or_digit or _has_broken_punct:
                         _set_run_font_fallback(r_elem, font_name)
                     else:
-                        # Pure punctuation/spaces stay in KrutiDev font
+                        set_font_properly(run, font_name)
+                else:
+                    # Truly non-Hindi, non-KrutiDev run (English text etc).
+                    _has_broken_punct = any(c in KRUTIDEV_BROKEN_PUNCT for c in _text)
+                    if _has_eng_or_digit or _has_broken_punct:
+                        _set_run_font_fallback(r_elem, font_name)
+                    else:
+                        # Pure spaces/safe-punctuation (hyphen, slash, pipe) -> KrutiDev
                         set_font_properly(run, font_name)
 
     # 1. Main paragraphs
