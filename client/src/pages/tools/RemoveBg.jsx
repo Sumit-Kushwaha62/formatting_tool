@@ -98,9 +98,22 @@ export default function RemoveBg({ navTo }) {
         body: formData,
       });
 
+      if (!res.ok) {
+        let errText = '';
+        try {
+          const errJson = await res.json();
+          errText = errJson.error;
+        } catch (e) {
+          errText = (res.status === 502 || res.status === 503)
+            ? 'Backend server is currently waking up on Render. Please wait 10-20 seconds and click retry.'
+            : `Server returned error (${res.status})`;
+        }
+        throw new Error(errText || 'Background removal failed.');
+      }
+
       const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || 'Background removal failed.');
+      if (data.error) {
+        throw new Error(data.error);
       }
       setResult(data);
     } catch (err) {

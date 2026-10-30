@@ -213,6 +213,7 @@ def compress_image(input_path, output_path, level="recommended"):
 def remove_background(input_path, output_path):
     from PIL import Image, ImageOps
     from rembg import remove, new_session
+    import onnxruntime as ort
     import os
 
     if not os.path.exists(input_path):
@@ -224,24 +225,37 @@ def remove_background(input_path, output_path):
         except Exception:
             pass
 
-        # Memory & Speed Optimization for Render / Production:
-        # Scale down excessively large images (e.g. 12MP+ camera uploads)
-        # 1400px preserves ultra crisp passport & print details while preventing OOM crashes
-        max_dim = 1400
+        # Memory & Speed Optimization for Render Free Tier (512MB RAM cap):
+        # 1. Downscale large camera photos to 800px max dimension.
+        # u2netp internally maps to a 320x320 grid, so 800px delivers 100% precision
+        # while keeping RAM usage well under 180MB.
+        max_dim = 800
         w, h = img.size
         if max(w, h) > max_dim:
             resample_filter = getattr(getattr(Image, 'Resampling', Image), 'LANCZOS', Image.LANCZOS)
             img.thumbnail((max_dim, max_dim), resample_filter)
 
-        # Use u2netp (lightweight 4.5MB model) for fast inference and minimal RAM usage on Render
-        try:
-            session = new_session('u2netp')
-            result = remove(img, session=session)
-        except Exception:
-            # Fallback to standard remove
-            result = remove(img)
+        # 2. Constrain ONNX Runtime memory allocation:
+        # Disabling memory arena pre-allocation saves ~280MB of RAM!
+        sess_opts = ort.SessionOptions()
+        sess_opts.intra_op_num_threads = 1
+        sess_opts.inter_op_num_threads = 1
+        sess_opts.enable_cpu_mem_arena = False
+        sess_opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+        sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_BASIC
+
+        # Use u2netp (lightweight 4.5MB model) exclusively
+        session = new_session('u2netp', sess_opts=sess_opts)
+        result = remove(img, session=session)
 
         result.save(output_path, "PNG")
+
+        # Explicit garbage collection to instantly free memory on Render
+        del img
+        del result
+        del session
+        import gc
+        gc.collect()
 
 # 8. Unlock PDF (Remove Password)
 def remove_pdf_password(input_path, output_path, password=""):

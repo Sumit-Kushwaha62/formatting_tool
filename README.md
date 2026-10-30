@@ -261,7 +261,7 @@ node server/test/monetization.test.js
 
 Developed by **Sumit Kushwaha**  
 - **Email**: [sumitkushwaha99375@gmail.com](mailto:sumitkushwaha99375@gmail.com)  
-- **Live Application**: [format Studio](https://formatting-tool-frontend.onrender.com)  
+- **Live Application**: [Format Studio](https://formatting-tool-frontend.onrender.com)  
 - **GitHub**: [@Sumit-Kushwaha62](https://github.com/Sumit-Kushwaha62)
 
 Feel free to open an issue or submit a pull request if you have feature suggestions or layout presets you'd like added!

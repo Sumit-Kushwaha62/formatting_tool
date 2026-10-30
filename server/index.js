@@ -1,9 +1,17 @@
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+
+// Resilient Supabase client initialized strictly from environment variables
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+let supabase = null;
+try {
+  if (supabaseUrl && supabaseKey) {
+    supabase = createClient(supabaseUrl, supabaseKey);
+  }
+} catch (supaErr) {
+  console.warn('Supabase initialization fallback:', supaErr.message);
+}
 
 const express = require('express');
 const multer = require('multer');
@@ -23,9 +31,15 @@ const { ERROR_CODES, sendSafeError } = require('./errors');
 const adminStore = require('./adminStore');
 
 const app = express();
+
+// Robust Production CORS Configuration for Render
 app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Token', 'X-Original-Filename'],
   exposedHeaders: ['Content-Disposition', 'X-Original-Filename'],
 }));
+app.options('*', cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -361,7 +375,16 @@ app.post('/api/remove-bg', upload.single('file'), async (req, res) => {
 
   try {
     await new Promise((resolve, reject) => {
-      const child = spawn(PYTHON_CMD, args);
+      const child = spawn(PYTHON_CMD, args, {
+        env: {
+          ...process.env,
+          OMP_NUM_THREADS: '1',
+          OPENBLAS_NUM_THREADS: '1',
+          MKL_NUM_THREADS: '1',
+          VECLIB_MAXIMUM_THREADS: '1',
+          NUMEXPR_NUM_THREADS: '1',
+        }
+      });
       let stderr = '';
       child.stderr.on('data', data => stderr += data.toString());
       child.on('close', code => (code === 0 ? resolve() : reject(new Error(stderr || `Process exited with code ${code}`))));
@@ -371,6 +394,7 @@ app.post('/api/remove-bg', upload.single('file'), async (req, res) => {
     const outputSize = fs.existsSync(outputPath) ? fs.statSync(outputPath).size : 0;
     const dlName = `${req.file.originalname.replace(/\.[^/.]+$/, '')}_nobg.png`;
 
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.json({
       downloadUrl: `/api/download/${outputName}?name=${encodeURIComponent(dlName)}`,
       previewUrl: `/api/preview/${outputName}`,

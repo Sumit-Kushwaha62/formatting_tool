@@ -211,9 +211,22 @@ export default function LegalPhoto({ navTo }) {
         body: formData,
       });
 
+      if (!res.ok) {
+        let errText = '';
+        try {
+          const errJson = await res.json();
+          errText = errJson.error;
+        } catch (e) {
+          errText = (res.status === 502 || res.status === 503)
+            ? 'Backend server is waking up on Render. Please wait 10-20 seconds and click again.'
+            : `Server returned error (${res.status})`;
+        }
+        throw new Error(errText || 'Failed to remove background.');
+      }
+
       const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || 'Failed to remove background.');
+      if (data.error) {
+        throw new Error(data.error);
       }
 
       const previewUrl = data.previewUrl || data.downloadUrl;
