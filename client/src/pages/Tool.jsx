@@ -187,14 +187,14 @@ const handleSubmit = async () => {
 
       <div className="tool-header">
         <h1 className="tool-title">Format Your Document</h1>
-        <p className="tool-subtitle">Select type → Configure → Upload → Download</p>
+        <p className="tool-subtitle">Choose a document standard, customize layout specifications, and generate publication-ready files.</p>
       </div>
 
       {/* Trial Countdown Banner */}
       <TrialBanner />
 
       <div className="steps-bar">
-        {[{ n: 1, label: 'Select Type' }, { n: 2, label: 'Configure' }, { n: 3, label: 'Upload & Export' }].map(({ n, label }) => (
+        {[{ n: 1, label: 'Document Type' }, { n: 2, label: 'Page & Font Setup' }, { n: 3, label: 'Upload & Export' }].map(({ n, label }) => (
           <div key={n} style={{ display: 'flex', alignItems: 'center', flex: n < 3 ? 1 : 0 }}>
             <div className={`step-node ${step === n ? 'active' : step > n ? 'done' : ''}`}>
               <div className="step-circle">{step > n ? '✓' : n}</div>
@@ -209,12 +209,12 @@ const handleSubmit = async () => {
       {step === 1 && (
         <>
           <div className="card" style={{ marginBottom: 24 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
               <div>
-                <div className="card-title">Select document type</div>
-                <div className="card-sub" style={{ margin: 0 }}>Choose the format that matches your document</div>
+                <div className="card-title">Document Standards</div>
+                <div className="card-sub" style={{ margin: 0 }}>Select your target document structure for verified academic and publishing presets</div>
               </div>
-              <button className="btn-secondary" onClick={() => setShowAIMagic(true)} style={{ padding: '8px 16px', minHeight: 'unset' }}>✨ AI Magic</button>
+              <button className="btn-secondary" onClick={() => setShowAIMagic(true)} aria-label="Smart preset assistant" style={{ padding: '6px 14px', fontSize: 13, minHeight: 36 }}>✦ Smart Presets</button>
             </div>
             <div className="type-grid">
               {DOC_TYPES.map(t => (
@@ -229,14 +229,20 @@ const handleSubmit = async () => {
           </div>
 
           <div className="card">
-            <div className="card-title">Document Converters</div>
-            <div className="card-sub">Quick tools to merge or convert your documents</div>
+            <div className="card-title">Conversion & Merge Utilities</div>
+            <div className="card-sub">Instant rule-based file processors for everyday document transformations</div>
             <div className="type-grid">
               <div className="type-card" onClick={() => navTo('merge-pdf')}>
                 <div className="type-card-tag">PDF Utility</div>
                 <div className="type-card-icon">📄</div>
                 <div className="type-card-name">Merge PDF</div>
                 <div className="type-card-desc">Combine multiple PDF files into one.</div>
+              </div>
+              <div className="type-card" onClick={() => navTo('compress-pdf')}>
+                <div className="type-card-tag">PDF Utility</div>
+                <div className="type-card-icon">🗜️</div>
+                <div className="type-card-name">PDF Compressor</div>
+                <div className="type-card-desc">Reduce PDF size with smart DPI optimization.</div>
               </div>
               <div className="type-card" onClick={() => navTo('merge-word')}>
                 <div className="type-card-tag">Word Utility</div>
@@ -251,10 +257,34 @@ const handleSubmit = async () => {
                 <div className="type-card-desc">Convert PDF files to editable .docx format.</div>
               </div>
               <div className="type-card" onClick={() => navTo('excel-to-pdf')}>
-                <div className="type-card-tag">Converter</div>
-                <div className="type-card-icon">📊</div>
-                <div className="type-card-name">Excel to PDF</div>
-                <div className="type-card-desc">Convert .xlsx spreadsheets to PDF format.</div>
+               <div className="type-card-tag">Converter</div>
+               <div className="type-card-icon">📊</div>
+               <div className="type-card-name">Excel to PDF</div>
+               <div className="type-card-desc">Convert .xlsx spreadsheets to PDF format.</div>
+              </div>
+              <div className="type-card" onClick={() => navTo('hindi-to-krutidev')}>
+               <div className="type-card-tag">Hindi Tool</div>
+               <div className="type-card-icon">🔤</div>
+               <div className="type-card-name">Hindi → KrutiDev</div>
+               <div className="type-card-desc">Convert Unicode Hindi document to KrutiDev 010 font encoding.</div>
+              </div>
+              <div className="type-card" onClick={() => navTo('compress-image')}>
+               <div className="type-card-tag">Image Utility</div>
+               <div className="type-card-icon">🖼️</div>
+               <div className="type-card-name">Image Compressor</div>
+               <div className="type-card-desc">Compress JPG, PNG, and WebP files with instant preview.</div>
+              </div>
+              <div className="type-card" onClick={() => navTo('remove-bg')}>
+               <div className="type-card-tag">AI Utility</div>
+               <div className="type-card-icon">✂️</div>
+               <div className="type-card-name">Background Remover</div>
+               <div className="type-card-desc">Remove background from photos and export transparent PNG.</div>
+              </div>
+              <div className="type-card" onClick={() => navTo('unlock-pdf')}>
+               <div className="type-card-tag">Security Utility</div>
+               <div className="type-card-icon">🔓</div>
+               <div className="type-card-name">Unlock PDF</div>
+               <div className="type-card-desc">Remove password encryption from protected PDF files.</div>
               </div>
             </div>
           </div>
@@ -265,7 +295,7 @@ const handleSubmit = async () => {
       {step === 2 && currentType && (
         <div>
           <button className="back-btn" onClick={() => setStep(1)}>← Back</button>
-          <div className="card">
+          <div className="card workspace-card">
             <div className="card-title">{currentType.icon} {currentType.label} — Options</div>
             <div className="card-sub">All fields optional — leave blank for defaults</div>
 
@@ -274,8 +304,10 @@ const handleSubmit = async () => {
               <div className="form-section-title">◈ Font & Typography</div>
               <div className="form-grid-2">
                 <div className="field-group">
-                  <label className="field-label">Language <span className="field-opt">Optional</span></label>
+                  <label htmlFor="tool-language" className="field-label">Language <span className="field-opt">Optional</span></label>
                   <select
+                    id="tool-language"
+                    aria-label="Language"
                     className="field-input"
                     value={formData.font_script || ''}
                     onChange={e => { handleFieldChange('font_script', e.target.value); handleFieldChange('font_style', ''); }}
@@ -286,8 +318,10 @@ const handleSubmit = async () => {
                   </select>
                 </div>
                 <div className="field-group">
-                  <label className="field-label">Font Family <span className="field-opt">Optional</span></label>
+                  <label htmlFor="tool-font-family" className="field-label">Font Family <span className="field-opt">Optional</span></label>
                   <select
+                    id="tool-font-family"
+                    aria-label="Font family"
                     className="field-input"
                     value={formData.font_style || ''}
                     onChange={e => handleFieldChange('font_style', e.target.value)}
@@ -298,14 +332,14 @@ const handleSubmit = async () => {
                   </select>
                 </div>
                 <div className="field-group">
-                  <label className="field-label">Font Size <span className="field-opt">Default: 12</span></label>
-                  <select className="field-input" value={formData.font_size || '12'} onChange={e => handleFieldChange('font_size', e.target.value)}>
+                  <label htmlFor="tool-font-size" className="field-label">Font Size <span className="field-opt">Default: 12</span></label>
+                  <select id="tool-font-size" aria-label="Font size" className="field-input" value={formData.font_size || '12'} onChange={e => handleFieldChange('font_size', e.target.value)}>
                     {FONT_SIZES.map(sz => <option key={sz} value={sz}>{sz} pt</option>)}
                   </select>
                 </div>
                 <div className="field-group">
-                  <label className="field-label">Line Spacing <span className="field-opt">Default: 1.15</span></label>
-                  <select className="field-input" value={formData.line_spacing || '1.15'} onChange={e => handleFieldChange('line_spacing', e.target.value)}>
+                  <label htmlFor="tool-line-spacing" className="field-label">Line Spacing <span className="field-opt">Default: 1.15</span></label>
+                  <select id="tool-line-spacing" aria-label="Line spacing" className="field-input" value={formData.line_spacing || '1.15'} onChange={e => handleFieldChange('line_spacing', e.target.value)}>
                     {LINE_SPACINGS.map(ls => <option key={ls.value} value={ls.value}>{ls.label}</option>)}
                   </select>
                 </div>
@@ -322,12 +356,18 @@ const handleSubmit = async () => {
             {/* Page size */}
             <div className="form-section">
               <div className="form-section-title">◈ Page Size</div>
-              <div className="form-grid-3" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+              <div className="form-page-sizes">
                 {PAGE_SIZES.map(ps => (
-                  <div key={ps.value} className={`sel-card ${formData.page_size === ps.value ? 'selected' : ''}`} onClick={() => handleFieldChange('page_size', ps.value)}>
+                  <button 
+                    type="button" 
+                    key={ps.value} 
+                    className={`sel-card ${formData.page_size === ps.value ? 'selected' : ''}`} 
+                    onClick={() => handleFieldChange('page_size', ps.value)}
+                    aria-label={`${ps.label} ${ps.desc}`}
+                  >
                     <div className="sel-card-label">{ps.label}</div>
                     <div className="sel-card-desc">{ps.desc}</div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -341,7 +381,7 @@ const handleSubmit = async () => {
                   <div className="toggle-sub">Add page X of Y automatically</div>
                 </div>
                 <label className="toggle">
-                  <input type="checkbox" checked={!!formData.page_numbers} onChange={() => handleToggle('page_numbers')} />
+                  <input type="checkbox" aria-label="Add automatic page numbers" checked={!!formData.page_numbers} onChange={() => handleToggle('page_numbers')} />
                   <span className="toggle-slider" />
                 </label>
               </div>
@@ -350,15 +390,22 @@ const handleSubmit = async () => {
                   <div className="field-label" style={{ marginBottom: 8 }}>Position</div>
                   <div className="form-grid-3">
                     {PAGE_NUM_POSITIONS.map(p => (
-                      <div key={p.value} className={`sel-card ${formData.page_number_position === p.value ? 'selected' : ''}`}
-                        onClick={() => handleFieldChange('page_number_position', p.value)}>
+                      <button 
+                        type="button"
+                        key={p.value} 
+                        className={`sel-card ${formData.page_number_position === p.value ? 'selected' : ''}`}
+                        onClick={() => handleFieldChange('page_number_position', p.value)}
+                        aria-label={p.label}
+                      >
                         <div className="sel-card-label">{p.label}</div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                   <div style={{ marginTop: 12, maxWidth: 200 }}>
-                    <div className="field-label" style={{ marginBottom: 8 }}>Starting Page Number</div>
+                    <label htmlFor="tool-start-page" className="field-label" style={{ marginBottom: 8 }}>Starting Page Number</label>
                     <input
+                      id="tool-start-page"
+                      aria-label="Starting page number"
                       className="field-input"
                       type="number"
                       min="1"
@@ -371,12 +418,12 @@ const handleSubmit = async () => {
               )}
               <div className="form-grid-2" style={{ marginTop: 12 }}>
                 <div className="field-group">
-                  <label className="field-label">Header Text <span className="field-opt">Optional</span></label>
-                  <input className="field-input" type="text" placeholder="e.g. Chapter title" value={formData.header || ''} onChange={e => handleFieldChange('header', e.target.value)} />
+                  <label htmlFor="tool-header" className="field-label">Header Text <span className="field-opt">Optional</span></label>
+                  <input id="tool-header" aria-label="Header text" className="field-input" type="text" placeholder="e.g. Chapter title" value={formData.header || ''} onChange={e => handleFieldChange('header', e.target.value)} />
                 </div>
                 <div className="field-group">
-                  <label className="field-label">Footer Text <span className="field-opt">Optional</span></label>
-                  <input className="field-input" type="text" placeholder="e.g. © 2024 Publisher" value={formData.footer || ''} onChange={e => handleFieldChange('footer', e.target.value)} />
+                  <label htmlFor="tool-footer" className="field-label">Footer Text <span className="field-opt">Optional</span></label>
+                  <input id="tool-footer" aria-label="Footer text" className="field-input" type="text" placeholder="e.g. © 2024 Publisher" value={formData.footer || ''} onChange={e => handleFieldChange('footer', e.target.value)} />
                 </div>
               </div>
             </div>
@@ -387,9 +434,16 @@ const handleSubmit = async () => {
               <div className="form-grid-fields">
                 {currentType.fields.filter(f => f.key !== 'header' && f.key !== 'footer').map(field => (
                   <div className="field-group" key={field.key}>
-                    <label className="field-label">{field.label} <span className="field-opt">Optional</span></label>
-                    <input className="field-input" type="text" placeholder={field.placeholder}
-                      value={formData[field.key] || ''} onChange={e => handleFieldChange(field.key, e.target.value)} />
+                    <label htmlFor={`tool-field-${field.key}`} className="field-label">{field.label} <span className="field-opt">Optional</span></label>
+                    <input 
+                      id={`tool-field-${field.key}`} 
+                      aria-label={field.label} 
+                      className="field-input" 
+                      type="text" 
+                      placeholder={field.placeholder}
+                      value={formData[field.key] || ''} 
+                      onChange={e => handleFieldChange(field.key, e.target.value)} 
+                    />
                   </div>
                 ))}
               </div>
@@ -397,7 +451,7 @@ const handleSubmit = async () => {
 
             <div className="divider" />
             <div className="btn-row">
-              <button className="btn-primary" onClick={() => setStep(3)}>Continue to Upload →</button>
+              <button className="btn-primary" onClick={() => setStep(3)}>Continue to upload</button>
               <button className="btn-secondary" onClick={() => setStep(1)}>Change Type</button>
             </div>
           </div>
@@ -408,13 +462,13 @@ const handleSubmit = async () => {
       {step === 3 && status === 'idle' && (
         <div>
           <button className="back-btn" onClick={() => setStep(2)}>← Back to Options</button>
-          <div className="card">
+          <div className="card workspace-card">
             <div className="card-title">Upload Your Document</div>
             <div className="card-sub">Upload a .docx file — all formatting preferences will be applied</div>
 
             {!file ? (
               <div {...getRootProps()} className={`dropzone ${isDragActive ? 'active' : ''}`}>
-                <input {...getInputProps()} />
+                <input {...getInputProps()} aria-label="Choose a Word document to format" />
                 <div className="dropzone-icon">📄</div>
                 <div className="dropzone-text">{isDragActive ? 'Drop file here...' : 'Click to select or drag & drop'}</div>
                 <div className="dropzone-sub">.docx files only</div>
@@ -424,7 +478,7 @@ const handleSubmit = async () => {
                 <span>📎</span>
                 <span className="file-name">{file.name}</span>
                 <span className="file-size">{(file.size / 1024).toFixed(1)} KB</span>
-                <button className="file-remove" onClick={() => { setFile(null); setDownloadFileName('formatted_document.docx'); }}>✕</button>
+                <button className="file-remove" onClick={() => { setFile(null); setDownloadFileName('formatted_document.docx'); }} aria-label={`Remove ${file.name}`}>✕</button>
               </div>
             )}
 
@@ -460,19 +514,20 @@ const handleSubmit = async () => {
 
       {/* Success Status */}
       {status === 'done' && (
-        <div className="card">
+        <div className="card workspace-card">
           <button className="back-btn" onClick={() => { setStatus('idle'); setStep(2); }}>← Back</button>
           <div className="status-center">
             <div className="status-icon">✅</div>
             <div className="status-title">Document Formatted</div>
             <div className="status-sub">Your document is ready to download.</div>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button 
-                onClick={() => { window.location.href = downloadUrl; }} 
+              <a 
+                href={downloadUrl} 
+                download={downloadFileName} 
                 className="btn-download"
               >
-                ⬇ Download File
-              </button>
+                Download file
+              </a>
               <button className="btn-secondary" onClick={handleReset}>Format Another</button>
             </div>
           </div>

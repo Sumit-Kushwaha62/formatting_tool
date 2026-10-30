@@ -1,7 +1,9 @@
-
 python-docx
 pypdf
 pdf2docx
 openpyxl
 reportlab
 docxcompose
+PyMuPDF
+Pillow
+rembg

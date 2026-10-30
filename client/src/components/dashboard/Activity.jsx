@@ -88,7 +88,7 @@ export default function Activity({ navTo }) {
 
   return (
     <>
-      <div className="dash-page-title">Activity</div>
+      <h1 className="dash-page-title">Activity</h1>
       <div className="dash-page-sub">Your complete document formatting history.</div>
       
       <div className="activity-list">

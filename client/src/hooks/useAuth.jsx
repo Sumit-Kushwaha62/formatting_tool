@@ -20,6 +20,13 @@ export function AuthProvider({ children }) {
 
   // Fetch real plan and documents for the user
   const refreshPlanAndDocs = async (userId) => {
+    if (typeof globalThis !== 'undefined' && globalThis.__FORMAT_STUDIO_QA_FIXTURE__) {
+      const fixture = globalThis.__FORMAT_STUDIO_QA_FIXTURE__;
+      setRealDocs(fixture.documents || []);
+      setUserPlan(fixture.userPlan || 'free');
+      return { docsCount: (fixture.documents || []).length, plan: fixture.userPlan || 'free' };
+    }
+
     const targetId = userId || user?.id;
     if (!targetId) return { docsCount: 0, plan: 'free' };
     
@@ -62,6 +69,15 @@ export function AuthProvider({ children }) {
   };
 
   useEffect(() => {
+    if (typeof globalThis !== 'undefined' && globalThis.__FORMAT_STUDIO_QA_FIXTURE__) {
+      const fixture = globalThis.__FORMAT_STUDIO_QA_FIXTURE__;
+      setUser(fixture.user || null);
+      setUserPlan(fixture.userPlan || 'free');
+      setRealDocs(fixture.documents || []);
+      setLoading(false);
+      return;
+    }
+
     // Check active session on load
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -79,6 +95,9 @@ export function AuthProvider({ children }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (typeof globalThis !== 'undefined' && globalThis.__FORMAT_STUDIO_QA_FIXTURE__) {
+        return;
+      }
       if (session?.user) {
         const u = {
           name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],

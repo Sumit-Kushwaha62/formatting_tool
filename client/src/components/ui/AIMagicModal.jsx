@@ -38,12 +38,12 @@ export default function AIMagicModal({ isOpen, onClose, onApply }) {
     <Modal 
       isOpen={isOpen} 
       onClose={onClose} 
-      title="✨ AI Magic" 
-      subtitle="Let AI configure the perfect formatting settings for you."
+      title="Smart Preset Assistant" 
+      subtitle="Describe your publication guidelines or target university specifications to automatically apply matching presets."
     >
       <div style={{ padding: '0 4px' }}>
         <div className="field-group" style={{ marginBottom: 20 }}>
-          <label className="field-label">Document Type</label>
+          <label className="field-label">Document Standard</label>
           <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
             {['book', 'thesis', 'letter'].map((type) => (
               <label 
@@ -79,11 +79,11 @@ export default function AIMagicModal({ isOpen, onClose, onApply }) {
 
         <div className="field-group" style={{ marginBottom: 20 }}>
           <label className="field-label">
-            Describe your needs <span className="field-opt">Optional</span>
+            Target Guidelines or Requirements <span className="field-opt">Optional</span>
           </label>
           <textarea 
             className="field-input" 
-            placeholder="e.g. 'I want a classic book layout with large margins and serif font' or 'A professional academic thesis with 1.5 line spacing'..."
+            placeholder="e.g. 'Format for IIT Delhi thesis: 1.5 inch left margin for binding, Times New Roman, 1.5 line spacing' or 'Publishing standard 6x9 book layout'..."
             value={userPrompt}
             onChange={(e) => setUserPrompt(e.target.value)}
             style={{ minHeight: '100px', resize: 'vertical', paddingTop: '10px' }}
@@ -111,7 +111,7 @@ export default function AIMagicModal({ isOpen, onClose, onApply }) {
             onClick={handleApply}
             disabled={loading}
           >
-            {loading ? <div className="spinner" style={{ width: 18, height: 18, margin: 0 }} /> : 'Apply Settings'}
+            {loading ? <div className="spinner" style={{ width: 18, height: 18, margin: 0 }} /> : 'Apply Presets'}
           </button>
           <button 
             className="btn-secondary" 

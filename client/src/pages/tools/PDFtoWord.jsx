@@ -121,8 +121,8 @@ export default function PDFtoWord({ navTo }) {
             
             <div className="download-list" style={{ marginTop: 20, marginBottom: 20, width: '100%' }}>
               {result.files.map((resFile, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px', background: '#f8fafc', borderRadius: '8px', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: '500', color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>{resFile.originalName}</span>
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px', background: 'var(--bg2)', borderRadius: '8px', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>{resFile.originalName}</span>
                   <button 
                     onClick={() => {
                       const API_URL = import.meta.env.VITE_API_URL || '';
@@ -150,3 +150,4 @@ export default function PDFtoWord({ navTo }) {
     </div>
   );
 }
+

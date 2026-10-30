@@ -1084,11 +1084,13 @@ def _set_run_font_krutidev_elem(run_elem, font_name):
         del rFonts.attrib[attr]
     rFonts.set(_qn('w:ascii'), formal)
     rFonts.set(_qn('w:hAnsi'), formal)
+    rFonts.set(_qn('w:cs'), formal)
 
-    for tag in ['w:rtl', 'w:cs', 'w:bidi']:
+    for tag in ['w:rtl', 'w:bidi']:
         el = rPr.find(_qn(tag))
         if el is not None:
             rPr.remove(el)
+    rFonts.set(_qn('w:cs'), formal)
 
     lang = rPr.find(_qn('w:lang'))
     if lang is None:
@@ -1339,3 +1341,31 @@ def convert_doc_runs(doc, font_name):
             if footer:
                 for para in footer.paragraphs:
                     process_para(para)
+
+
+
+
+
+''' 
+yaha pr kuch chize aur fix krni hai iss project me -- 
+
+1. contact page looks wise generic lag rha hai isske ui ko aur sahi kiya ja skta hai
+
+2. now contact page and feedback wale section ko store krne ke liye ek admin logic ka support bhi chahiye 
+footer me admin logic ka ek button do jaha pr login krne pr entire user data show ho agar possible ho to usage aur uptime bhi add krna
+jaise render pr matrix me show hota hai 
+
+
+
+
+''' 
+
+
+
+
+
+
+
+
+
+                    

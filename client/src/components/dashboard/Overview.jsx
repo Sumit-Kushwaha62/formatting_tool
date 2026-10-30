@@ -1,31 +1,17 @@
 import React from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../hooks/useAuth';
+import { MONETIZATION_ENABLED } from '../../config/features';
 
 export default function Overview({ navTo, setDashTab }) {
   const { user, userPlan, realDocs, docsCount, refreshPlanAndDocs } = useAuth();
-  const [documentsCount, setDocumentsCount] = React.useState(docsCount || 0);
+  const documentsCount = docsCount ?? realDocs.length ?? 0;
 
   React.useEffect(() => {
     if (user?.id) {
       refreshPlanAndDocs(user.id);
-      supabase
-        .from('documents')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .then(({ count, error }) => {
-          if (error) {
-            console.error('Error fetching documents count:', error);
-            return;
-          }
-          setDocumentsCount(count || 0);
-        });
     }
   }, [user?.id]);
-
-  React.useEffect(() => {
-    setDocumentsCount(docsCount || 0);
-  }, [docsCount]);
 
   const activePlanName = userPlan === 'pro' ? 'Professional' : userPlan === 'team' ? 'Institution' : 'Scholar';
   const activePlanPrice = userPlan === 'pro' ? '₹199/month' : userPlan === 'team' ? '₹999/month' : '₹0/forever';
@@ -45,33 +31,35 @@ export default function Overview({ navTo, setDashTab }) {
 
   return (
     <>
-      <div className="dash-page-title">Welcome back, <span>{user?.name}</span></div>
+      <h1 className="dash-page-title">Welcome back, <span>{user?.name}</span></h1>
       <div className="dash-page-sub">Here is your account overview for this month.</div>
       
-      <div className="plan-banner">
-        <div>
-          <div className="plan-badge-lrg">✦ Current Plan</div>
-          <div className="plan-name-lrg">{activePlanName} — {activePlanPrice}</div>
-          <div className="plan-renew">
-            {userPlan === 'pro' ? 'Renews on 8 June 2026' : 'Active and ready to use'}
+      {MONETIZATION_ENABLED && (
+        <div className="plan-banner">
+          <div>
+            <div className="plan-badge-lrg">✦ Current Plan</div>
+            <div className="plan-name-lrg">{activePlanName} — {activePlanPrice}</div>
+            <div className="plan-renew">
+              {userPlan === 'pro' ? 'Renews on 8 June 2026' : 'Active and ready to use'}
+            </div>
+          </div>
+          <div className="plan-actions">
+            {userPlan === 'free' && (
+              <button className="btn-plan-upgrade" onClick={() => navTo('pricing')}>Upgrade Plan</button>
+            )}
+            {userPlan !== 'free' && (
+              <button className="btn-plan-cancel" onClick={() => setDashTab('subscription')}>Manage</button>
+            )}
           </div>
         </div>
-        <div className="plan-actions">
-          {userPlan === 'free' && (
-            <button className="btn-plan-upgrade" onClick={() => navTo('pricing')}>Upgrade Plan</button>
-          )}
-          {userPlan !== 'free' && (
-            <button className="btn-plan-cancel" onClick={() => setDashTab('subscription')}>Manage</button>
-          )}
-        </div>
-      </div>
+      )}
       
       <div className="dash-grid">
         <div className="dash-stat-card">
           <div className="dash-stat-label">Documents Formatted</div>
           <div className="dash-stat-val">{documentsCount}</div>
           <div className="dash-stat-sub">
-            {userPlan === 'free' ? '3 document limit' : 'Unlimited formatting active'}
+            {MONETIZATION_ENABLED && userPlan === 'free' ? '3 document limit' : 'Active and ready to use'}
           </div>
         </div>
         <div className="dash-stat-card">

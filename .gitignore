@@ -22,7 +22,6 @@ yarn-error.log*
 .env.*
 client/.env
 server/.env
-.env
 .env.production
 
 # ================================
@@ -53,16 +52,28 @@ Thumbs.db
 *.swp
 
 # ================================
-# Server generated files
+# Server generated files & dynamic data
 # ================================
 server/uploads/
 server/outputs/
+server/data/
 
 # ================================
-# Python cache (formatter.py ke liye)
+# Python cache & virtual environments
 # ================================
 __pycache__/
 *.pyc
+*.pyo
+venv/
+.venv/
+
+# ================================
+# Ephemeral test artifacts & archives
+# ================================
+phase5-test-run/
+*.zip
+test_*.pdf
+test_*.docx
 
 # ================================
 # Misc
@@ -70,5 +81,3 @@ __pycache__/
 coverage/
 .cache/
 .tmp/
-
-

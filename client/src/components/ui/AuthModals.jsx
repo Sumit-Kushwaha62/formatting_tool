@@ -32,6 +32,8 @@ export default function AuthModals({ navTo }) {
           <div className="modal-field">
             <label className="modal-label">Email Address</label>
             <input 
+              id="login-email"
+              autoFocus
               className="modal-input" 
               type="email" 
               placeholder="you@example.com" 

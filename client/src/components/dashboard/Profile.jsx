@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function Profile({ navTo }) {
-  const { user, deleteAccount } = useAuth();
+  const { user, logout, deleteAccount } = useAuth();
   
   const [profileForm, setProfileForm] = useState({
     name: '',
@@ -51,7 +51,7 @@ export default function Profile({ navTo }) {
     };
 
     loadProfile();
-  }, [user?.id]);
+  }, [user?.id, user?.name, user?.email]);
 
   // Fix #3: Wire Save Profile to Supabase profiles table
   const saveProfile = async () => {
@@ -121,6 +121,11 @@ export default function Profile({ navTo }) {
     }
   };
 
+  const handleLogout = async () => {
+    await logout();
+    navTo('home');
+  };
+
   const handleDeleteAccount = async () => {
     const confirmed = window.confirm('Delete your account and all associated data? This action cannot be undone.');
     if (!confirmed) return;
@@ -136,7 +141,7 @@ export default function Profile({ navTo }) {
 
   return (
     <>
-      <div className="dash-page-title">Profile</div>
+      <h1 className="dash-page-title">Profile</h1>
       <div className="dash-page-sub">Manage your account information and security.</div>
       
       <div className="dash-section-title">Profile Information</div>
@@ -174,7 +179,7 @@ export default function Profile({ navTo }) {
       </div>
       
       <div className="dash-section-title" style={{ marginTop: 24 }}>Security</div>
-      <div className="profile-form" style={{ marginBottom: 0 }}>
+      <div className="profile-form">
         <div className="field-group" style={{ maxWidth: 360 }}>
           <label className="field-label">New Password</label>
           <input
@@ -202,6 +207,27 @@ export default function Profile({ navTo }) {
             disabled={pwStatus === 'saving'}
           >
             {pwStatus === 'saving' ? 'Updating...' : 'Update Password'}
+          </button>
+        </div>
+      </div>
+
+      <div className="dash-section-title" style={{ marginTop: 24 }}>Account Session</div>
+      <div className="profile-form">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+          <div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, color: 'var(--navy)', fontSize: 14 }}>
+              Log out of Format Studio
+            </div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: 'var(--text3)', marginTop: 4 }}>
+              Sign out from this session. You will need to log in again to access your account.
+            </div>
+          </div>
+          <button 
+            className="btn-secondary" 
+            style={{ minHeight: '44px' }}
+            onClick={handleLogout}
+          >
+            Log Out
           </button>
         </div>
       </div>

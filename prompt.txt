@@ -1,0 +1,26 @@
+
+1. UI pr glassmorphis effect chahiye navbaar side se rounded and glass effect se saath cards as well
+  2. contact wale section me ek proper proper feedback section banao jaha pr user improvemet feed back de sake
+  
+  3. jab bhi user website pr visit kre usse sirf ek baar ek feedback wala popup aana chahiye ( din me ek baar not again and again jab bhi user visit krega sift ek baar feedback
+  popup aayega
+
+
+
+## additional features working on it:: 
+
+
+1. PDF Compressor (File Size Reducer): 
+2. Real-Time Document Previewer:  
+3. Interactive Drag-and-Drop Page Reordering: 
+
+
+
+
+
+
+
+
+
+
+

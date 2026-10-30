@@ -62,6 +62,207 @@ def excel_to_pdf(input_path, output_path):
         elements.append(t)
     doc.build(elements)
 
+# 5. Compress PDF
+def compress_pdf(input_path, output_path, level="recommended"):
+    import fitz  # PyMuPDF
+    import os
+    import shutil
+
+    if not os.path.exists(input_path):
+        raise FileNotFoundError(f"Input file not found: {input_path}")
+
+    orig_size = os.path.getsize(input_path)
+
+    # Determine downsample & compression parameters based on level
+    if level == "extreme":
+        dpi_target = 96
+        quality = 40
+    elif level == "low":
+        dpi_target = 220
+        quality = 82
+    else:  # recommended / balanced
+        dpi_target = 150
+        quality = 65
+
+    doc = fitz.open(input_path)
+
+    # 1. Rewrite and compress embedded images cleanly without corrupting streams or dimensions
+    try:
+        doc.rewrite_images(
+            quality=quality,
+            dpi_target=dpi_target,
+            lossy=True,
+            lossless=True,
+            bitonal=True,
+            color=True,
+            gray=True
+        )
+    except Exception:
+        pass
+
+    # 2. Subset embedded fonts where applicable to drop unused glyphs
+    try:
+        doc.subset_fonts()
+    except Exception:
+        pass
+
+    # 3. Save with stream deflation, font/image deflation, and deep garbage collection
+    # Note: clean=False is critical because clean=True expands/decompresses content streams.
+    try:
+        doc.save(
+            output_path,
+            garbage=4,
+            deflate=True,
+            deflate_images=True,
+            deflate_fonts=True
+        )
+    except Exception:
+        doc.save(output_path, garbage=3, deflate=True)
+    finally:
+        doc.close()
+
+    # 4. Strict Compression Safeguard:
+    # A compressor must NEVER produce a file larger than the original input.
+    # If optimization didn't reduce size (e.g., file already maximally compressed),
+    # fallback to original file so the user never gets an inflated document.
+    if os.path.exists(output_path):
+        out_size = os.path.getsize(output_path)
+        if out_size >= orig_size:
+            shutil.copyfile(input_path, output_path)
+
+# 6. Compress Image
+def compress_image(input_path, output_path, level="recommended"):
+    from PIL import Image, ImageOps
+    import os
+    import shutil
+
+    if not os.path.exists(input_path):
+        raise FileNotFoundError(f"Input file not found: {input_path}")
+
+    orig_size = os.path.getsize(input_path)
+
+    with Image.open(input_path) as img:
+        # Correct orientation based on EXIF tag
+        try:
+            img = ImageOps.exif_transpose(img)
+        except Exception:
+            pass
+
+        if level == "extreme":
+            quality = 40
+            max_dim = 1280
+        elif level == "low":
+            quality = 85
+            max_dim = 2560
+        else:  # recommended
+            quality = 68
+            max_dim = 1920
+
+        # Maintain aspect ratio and scale down if larger than max_dim
+        w, h = img.size
+        if max(w, h) > max_dim:
+            scale = max_dim / float(max(w, h))
+            new_size = (max(1, int(w * scale)), max(1, int(h * scale)))
+            img = img.resize(new_size, Image.Resampling.LANCZOS)
+
+        ext = os.path.splitext(output_path)[1].lower()
+
+        if ext in [".jpg", ".jpeg"]:
+            if img.mode in ("RGBA", "P", "LA"):
+                # Fill transparent areas with white background
+                bg = Image.new("RGB", img.size, (255, 255, 255))
+                if img.mode == "RGBA":
+                    bg.paste(img, mask=img.split()[3])
+                else:
+                    bg.paste(img.convert("RGBA"), mask=img.convert("RGBA").split()[3])
+                img = bg
+            elif img.mode != "RGB":
+                img = img.convert("RGB")
+            img.save(output_path, "JPEG", optimize=True, quality=quality)
+
+        elif ext == ".png":
+            if level == "extreme":
+                if img.mode == "RGBA":
+                    img_q = img.quantize(colors=128, method=Image.Quantize.MEDIANCUT)
+                    img_q.save(output_path, "PNG", optimize=True)
+                else:
+                    img_rgb = img.convert("RGB")
+                    img_q = img_rgb.quantize(colors=128)
+                    img_q.save(output_path, "PNG", optimize=True)
+            elif level == "recommended":
+                if img.mode == "RGBA":
+                    img_q = img.quantize(colors=256, method=Image.Quantize.MEDIANCUT)
+                    img_q.save(output_path, "PNG", optimize=True)
+                else:
+                    img.save(output_path, "PNG", optimize=True)
+            else:
+                img.save(output_path, "PNG", optimize=True)
+
+        elif ext == ".webp":
+            img.save(output_path, "WEBP", optimize=True, quality=quality)
+        else:
+            img.save(output_path, optimize=True, quality=quality)
+
+    # Safeguard: Never produce larger file than original
+    if os.path.exists(output_path):
+        out_size = os.path.getsize(output_path)
+        if out_size >= orig_size:
+            shutil.copyfile(input_path, output_path)
+
+# 7. Remove Background
+def remove_background(input_path, output_path):
+    from PIL import Image, ImageOps
+    from rembg import remove, new_session
+    import os
+
+    if not os.path.exists(input_path):
+        raise FileNotFoundError(f"Input file not found: {input_path}")
+
+    with Image.open(input_path) as img:
+        try:
+            img = ImageOps.exif_transpose(img)
+        except Exception:
+            pass
+
+        # Memory & Speed Optimization for Render / Production:
+        # Scale down excessively large images (e.g. 12MP+ camera uploads)
+        # 1400px preserves ultra crisp passport & print details while preventing OOM crashes
+        max_dim = 1400
+        w, h = img.size
+        if max(w, h) > max_dim:
+            resample_filter = getattr(getattr(Image, 'Resampling', Image), 'LANCZOS', Image.LANCZOS)
+            img.thumbnail((max_dim, max_dim), resample_filter)
+
+        # Use u2netp (lightweight 4.5MB model) for fast inference and minimal RAM usage on Render
+        try:
+            session = new_session('u2netp')
+            result = remove(img, session=session)
+        except Exception:
+            # Fallback to standard remove
+            result = remove(img)
+
+        result.save(output_path, "PNG")
+
+# 8. Unlock PDF (Remove Password)
+def remove_pdf_password(input_path, output_path, password=""):
+    import fitz
+    import os
+    import sys
+
+    if not os.path.exists(input_path):
+        raise FileNotFoundError(f"Input file not found: {input_path}")
+
+    doc = fitz.open(input_path)
+    if doc.is_encrypted:
+        authenticated = doc.authenticate(password or "")
+        if not authenticated:
+            doc.close()
+            sys.stderr.write("ERROR_INCORRECT_PASSWORD\n")
+            sys.exit(2)
+
+    doc.save(output_path, encryption=fitz.PDF_ENCRYPT_NONE, garbage=3, deflate=True)
+    doc.close()
+
 if __name__ == "__main__":
     import sys
     import json
@@ -94,3 +295,30 @@ if __name__ == "__main__":
         input_path = sys.argv[2]
         output_path = sys.argv[3]
         excel_to_pdf(input_path, output_path)
+
+    elif command == "compress_pdf":
+        # args: input_path, output_path, [level]
+        input_path = sys.argv[2]
+        output_path = sys.argv[3]
+        level = sys.argv[4] if len(sys.argv) > 4 else "recommended"
+        compress_pdf(input_path, output_path, level)
+
+    elif command == "compress_image":
+        # args: input_path, output_path, [level]
+        input_path = sys.argv[2]
+        output_path = sys.argv[3]
+        level = sys.argv[4] if len(sys.argv) > 4 else "recommended"
+        compress_image(input_path, output_path, level)
+
+    elif command == "remove_background":
+        # args: input_path, output_path
+        input_path = sys.argv[2]
+        output_path = sys.argv[3]
+        remove_background(input_path, output_path)
+
+    elif command == "remove_pdf_password":
+        # args: input_path, output_path, [password]
+        input_path = sys.argv[2]
+        output_path = sys.argv[3]
+        password = sys.argv[4] if len(sys.argv) > 4 else ""
+        remove_pdf_password(input_path, output_path, password)
