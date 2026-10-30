@@ -209,57 +209,79 @@ def compress_image(input_path, output_path, level="recommended"):
         if out_size >= orig_size:
             shutil.copyfile(input_path, output_path)
 
-# 7. Remove Background
+# 7. Remove Background (Pure ONNX Runtime - Ultra-lightweight ~65MB RAM)
 def remove_background(input_path, output_path):
-    from PIL import Image, ImageOps
-    from rembg import remove, new_session
-    import onnxruntime as ort
     import os
+    import gc
+    import numpy as np
+    from PIL import Image, ImageOps
+    import onnxruntime as ort
 
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"Input file not found: {input_path}")
 
-    with Image.open(input_path) as img:
-        try:
-            img = ImageOps.exif_transpose(img)
-        except Exception:
-            pass
+    # Model path: local bundled u2netp.onnx (4.5MB)
+    model_path = os.path.join(os.path.dirname(__file__), 'models', 'u2netp.onnx')
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"u2netp model not found at {model_path}")
 
-        # Memory & Speed Optimization for Render Free Tier (512MB RAM cap):
-        # 1. Downscale large camera photos to 800px max dimension.
-        # u2netp internally maps to a 320x320 grid, so 800px delivers 100% precision
-        # while keeping RAM usage well under 180MB.
-        max_dim = 800
+    # Strict memory constraints for Render free tier (512MB RAM cap)
+    sess_opts = ort.SessionOptions()
+    sess_opts.intra_op_num_threads = 1
+    sess_opts.inter_op_num_threads = 1
+    sess_opts.enable_cpu_mem_arena = False
+    sess_opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+    sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_BASIC
+
+    session = ort.InferenceSession(model_path, sess_opts, providers=['CPUExecutionProvider'])
+
+    with Image.open(input_path) as raw_img:
+        try:
+            img = ImageOps.exif_transpose(raw_img)
+        except Exception:
+            img = raw_img
+
+        # Limit maximum dimension to 1200px to avoid memory spikes on massive camera raw files
+        max_dim = 1200
         w, h = img.size
         if max(w, h) > max_dim:
             resample_filter = getattr(getattr(Image, 'Resampling', Image), 'LANCZOS', Image.LANCZOS)
             img.thumbnail((max_dim, max_dim), resample_filter)
+        
+        orig_w, orig_h = img.size
 
-        # 2. Constrain ONNX Runtime memory allocation:
-        # Disabling memory arena pre-allocation saves ~280MB of RAM!
-        sess_opts = ort.SessionOptions()
-        sess_opts.intra_op_num_threads = 1
-        sess_opts.inter_op_num_threads = 1
-        sess_opts.enable_cpu_mem_arena = False
-        sess_opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
-        sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_BASIC
+        # Preprocessing: convert to RGB, resize to 320x320, normalize
+        img_rgb = img.convert('RGB')
+        resized = img_rgb.resize((320, 320), Image.Resampling.BILINEAR)
+        arr = np.array(resized, dtype=np.float32) / 255.0
+        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+        std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        norm = (arr - mean) / std
+        tensor = np.transpose(norm, (2, 0, 1))[np.newaxis, ...]
 
-        # Use local u2netp (4.5MB model) bundled in repo for 0.3s instant loading with zero network delay
-        local_model_path = os.path.join(os.path.dirname(__file__), 'models', 'u2netp.onnx')
-        if os.path.exists(local_model_path):
-            session = new_session('u2netp', sess_opts=sess_opts, model_path=local_model_path)
+        # Run ONNX inference
+        input_name = session.get_inputs()[0].name
+        output_name = session.get_outputs()[0].name
+        pred = session.run([output_name], {input_name: tensor})[0]
+
+        # Post-processing: extract mask & normalize to 0..255
+        mask = pred[0, 0, :, :]
+        ma, mi = np.max(mask), np.min(mask)
+        if ma > mi:
+            mask = (mask - mi) / (ma - mi)
         else:
-            session = new_session('u2netp', sess_opts=sess_opts)
+            mask = np.zeros_like(mask)
 
-        result = remove(img, session=session)
+        mask_img = Image.fromarray((mask * 255).astype(np.uint8), mode='L')
+        mask_full = mask_img.resize((orig_w, orig_h), Image.Resampling.BILINEAR)
 
-        result.save(output_path, "PNG")
+        # Apply mask as alpha channel
+        cutout = img.convert('RGBA')
+        cutout.putalpha(mask_full)
+        cutout.save(output_path, 'PNG', optimize=True)
 
-        # Explicit garbage collection to instantly free memory on Render
-        del img
-        del result
-        del session
-        import gc
+        # Cleanup memory immediately
+        del img, img_rgb, resized, arr, norm, tensor, pred, mask, mask_img, mask_full, cutout, session
         gc.collect()
 
 # 8. Unlock PDF (Remove Password)

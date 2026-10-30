@@ -6,4 +6,5 @@ reportlab
 docxcompose
 PyMuPDF
 Pillow
-rembg
+onnxruntime
+numpy
