@@ -39,7 +39,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Token', 'X-Original-Filename'],
   exposedHeaders: ['Content-Disposition', 'X-Original-Filename'],
 }));
-app.options('*', cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

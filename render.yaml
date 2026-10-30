@@ -3,7 +3,7 @@ services:
     name: format-tool-backend
     runtime: node
     rootDir: server
-    buildCommand: npm install && pip3 install -r requirements.txt && python3 -c "import rembg; rembg.new_session('u2netp')"
+    buildCommand: npm install && pip install -r requirements.txt
     startCommand: npm start
     envVars:
       - key: PORT
