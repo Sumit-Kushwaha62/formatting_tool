@@ -8,6 +8,8 @@ let supabase = null;
 try {
   if (supabaseUrl && supabaseKey) {
     supabase = createClient(supabaseUrl, supabaseKey);
+  } else {
+    console.warn('Supabase credentials missing: SUPABASE_URL or SUPABASE_SERVICE_KEY not provided.');
   }
 } catch (supaErr) {
   console.warn('Supabase initialization fallback:', supaErr.message);
